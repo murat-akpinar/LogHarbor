@@ -2,14 +2,19 @@
 """Minimal webhook receiver for the anomaly test harness.
 
 Appends each POST body (LogHarbor alert payload) to webhook.log with a UTC timestamp
-and echoes it. Binds 127.0.0.1 only (the alert evaluator runs on the same host).
-Usage: python3 webhook-listener.py [port]   # default 9099
+and echoes it.
+Usage: python3 webhook-listener.py [port] [bind_host]   # default 9099 127.0.0.1
+
+bind_host defaults to 127.0.0.1 (loopback only). When LogHarbor runs in a container it
+cannot reach the host's 127.0.0.1, so bind to the docker bridge gateway (e.g. 172.19.0.1)
+instead — reachable from the container but still off the LAN.
 """
 import datetime
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 9099
+BIND = sys.argv[2] if len(sys.argv) > 2 else "127.0.0.1"
 LOG = "webhook.log"
 
 
@@ -30,5 +35,5 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"listening on 127.0.0.1:{PORT}, appending to {LOG}", flush=True)
-    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    print(f"listening on {BIND}:{PORT}, appending to {LOG}", flush=True)
+    HTTPServer((BIND, PORT), Handler).serve_forever()

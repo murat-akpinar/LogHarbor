@@ -11,8 +11,10 @@ if [ -f "$SCRIPT_DIR/.env" ]; then set -a; . "$SCRIPT_DIR/.env"; set +a; fi
 
 : "${LOGHARBOR_URL:?set LOGHARBOR_URL in .env}"
 : "${LOGHARBOR_API_KEY:?set LOGHARBOR_API_KEY in .env}"
-OP_TEMPLATE="${OP_TEMPLATE:-DB query {Query} took {Elapsed} ms}"
-OP_QUERY="${OP_QUERY:-SELECT * FROM orders WHERE status='open'}"
+# NB: don't inline these defaults as ${VAR:-...} — the } inside {Query}/{Elapsed} closes the
+# expansion early and corrupts the value. Assign the default separately (single-quoted, literal).
+OP_TEMPLATE="${OP_TEMPLATE:-}"; [ -n "$OP_TEMPLATE" ] || OP_TEMPLATE='DB query {Query} took {Elapsed} ms'
+OP_QUERY="${OP_QUERY:-}"; [ -n "$OP_QUERY" ] || OP_QUERY="SELECT * FROM orders WHERE status='open'"
 BASELINE_MS="${BASELINE_MS:-60}"
 RAMP_STEP_MS="${RAMP_STEP_MS:-40}"
 RAMP_MAX_MS="${RAMP_MAX_MS:-600}"
@@ -24,6 +26,9 @@ ALERT_THRESHOLD_MS="${ALERT_THRESHOLD_MS:-200}"
 ALERT_COUNT="${ALERT_COUNT:-10}"
 ALERT_WINDOW_MIN="${ALERT_WINDOW_MIN:-5}"
 WEBHOOK_PORT="${WEBHOOK_PORT:-9099}"
+# host the LogHarbor server uses to reach the listener. 127.0.0.1 when both run on bare metal;
+# the docker bridge gateway (e.g. 172.19.0.1) when LogHarbor runs in a container.
+WEBHOOK_HOST="${WEBHOOK_HOST:-127.0.0.1}"
 STATE_FILE="${STATE_FILE:-$SCRIPT_DIR/.state}"
 
 COOKIEJAR=""
@@ -114,13 +119,19 @@ cmd_check() {
   [ -f "$STATE_FILE" ] || { echo "no state; run seed-baseline first" >&2; exit 1; }
   . "$STATE_FILE"
   login
-  local to
+  local to resp
   to=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-  curl -sS -b "$COOKIEJAR" \
-    "$LOGHARBOR_URL/api/stats/slow-operations?from=$ANOMALY_START_ISO&to=$to&minSamples=10&floorMs=40" \
-  | python3 - <<'PY'
+  # capture the response and pass it as argv: `python3 - <<'PY'` already uses stdin for the
+  # program, so a piped body would be swallowed by the heredoc.
+  resp=$(curl -sS -b "$COOKIEJAR" \
+    "$LOGHARBOR_URL/api/stats/slow-operations?from=$ANOMALY_START_ISO&to=$to&minSamples=10&floorMs=40")
+  python3 - "$resp" <<'PY'
 import sys, json
-ops = json.load(sys.stdin).get("operations", [])
+try:
+    ops = json.loads(sys.argv[1]).get("operations", [])
+except (ValueError, IndexError):
+    print("  bad/empty response:", (sys.argv[1] if len(sys.argv) > 1 else "")[:200])
+    sys.exit(1)
 if not ops:
     print("  not yet: no operation is >=2x its baseline in this window")
 for o in ops:
@@ -152,9 +163,9 @@ cmd_setup_alert() {
   else
     curl -sS -o /dev/null -w 'alert create: HTTP %{http_code}\n' -b "$COOKIEJAR" \
       -X POST "$LOGHARBOR_URL/api/alerts" -H 'Content-Type: application/json' \
-      -d "{\"title\":\"anomaly-sim alert\",\"signalId\":$sid,\"thresholdCount\":$ALERT_COUNT,\"windowMinutes\":$ALERT_WINDOW_MIN,\"webhookUrl\":\"http://127.0.0.1:$WEBHOOK_PORT/\",\"isEnabled\":true}"
+      -d "{\"title\":\"anomaly-sim alert\",\"signalId\":$sid,\"thresholdCount\":$ALERT_COUNT,\"windowMinutes\":$ALERT_WINDOW_MIN,\"webhookUrl\":\"http://$WEBHOOK_HOST:$WEBHOOK_PORT/\",\"isEnabled\":true}"
   fi
-  echo "signal id=$sid ('Elapsed > $ALERT_THRESHOLD_MS') -> webhook http://127.0.0.1:$WEBHOOK_PORT/"
+  echo "signal id=$sid ('Elapsed > $ALERT_THRESHOLD_MS') -> webhook http://$WEBHOOK_HOST:$WEBHOOK_PORT/"
 }
 
 case "${1:-}" in

@@ -25,3 +25,4 @@ todo.md
 test/anomaly-test/.state
 test/anomaly-test/webhook.log
 test/anomaly-test/tick.log
+test/anomaly-test/__pycache__/
