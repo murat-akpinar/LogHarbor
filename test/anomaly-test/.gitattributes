@@ -1,0 +1,4 @@
+# Shell + python must stay LF: this harness runs on the Linux test server, and a CRLF
+# shebang/line breaks bash. Force LF regardless of the repo's core.autocrlf.
+*.sh text eol=lf
+*.py text eol=lf
