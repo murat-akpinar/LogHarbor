@@ -41,7 +41,8 @@ Grounding facts verified in the codebase:
 
 ## Goal
 
-A reusable test harness under `tools/anomaly-test/` that:
+A reusable test harness under `test/anomaly-test/` (sibling to the existing
+`test/scripts/seed-demo.ps1`) that:
 1. Seeds a normal-latency **baseline** instantly (backfilled past timestamps).
 2. Runs a cron-driven **live ramp** that gradually raises the duration.
 3. Trips **both** detectors: the `slow-operations` regression and an `Elapsed > N`
@@ -155,13 +156,25 @@ key and admin password live only in `.env` on the test server for the actual run
 ## Files
 
 - **New**
-  - `tools/anomaly-test/anomaly-sim.sh`
-  - `tools/anomaly-test/webhook-listener.py`
-  - `tools/anomaly-test/.env.example`
-  - `tools/anomaly-test/README.md`
+  - `test/anomaly-test/anomaly-sim.sh`
+  - `test/anomaly-test/webhook-listener.py`
+  - `test/anomaly-test/.env.example`
+  - `test/anomaly-test/README.md`
 - **Modify**
-  - `.gitignore` — ignore `tools/anomaly-test/.env`, `webhook.log`, and the state file
+  - `.gitignore` — ignore `test/anomaly-test/.env`, `webhook.log`, and the state file
     if it lands in-tree.
+
+## Sibling context (existing `test/scripts/seed-demo.ps1`)
+
+- The existing seed script is PowerShell for local Windows dev against `localhost:5000`;
+  this harness is `bash` because it runs from **cron on the Linux test server**.
+- seed-demo emits duration as **`DurationMs`**, but `slow-operations` defaults to
+  **`Elapsed`**. The harness uses `Elapsed` so it triggers with no property override.
+  That default mismatch (demo data vs. the feature's default property) is itself a
+  candidate finding for the README's improvement section.
+- seed-demo works around a **Secure** session cookie being un-replayable over plain
+  HTTP (localhost dev default). On the test server `AllowInsecureCookie=true` makes the
+  cookie non-Secure, so `curl -c/-b` replays it over HTTP without that workaround.
 
 ## Non-goals
 
