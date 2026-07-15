@@ -9,6 +9,7 @@ import { SignalsPage } from './pages/SignalsPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { useTheme } from './hooks/useTheme'
+import { LanguageProvider } from './i18n'
 
 const queryClient = new QueryClient()
 
@@ -17,23 +18,25 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <LoginGate>
-          <div className="flex h-screen flex-col bg-bg text-fg">
-            <NavBar theme={theme} onToggleTheme={toggleTheme} />
-            <main className="min-h-0 flex-1">
-              <Routes>
-                <Route path="/" element={<EventsPage />} />
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/analysis" element={<AnalysisPage />} />
-                <Route path="/signals" element={<SignalsPage />} />
-                <Route path="/alerts" element={<AlertsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Routes>
-            </main>
-          </div>
-        </LoginGate>
-      </BrowserRouter>
+      <LanguageProvider>
+        <BrowserRouter>
+          <LoginGate>
+            <div className="flex h-screen flex-col bg-bg text-fg">
+              <NavBar theme={theme} onToggleTheme={toggleTheme} />
+              <main className="min-h-0 flex-1">
+                <Routes>
+                  <Route path="/" element={<EventsPage />} />
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/analysis" element={<AnalysisPage />} />
+                  <Route path="/signals" element={<SignalsPage />} />
+                  <Route path="/alerts" element={<AlertsPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Routes>
+              </main>
+            </div>
+          </LoginGate>
+        </BrowserRouter>
+      </LanguageProvider>
     </QueryClientProvider>
   )
 }
