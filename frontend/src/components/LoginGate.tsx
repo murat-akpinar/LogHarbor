@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { useAuthStatus, useChangePassword, useLogin } from '../hooks/useAuth'
+import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Card } from './ui/Card'
 
 function Shell({ children }: { children: ReactNode }) {
+  const { t } = useI18n()
   return (
     <div className="relative flex h-screen items-center justify-center bg-bg">
       {/* a faint accent wash behind the card: the only decorative flourish in the app */}
@@ -18,7 +20,7 @@ function Shell({ children }: { children: ReactNode }) {
           <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
           LogHarbor
         </h1>
-        <p className="mb-5 text-xs text-fg-muted">Structured log server</p>
+        <p className="mb-5 text-xs text-fg-muted">{t.login.tagline}</p>
         {children}
       </Card>
     </div>
@@ -31,9 +33,10 @@ function Shell({ children }: { children: ReactNode }) {
  */
 export function LoginGate({ children }: { children: ReactNode }) {
   const { data: status, isLoading } = useAuthStatus()
+  const { t } = useI18n()
 
   if (isLoading) {
-    return <p className="p-4 text-sm text-fg-muted">Loading…</p>
+    return <p className="p-4 text-sm text-fg-muted">{t.common.loading}</p>
   }
   if (!status) {
     return <>{children}</>
@@ -48,6 +51,7 @@ export function LoginGate({ children }: { children: ReactNode }) {
 }
 
 function LoginForm() {
+  const { t } = useI18n()
   const loginMutation = useLogin()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -61,7 +65,7 @@ function LoginForm() {
       setUsername('')
       setPassword('')
     } catch (loginError) {
-      setError(loginError instanceof Error ? loginError.message : 'Login failed.')
+      setError(loginError instanceof Error ? loginError.message : t.login.loginFailed)
     }
   }
 
@@ -72,7 +76,7 @@ function LoginForm() {
           type="text"
           value={username}
           onChange={(event) => setUsername(event.target.value)}
-          placeholder="Username"
+          placeholder={t.login.username}
           autoFocus
           autoComplete="username"
           className="mb-2 w-full"
@@ -81,12 +85,12 @@ function LoginForm() {
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
+          placeholder={t.login.password}
           autoComplete="current-password"
           className="mb-2 w-full"
         />
         <Button type="submit" variant="primary" disabled={loginMutation.isPending} className="mt-1 w-full">
-          {loginMutation.isPending ? 'Signing in…' : 'Sign in'}
+          {loginMutation.isPending ? t.login.signingIn : t.login.signIn}
         </Button>
         {error && <p className="mt-3 text-xs text-level-error">{error}</p>}
       </form>
@@ -95,6 +99,7 @@ function LoginForm() {
 }
 
 function PasswordChangeForm() {
+  const { t } = useI18n()
   const changeMutation = useChangePassword()
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -105,28 +110,25 @@ function PasswordChangeForm() {
     event.preventDefault()
     setError(null)
     if (newPassword !== confirmPassword) {
-      setError('The two new passwords do not match.')
+      setError(t.login.passwordMismatch)
       return
     }
     try {
       await changeMutation.mutateAsync({ currentPassword, newPassword })
     } catch (changeError) {
-      setError(changeError instanceof Error ? changeError.message : 'Could not change the password.')
+      setError(changeError instanceof Error ? changeError.message : t.login.passwordChangeFailed)
     }
   }
 
   return (
     <Shell>
-      <p className="mb-3 text-xs text-fg-muted">
-        This account still has its default password. Pick a new one (at least 8 characters) to
-        continue.
-      </p>
+      <p className="mb-3 text-xs text-fg-muted">{t.login.defaultPasswordNotice}</p>
       <form onSubmit={handleSubmit}>
         <Input
           type="password"
           value={currentPassword}
           onChange={(event) => setCurrentPassword(event.target.value)}
-          placeholder="Current password"
+          placeholder={t.login.currentPassword}
           autoFocus
           autoComplete="current-password"
           className="mb-2 w-full"
@@ -135,7 +137,7 @@ function PasswordChangeForm() {
           type="password"
           value={newPassword}
           onChange={(event) => setNewPassword(event.target.value)}
-          placeholder="New password"
+          placeholder={t.login.newPassword}
           autoComplete="new-password"
           className="mb-2 w-full"
         />
@@ -143,12 +145,12 @@ function PasswordChangeForm() {
           type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
-          placeholder="Confirm new password"
+          placeholder={t.login.confirmNewPassword}
           autoComplete="new-password"
           className="mb-2 w-full"
         />
         <Button type="submit" variant="primary" disabled={changeMutation.isPending} className="mt-1 w-full">
-          {changeMutation.isPending ? 'Saving…' : 'Set password'}
+          {changeMutation.isPending ? t.login.saving : t.login.setPassword}
         </Button>
         {error && <p className="mt-3 text-xs text-level-error">{error}</p>}
       </form>
