@@ -1,10 +1,7 @@
 import type { Level } from '../types'
 import { LEVEL_TEXT } from '../lib/levels'
+import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
-
-function formatCompact(value: number): string {
-  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-}
 
 interface StatTileProps {
   label: string
@@ -14,11 +11,13 @@ interface StatTileProps {
 }
 
 export function StatTile({ label, value, tone = 'default' }: StatTileProps) {
+  const { lang } = useI18n()
   const toneClass = tone === 'default' ? 'text-fg' : LEVEL_TEXT[tone]
+  const compact = new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
   return (
     <Card className="px-4 py-3">
       <p className="text-xs text-fg-muted">{label}</p>
-      <p className={`tabular text-2xl font-semibold ${toneClass}`}>{formatCompact(value)}</p>
+      <p className={`tabular text-2xl font-semibold ${toneClass}`}>{compact}</p>
     </Card>
   )
 }

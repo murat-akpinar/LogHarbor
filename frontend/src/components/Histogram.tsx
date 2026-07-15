@@ -3,6 +3,7 @@ import type { HistogramBucket, Level } from '../types'
 import { LEVELS, LEVEL_HEX } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
 import { niceCeil } from '../lib/niceScale'
+import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
 
 const PLOT_HEIGHT_PX = 160
@@ -11,8 +12,8 @@ function sumCounts(counts: Record<Level, number>): number {
   return LEVELS.reduce((total, level) => total + counts[level], 0)
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+function formatTime(iso: string, locale: string): string {
+  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
 }
 
 interface TooltipProps {
@@ -20,10 +21,11 @@ interface TooltipProps {
 }
 
 function BucketTooltip({ bucket }: TooltipProps) {
+  const { t, lang } = useI18n()
   const total = sumCounts(bucket.counts)
   return (
     <Card className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 p-2 text-xs">
-      <p className="mb-1 text-fg-muted">{formatTimestamp(bucket.start)}</p>
+      <p className="mb-1 text-fg-muted">{formatTimestamp(bucket.start, lang)}</p>
       {LEVELS.map((level) => (
         <div key={level} className="flex items-center gap-2 py-0.5">
           <span className="h-0.5 w-3 shrink-0 rounded-full" style={{ backgroundColor: LEVEL_HEX[level] }} />
@@ -32,7 +34,7 @@ function BucketTooltip({ bucket }: TooltipProps) {
         </div>
       ))}
       <div className="mt-1 flex justify-between border-t border-border pt-1">
-        <span className="text-fg-muted">Total</span>
+        <span className="text-fg-muted">{t.dashboard.total}</span>
         <span className="tabular font-semibold text-fg">{total}</span>
       </div>
     </Card>
@@ -49,6 +51,7 @@ interface HistogramProps {
 }
 
 export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: HistogramProps) {
+  const { t, lang } = useI18n()
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [drag, setDrag] = useState<{ anchor: number; head: number } | null>(null)
 
@@ -81,7 +84,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: Histogr
           className="flex w-10 shrink-0 flex-col justify-between text-right text-xs text-fg-muted"
           style={{ height: PLOT_HEIGHT_PX }}
         >
-          <span className="tabular">{niceMax.toLocaleString()}</span>
+          <span className="tabular">{niceMax.toLocaleString(lang)}</span>
           <span className="tabular">0</span>
         </div>
         <div
@@ -107,7 +110,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: Histogr
                 onFocus={() => setHoveredIndex(index)}
                 onBlur={() => setHoveredIndex(null)}
                 className="group relative flex h-full min-w-0 flex-1 flex-col-reverse gap-0.5 select-none"
-                aria-label={`${formatTimestamp(bucket.start)}: ${total} events`}
+                aria-label={t.dashboard.bucketAria(formatTimestamp(bucket.start, lang), total)}
               >
                 <span
                   className={`absolute inset-0 -m-px rounded-sm ${
@@ -135,7 +138,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: Histogr
       <div className="ml-12 flex gap-0.5">
         {buckets.map((bucket, index) => (
           <span key={bucket.start} className="min-w-0 flex-1 truncate text-center text-xs text-fg-muted">
-            {index % labelEvery === 0 ? formatTime(bucket.start) : ''}
+            {index % labelEvery === 0 ? formatTime(bucket.start, lang) : ''}
           </span>
         ))}
       </div>
@@ -146,7 +149,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: Histogr
             <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_HEX[level] }} />
             <span>{level}</span>
             <span className="tabular">
-              ({buckets.reduce((total, bucket) => total + bucket.counts[level], 0).toLocaleString()})
+              ({buckets.reduce((total, bucket) => total + bucket.counts[level], 0).toLocaleString(lang)})
             </span>
           </div>
         ))}

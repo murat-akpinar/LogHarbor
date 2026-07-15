@@ -1,8 +1,8 @@
 import { Fragment } from 'react'
 import type { HeatmapCell } from '../types'
 import { LEVEL_HEX } from '../lib/levels'
+import { useI18n } from '../i18n'
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 
 // sequential ramp: accent (quiet) -> warning -> error (busiest), so a glance at the hue alone
@@ -24,17 +24,18 @@ interface HeatmapProps {
 }
 
 export function Heatmap({ cells }: HeatmapProps) {
+  const { t, lang } = useI18n()
   const counts = new Map(cells.map((cell) => [cell.dayOfWeek * 24 + cell.hour, cell.count]))
   const max = Math.max(1, ...cells.map((cell) => cell.count))
 
   return (
     <div className="grid grid-cols-[auto_repeat(24,minmax(0,1fr))] gap-0.5">
-      {DAY_LABELS.map((day, dayOfWeek) => (
+      {t.dashboard.dayLabels.map((day, dayOfWeek) => (
         <Fragment key={day}>
           <span className="pr-2 text-right text-xs leading-4 text-fg-muted">{day}</span>
           {HOURS.map((hour) => {
             const count = counts.get(dayOfWeek * 24 + hour) ?? 0
-            const label = `${day} ${String(hour).padStart(2, '0')}:00 UTC — ${count.toLocaleString()} events`
+            const label = t.dashboard.cellAria(day, String(hour).padStart(2, '0'), count.toLocaleString(lang))
             return (
               <div
                 key={hour}

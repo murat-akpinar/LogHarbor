@@ -7,6 +7,7 @@ import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { LEVELS, LEVEL_HEX } from '../lib/levels'
+import { useI18n } from '../i18n'
 
 const DEFAULT_RANGE_HOURS = 24
 const ROW_LIMIT = 20
@@ -52,11 +53,12 @@ function Sparkline({ filter, color, from, to }: { filter: string; color: string;
 }
 
 /** ms with locale thousands grouping: 2559 -> "2.559 ms" (tr) / "2,559 ms" (en). */
-function formatMs(ms: number): string {
-  return `${Math.round(ms).toLocaleString()} ms`
+function formatMs(ms: number, locale: string): string {
+  return `${Math.round(ms).toLocaleString(locale)} ms`
 }
 
 export function AnalysisPage() {
+  const { t, lang } = useI18n()
   const [range, setRange] = useState(defaultRange)
   const navigate = useNavigate()
 
@@ -86,7 +88,7 @@ export function AnalysisPage() {
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-fg">Analysis</h1>
+        <h1 className="text-lg font-semibold text-fg">{t.analysis.title}</h1>
         <TimeRangePicker
           from={range.from}
           to={range.to}
@@ -99,17 +101,17 @@ export function AnalysisPage() {
       {queryError && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queryError.message}</p>}
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">Top errors</h2>
+        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.topErrors}</h2>
         <Card className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
-                <th className={TH_CLASS}>Message template</th>
-                <th className={TH_CLASS}>Level</th>
-                <th className={`${TH_CLASS} text-right`}>Count</th>
-                <th className={TH_CLASS}>Trend</th>
-                <th className={TH_CLASS}>First seen</th>
-                <th className={TH_CLASS}>Last seen</th>
+                <th className={TH_CLASS}>{t.analysis.messageTemplate}</th>
+                <th className={TH_CLASS}>{t.analysis.level}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.count}</th>
+                <th className={TH_CLASS}>{t.analysis.trend}</th>
+                <th className={TH_CLASS}>{t.analysis.firstSeen}</th>
+                <th className={TH_CLASS}>{t.analysis.lastSeen}</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +125,7 @@ export function AnalysisPage() {
                     {row.template}
                     {isNew(row) && (
                       <span className="ml-2 rounded border border-accent/30 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent">
-                        new
+                        {t.analysis.newBadge}
                       </span>
                     )}
                   </td>
@@ -139,28 +141,28 @@ export function AnalysisPage() {
                       to={range.to}
                     />
                   </td>
-                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.firstSeen)}</td>
-                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen)}</td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.firstSeen, lang)}</td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen, lang)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {errors.data?.errors.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">No errors in the selected range.</p>
+            <p className="p-3 text-sm text-fg-muted">{t.analysis.noErrors}</p>
           )}
         </Card>
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">Top exceptions</h2>
+        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.topExceptions}</h2>
         <Card className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
-                <th className={TH_CLASS}>Exception type</th>
-                <th className={`${TH_CLASS} text-right`}>Count</th>
-                <th className={TH_CLASS}>First seen</th>
-                <th className={TH_CLASS}>Last seen</th>
+                <th className={TH_CLASS}>{t.analysis.exceptionType}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.count}</th>
+                <th className={TH_CLASS}>{t.analysis.firstSeen}</th>
+                <th className={TH_CLASS}>{t.analysis.lastSeen}</th>
               </tr>
             </thead>
             <tbody>
@@ -168,30 +170,30 @@ export function AnalysisPage() {
                 <tr key={row.type} className="border-b border-border last:border-b-0">
                   <td className={`${TD_CLASS} font-mono`}>{row.type}</td>
                   <td className={`${TD_CLASS} tabular text-right`}>{row.count}</td>
-                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.firstSeen)}</td>
-                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen)}</td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.firstSeen, lang)}</td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen, lang)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {exceptions.data?.exceptions.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">No exceptions in the selected range.</p>
+            <p className="p-3 text-sm text-fg-muted">{t.analysis.noExceptions}</p>
           )}
         </Card>
       </section>
 
       <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">Slower than usual</h2>
+        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.slowerThanUsual}</h2>
         <Card className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
-                <th className={TH_CLASS}>Operation</th>
-                <th className={`${TH_CLASS} text-right`}>Usual p95</th>
-                <th className={`${TH_CLASS} text-right`}>Now p95</th>
-                <th className={`${TH_CLASS} text-right`}>× slower</th>
-                <th className={`${TH_CLASS} text-right`}>Count</th>
-                <th className={TH_CLASS}>Trend</th>
+                <th className={TH_CLASS}>{t.analysis.operation}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.usualP95}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.nowP95}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.slowerFactor}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.count}</th>
+                <th className={TH_CLASS}>{t.analysis.trend}</th>
               </tr>
             </thead>
             <tbody>
@@ -206,8 +208,8 @@ export function AnalysisPage() {
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
                 >
                   <td className={`${TD_CLASS} font-mono`}>{op.template}</td>
-                  <td className={`${TD_CLASS} tabular text-right`}>{formatMs(op.baselineP95)}</td>
-                  <td className={`${TD_CLASS} tabular text-right`}>{formatMs(op.currentP95)}</td>
+                  <td className={`${TD_CLASS} tabular text-right`}>{formatMs(op.baselineP95, lang)}</td>
+                  <td className={`${TD_CLASS} tabular text-right`}>{formatMs(op.currentP95, lang)}</td>
                   <td className={`${TD_CLASS} tabular text-right font-medium text-level-warning`}>
                     {(op.currentP95 / op.baselineP95).toFixed(1)}×
                   </td>
@@ -226,8 +228,9 @@ export function AnalysisPage() {
           </table>
           {slow.data?.operations.length === 0 && (
             <p className="p-3 text-sm text-fg-muted">
-              No operations are slower than usual. (Needs an <span className="font-mono">Elapsed</span> duration
-              property on your events.)
+              {t.analysis.noSlowOpsBefore}
+              <span className="font-mono">Elapsed</span>
+              {t.analysis.noSlowOpsAfter}
             </p>
           )}
         </Card>
