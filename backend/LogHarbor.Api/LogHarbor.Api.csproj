@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LogHarbor.Core\LogHarbor.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Migrations\*.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Single deployable: publish bundles the SPA build into wwwroot. The Docker image builds the
+       frontend in its own stage, so publishing there only needs to copy the already-built files. -->
+  <Target Name="PublishSpa" BeforeTargets="PrepareForPublish" Condition="Exists('$(SpaDistPath)')">
+    <ItemGroup>
+      <SpaFiles Include="$(SpaDistPath)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(SpaFiles)" DestinationFiles="@(SpaFiles->'wwwroot\%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+
+</Project>

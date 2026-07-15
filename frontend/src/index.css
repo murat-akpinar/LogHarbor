@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Token layer. Components name roles (surface, fg, accent), never raw palette
+   colours. @theme cannot switch on a class, so the values live as custom
+   properties on :root / :root.dark and @theme maps them into utility names.
+   Changing the palette means changing this file and nothing else.
+   --------------------------------------------------------------------------- */
+
+:root {
+  color-scheme: light;
+
+  --logharbor-bg: #f7f8f8;
+  --logharbor-surface: #ffffff;
+  --logharbor-surface-hover: #f1f2f3;
+  /* must stay distinct from surface: it carries selected rows and active tabs, which sit
+     *on* a surface and would otherwise be invisible in the light theme */
+  --logharbor-surface-raised: #e9ebee;
+
+  --logharbor-border: #e4e6e8;
+  --logharbor-border-strong: #c9cdd2;
+
+  --logharbor-fg: #16181b;
+  --logharbor-fg-muted: #5b6169;
+  --logharbor-fg-subtle: #8b9199;
+
+  /* #059669 on white was 3.77:1, short of the 4.5:1 body-text floor for 14px font-medium
+     button labels; #047857 clears it at 5.48:1 (WCAG relative-luminance contrast) */
+  --logharbor-accent: #047857;
+  --logharbor-accent-hover: #065f46;
+  --logharbor-accent-fg: #ffffff;
+
+  --logharbor-level-fatal: #be123c;
+  --logharbor-level-error: #dc2626;
+  --logharbor-level-warning: #b45309;
+  --logharbor-level-information: #52627a;
+  --logharbor-level-debug: #6b7280;
+  /* #94a3b8 was 2.56:1 as text; #6e7583 reaches 4.63:1 while staying lighter (quieter)
+     than --logharbor-level-debug's 4.83:1 */
+  --logharbor-level-verbose: #6e7583;
+
+  /* drop shadows read on light backgrounds; on dark they are replaced by a border */
+  --logharbor-shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px rgb(16 24 40 / 0.06);
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  /* a cool near-black: pure black is harsh on OLED, grey is lifeless */
+  --logharbor-bg: #0b0c0e;
+  --logharbor-surface: #131518;
+  --logharbor-surface-hover: #17191d;
+  --logharbor-surface-raised: #1b1e23;
+
+  --logharbor-border: #262a30;
+  --logharbor-border-strong: #3a3f47;
+
+  --logharbor-fg: #e8eaed;
+  --logharbor-fg-muted: #9ba1a9;
+  --logharbor-fg-subtle: #6b717a;
+
+  /* the same hex never reads the same in both themes, so the accent is tuned per theme */
+  --logharbor-accent: #34d399;
+  --logharbor-accent-hover: #6ee7b7;
+  --logharbor-accent-fg: #04120c;
+
+  --logharbor-level-fatal: #fb7185;
+  --logharbor-level-error: #f87171;
+  --logharbor-level-warning: #fbbf24;
+  --logharbor-level-information: #8fa3b8;
+  --logharbor-level-debug: #7c8590;
+  --logharbor-level-verbose: #5f6771;
+
+  --logharbor-shadow-card: 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+@theme {
+  --color-bg: var(--logharbor-bg);
+  --color-surface: var(--logharbor-surface);
+  --color-surface-hover: var(--logharbor-surface-hover);
+  --color-surface-raised: var(--logharbor-surface-raised);
+
+  --color-border: var(--logharbor-border);
+  --color-border-strong: var(--logharbor-border-strong);
+
+  --color-fg: var(--logharbor-fg);
+  --color-fg-muted: var(--logharbor-fg-muted);
+  --color-fg-subtle: var(--logharbor-fg-subtle);
+
+  --color-accent: var(--logharbor-accent);
+  --color-accent-hover: var(--logharbor-accent-hover);
+  --color-accent-fg: var(--logharbor-accent-fg);
+
+  --color-level-fatal: var(--logharbor-level-fatal);
+  --color-level-error: var(--logharbor-level-error);
+  --color-level-warning: var(--logharbor-level-warning);
+  --color-level-information: var(--logharbor-level-information);
+  --color-level-debug: var(--logharbor-level-debug);
+  --color-level-verbose: var(--logharbor-level-verbose);
+
+  --font-sans: "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --radius-card: 10px;
+  --shadow-card: var(--logharbor-shadow-card);
+
+  /* type scale: 11/13/15/18px. Line-heights are tight for xs/sm (the density used in the
+     event list and table cells) and ~1.5-1.6 for base/lg prose */
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+}
+
+/* cv05 = straight-tailed l, ss03 = single-storey a: fewer 1lI0O mix-ups in a log tool */
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: "cv05", "ss03";
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+}
+
+/* timestamps and counters must not jitter as the virtualized list scrolls */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* live-tail arrival flash (docs/frontend.md: new events prepend with highlight) */
+@keyframes tail-in {
+  from {
+    background-color: color-mix(in oklab, var(--color-accent) 22%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.animate-tail-in {
+  animation: tail-in 900ms ease-out;
+}

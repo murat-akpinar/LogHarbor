@@ -1,0 +1,18 @@
+services:
+  logharbor:
+    build: .
+    image: logharbor
+    container_name: logharbor
+    ports:
+      - "5000:5000"
+    volumes:
+      - logharbor-data:/data
+    environment:
+      - LOGHARBOR_ADMIN_PASSWORD=${LOGHARBOR_ADMIN_PASSWORD:-}
+    # health status is inherited from the Dockerfile HEALTHCHECK (GET /healthz)
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  logharbor-data:

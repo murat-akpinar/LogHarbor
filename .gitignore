@@ -1,0 +1,21 @@
+# build outputs
+bin/
+obj/
+dist/
+node_modules/
+
+# database & data
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# secrets
+.env
+
+# local agent / planning files (not published)
+.agent/
+.claude/
+CLAUDE.md
+rules.md
+todo.md

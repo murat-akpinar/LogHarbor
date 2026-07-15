@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogHarbor.Api", "LogHarbor.Api\LogHarbor.Api.csproj", "{8394F5AF-8C33-4005-8FF2-4A328D61C5F4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogHarbor.Core", "LogHarbor.Core\LogHarbor.Core.csproj", "{AD300C57-E505-4BDA-A832-76E678ECAEA8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LogHarbor.Tests", "LogHarbor.Tests\LogHarbor.Tests.csproj", "{8CB28212-8779-4FFA-AB20-893804CF9160}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8394F5AF-8C33-4005-8FF2-4A328D61C5F4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8394F5AF-8C33-4005-8FF2-4A328D61C5F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8394F5AF-8C33-4005-8FF2-4A328D61C5F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8394F5AF-8C33-4005-8FF2-4A328D61C5F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AD300C57-E505-4BDA-A832-76E678ECAEA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AD300C57-E505-4BDA-A832-76E678ECAEA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AD300C57-E505-4BDA-A832-76E678ECAEA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AD300C57-E505-4BDA-A832-76E678ECAEA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8CB28212-8779-4FFA-AB20-893804CF9160}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8CB28212-8779-4FFA-AB20-893804CF9160}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8CB28212-8779-4FFA-AB20-893804CF9160}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8CB28212-8779-4FFA-AB20-893804CF9160}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
