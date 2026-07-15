@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import { suggest, validateFilter } from '../api/events'
 import { getSuggestContext } from '../lib/suggestContext'
 import { useLocalStorage } from '../hooks/useLocalStorage'
+import { useI18n } from '../i18n'
 import { Input } from './ui/Input'
 
 const SUGGEST_DEBOUNCE_MS = 150
@@ -14,6 +15,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ initialText = '', onCommit }: SearchBarProps) {
+  const { t } = useI18n()
   const [text, setText] = useState(initialText)
   const [error, setError] = useState<string | null>(null)
   const [isValidating, setIsValidating] = useState(false)
@@ -97,10 +99,14 @@ export function SearchBar({ initialText = '', onCommit }: SearchBarProps) {
       if (result.valid) {
         commitValid(trimmed)
       } else {
-        setError(result.position !== undefined ? `${result.error} (position ${result.position})` : (result.error ?? 'Invalid filter'))
+        setError(
+          result.position !== undefined
+            ? t.filters.errorAtPosition(result.error ?? t.filters.invalidFilter, result.position)
+            : (result.error ?? t.filters.invalidFilter),
+        )
       }
     } catch {
-      setError('Could not validate filter; check your connection.')
+      setError(t.filters.validateConnectionError)
     } finally {
       setIsValidating(false)
     }

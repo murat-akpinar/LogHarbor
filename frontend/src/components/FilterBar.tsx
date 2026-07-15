@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { chipLabel, compileChips, parseChips, type Chip } from '../lib/filterChips'
+import { useI18n } from '../i18n'
 import { FilterEditor } from './FilterEditor'
 import { SearchBar } from './SearchBar'
 import { Button } from './ui/Button'
@@ -10,6 +11,7 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
+  const { t } = useI18n()
   const parsed = parseChips(initialText)
   const [chips, setChips] = useState<Chip[]>(parsed ?? [])
   // non-null => raw mode (a filter too complex for chips); null => chip mode
@@ -58,7 +60,7 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
             setRaw(null)
           }}
         >
-          Clear and use filters
+          {t.filters.clearAndUseFilters}
         </button>
       </div>
     )
@@ -80,7 +82,7 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
           </button>
           <button
             type="button"
-            aria-label="Remove filter"
+            aria-label={t.filters.removeFilter}
             className="rounded px-1 text-fg-muted hover:text-fg"
             onClick={() => commit(chips.filter((_, i) => i !== index))}
           >
@@ -90,7 +92,7 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
       ))}
       <div className="relative">
         <Button variant="secondary" onClick={() => setEditing((current) => (current ? null : { index: null }))}>
-          + Add filter
+          {t.filters.addFilter}
         </Button>
         {editing && (
           <FilterEditor
@@ -105,7 +107,7 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
         className="ml-auto text-xs text-fg-muted underline hover:text-fg"
         onClick={() => setRaw(compileChips(chips))}
       >
-        Edit as query
+        {t.filters.editAsQuery}
       </button>
     </div>
   )
