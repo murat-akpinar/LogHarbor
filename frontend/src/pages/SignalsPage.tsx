@@ -5,8 +5,10 @@ import { useIsAdmin } from '../hooks/useAuth'
 import { SignalForm } from '../components/SignalForm'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { useI18n } from '../i18n'
 
 function SignalRow({ signal, isAdmin }: { signal: Signal; isAdmin: boolean }) {
+  const { t } = useI18n()
   const [isEditing, setIsEditing] = useState(false)
   const updateSignal = useUpdateSignal()
   const deleteSignal = useDeleteSignal()
@@ -17,7 +19,7 @@ function SignalRow({ signal, isAdmin }: { signal: Signal; isAdmin: boolean }) {
         <SignalForm
           initialTitle={signal.title}
           initialFilter={signal.filter}
-          submitLabel="Save"
+          submitLabel={t.common.save}
           onCancel={() => setIsEditing(false)}
           onSubmit={async (request) => {
             await updateSignal.mutateAsync({ id: signal.id, request })
@@ -38,10 +40,10 @@ function SignalRow({ signal, isAdmin }: { signal: Signal; isAdmin: boolean }) {
         {isAdmin && (
           <div className="flex shrink-0 gap-2">
             <Button variant="ghost" onClick={() => setIsEditing(true)}>
-              Edit
+              {t.common.edit}
             </Button>
             <Button variant="danger" onClick={() => deleteSignal.mutate(signal.id)} disabled={deleteSignal.isPending}>
-              Delete
+              {t.common.delete}
             </Button>
           </div>
         )}
@@ -52,23 +54,24 @@ function SignalRow({ signal, isAdmin }: { signal: Signal; isAdmin: boolean }) {
 }
 
 export function SignalsPage() {
+  const { t } = useI18n()
   const { data: signals, isLoading, error } = useSignals()
   const createSignal = useCreateSignal()
   const isAdmin = useIsAdmin()
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4">
-      <h1 className="mb-4 text-lg font-semibold text-fg">Signals</h1>
+      <h1 className="mb-4 text-lg font-semibold text-fg">{t.signals.title}</h1>
 
       {isAdmin && (
         <Card className="mb-6 p-4">
-          <SignalForm submitLabel="Create" onSubmit={(request) => createSignal.mutateAsync(request)} />
+          <SignalForm submitLabel={t.common.create} onSubmit={(request) => createSignal.mutateAsync(request)} />
         </Card>
       )}
 
-      {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
+      {isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
       {error && <p className="text-sm text-level-error">{error.message}</p>}
-      {signals && signals.length === 0 && <p className="text-sm text-fg-muted">No signals yet.</p>}
+      {signals && signals.length === 0 && <p className="text-sm text-fg-muted">{t.signals.noSignals}</p>}
 
       {signals && signals.length > 0 && (
         <Card className="overflow-hidden">

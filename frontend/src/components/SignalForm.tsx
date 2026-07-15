@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { validateFilter } from '../api/events'
 import type { SignalRequest } from '../api/signals'
+import { useI18n } from '../i18n'
 import { Input } from './ui/Input'
 import { Button } from './ui/Button'
 
@@ -14,6 +15,7 @@ interface SignalFormProps {
 }
 
 export function SignalForm({ initialTitle = '', initialFilter = '', submitLabel, onSubmit, onCancel }: SignalFormProps) {
+  const { t } = useI18n()
   const [title, setTitle] = useState(initialTitle)
   const [filter, setFilter] = useState(initialFilter)
   const [error, setError] = useState<string | null>(null)
@@ -24,7 +26,7 @@ export function SignalForm({ initialTitle = '', initialFilter = '', submitLabel,
     const trimmedTitle = title.trim()
     const trimmedFilter = filter.trim()
     if (!trimmedTitle || !trimmedFilter) {
-      setError('Title and filter are both required.')
+      setError(t.signals.bothRequired)
       return
     }
 
@@ -33,7 +35,11 @@ export function SignalForm({ initialTitle = '', initialFilter = '', submitLabel,
     try {
       const validation = await validateFilter(trimmedFilter)
       if (!validation.valid) {
-        setError(validation.position !== undefined ? `${validation.error} (position ${validation.position})` : (validation.error ?? 'Invalid filter'))
+        setError(
+          validation.position !== undefined
+            ? t.filters.errorAtPosition(validation.error ?? t.filters.invalidFilter, validation.position)
+            : (validation.error ?? t.filters.invalidFilter),
+        )
         return
       }
       await onSubmit({ title: trimmedTitle, filter: trimmedFilter })
@@ -42,7 +48,7 @@ export function SignalForm({ initialTitle = '', initialFilter = '', submitLabel,
         setFilter('')
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Could not save signal.')
+      setError(submitError instanceof Error ? submitError.message : t.signals.couldNotSave)
     } finally {
       setIsSubmitting(false)
     }
@@ -54,7 +60,7 @@ export function SignalForm({ initialTitle = '', initialFilter = '', submitLabel,
         type="text"
         value={title}
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="Title"
+        placeholder={t.signals.titlePlaceholder}
         className="sm:w-48"
         disabled={isSubmitting}
       />
@@ -73,7 +79,7 @@ export function SignalForm({ initialTitle = '', initialFilter = '', submitLabel,
         </Button>
         {onCancel && (
           <Button variant="secondary" onClick={onCancel}>
-            Cancel
+            {t.common.cancel}
           </Button>
         )}
       </div>

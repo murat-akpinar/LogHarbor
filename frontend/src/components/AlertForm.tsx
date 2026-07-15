@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSignals } from '../hooks/useSignals'
 import type { AlertRequest } from '../api/alerts'
+import { useI18n } from '../i18n'
 import { Input } from './ui/Input'
 import { Select } from './ui/Select'
 import { Button } from './ui/Button'
@@ -23,6 +24,7 @@ const DEFAULTS: AlertRequest = {
 }
 
 export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFormProps) {
+  const { t } = useI18n()
   const { data: signals } = useSignals()
   const [form, setForm] = useState<AlertRequest>(initial ?? DEFAULTS)
   const [error, setError] = useState<string | null>(null)
@@ -31,7 +33,7 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     if (!form.title.trim() || !form.signalId || !form.webhookUrl.trim()) {
-      setError('Title, signal and webhook URL are all required.')
+      setError(t.alerts.allRequired)
       return
     }
     setIsSubmitting(true)
@@ -40,7 +42,7 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
       await onSubmit({ ...form, title: form.title.trim(), webhookUrl: form.webhookUrl.trim() })
       if (!initial) setForm(DEFAULTS)
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Could not save alert rule.')
+      setError(submitError instanceof Error ? submitError.message : t.alerts.couldNotSave)
     } finally {
       setIsSubmitting(false)
     }
@@ -53,7 +55,7 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           type="text"
           value={form.title}
           onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-          placeholder="Title"
+          placeholder={t.alerts.titlePlaceholder}
           className="sm:w-48"
           disabled={isSubmitting}
         />
@@ -63,7 +65,7 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           disabled={isSubmitting}
         >
           <option value="" disabled>
-            Select a signal…
+            {t.alerts.selectSignal}
           </option>
           {(signals ?? []).map((signal) => (
             <option key={signal.id} value={signal.id}>
@@ -76,8 +78,8 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           min={1}
           value={form.thresholdCount}
           onChange={(event) => setForm((current) => ({ ...current, thresholdCount: Number(event.target.value) }))}
-          placeholder="Count"
-          title="Threshold count"
+          placeholder={t.alerts.countPlaceholder}
+          title={t.alerts.thresholdTitle}
           className="w-20"
           disabled={isSubmitting}
         />
@@ -86,8 +88,8 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           min={1}
           value={form.windowMinutes}
           onChange={(event) => setForm((current) => ({ ...current, windowMinutes: Number(event.target.value) }))}
-          placeholder="Minutes"
-          title="Window (minutes)"
+          placeholder={t.alerts.minutesPlaceholder}
+          title={t.alerts.windowTitle}
           className="w-24"
           disabled={isSubmitting}
         />
@@ -106,7 +108,7 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
             onChange={(event) => setForm((current) => ({ ...current, isEnabled: event.target.checked }))}
             disabled={isSubmitting}
           />
-          Enabled
+          {t.alerts.enabledLabel}
         </label>
       </div>
       <div className="flex gap-2">
@@ -115,7 +117,7 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
         </Button>
         {onCancel && (
           <Button variant="secondary" onClick={onCancel}>
-            Cancel
+            {t.common.cancel}
           </Button>
         )}
       </div>
