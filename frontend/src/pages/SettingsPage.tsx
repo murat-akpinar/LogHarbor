@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Button } from '../components/ui/Button'
+import { useI18n } from '../i18n'
 
 const API_KEYS_KEY = ['apikeys']
 const ARCHIVE_SETTINGS_KEY = ['archive-settings']
@@ -31,6 +32,7 @@ function formatBytes(bytes: number): string {
 }
 
 function HealthCard() {
+  const { t, lang } = useI18n()
   const { data: health, error } = useQuery({ queryKey: ['health'], queryFn: getHealth })
 
   if (error) {
@@ -39,15 +41,15 @@ function HealthCard() {
   return (
     <dl className="grid grid-cols-3 gap-4 text-sm">
       <div>
-        <dt className="text-xs text-fg-muted">Status</dt>
+        <dt className="text-xs text-fg-muted">{t.settings.status}</dt>
         <dd className="text-fg">{health?.status ?? '—'}</dd>
       </div>
       <div>
-        <dt className="text-xs text-fg-muted">Events</dt>
-        <dd className="tabular text-fg">{health?.eventCount.toLocaleString() ?? '—'}</dd>
+        <dt className="text-xs text-fg-muted">{t.settings.events}</dt>
+        <dd className="tabular text-fg">{health?.eventCount.toLocaleString(lang) ?? '—'}</dd>
       </div>
       <div>
-        <dt className="text-xs text-fg-muted">Database size</dt>
+        <dt className="text-xs text-fg-muted">{t.settings.dbSize}</dt>
         <dd className="tabular text-fg">{health ? formatBytes(health.dbSizeBytes) : '—'}</dd>
       </div>
     </dl>
@@ -55,6 +57,7 @@ function HealthCard() {
 }
 
 function ApiKeysCard() {
+  const { t, lang } = useI18n()
   const isAdmin = useIsAdmin()
   const queryClient = useQueryClient()
   const { data: keys, isLoading, error } = useQuery({ queryKey: API_KEYS_KEY, queryFn: getApiKeys })
@@ -89,12 +92,12 @@ function ApiKeysCard() {
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Key title (optional), e.g. OrderService production"
+            placeholder={t.settings.keyTitlePlaceholder}
             mono
             className="flex-1"
           />
           <Button type="submit" variant="primary" disabled={create.isPending}>
-            Create key
+            {t.settings.createKey}
           </Button>
         </form>
       )}
@@ -105,27 +108,25 @@ function ApiKeysCard() {
           without reading loses data for good */}
       {createdKey && (
         <div className="mb-3 rounded-lg border border-level-warning/25 bg-level-warning/10 p-3">
-          <p className="mb-1 text-xs text-fg">
-            Copy this token now — it is shown only once and cannot be retrieved later.
-          </p>
+          <p className="mb-1 text-xs text-fg">{t.settings.copyTokenNotice}</p>
           <code className="block break-all font-mono text-xs text-fg">{createdKey.token}</code>
           <Button variant="ghost" onClick={() => setCreatedKey(null)} className="mt-2">
-            Dismiss
+            {t.common.dismiss}
           </Button>
         </div>
       )}
 
-      {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
+      {isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
       {error && <p className="text-sm text-level-error">{error.message}</p>}
-      {keys && keys.length === 0 && <p className="text-sm text-fg-muted">No API keys yet.</p>}
+      {keys && keys.length === 0 && <p className="text-sm text-fg-muted">{t.settings.noKeys}</p>}
 
       {keys && keys.length > 0 && (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-fg-muted">
-              <th className={TH_CLASS}>Title</th>
-              <th className={TH_CLASS}>Created</th>
-              <th className={TH_CLASS}>Status</th>
+              <th className={TH_CLASS}>{t.settings.colTitle}</th>
+              <th className={TH_CLASS}>{t.settings.colCreated}</th>
+              <th className={TH_CLASS}>{t.settings.colStatus}</th>
               <th />
             </tr>
           </thead>
@@ -133,16 +134,16 @@ function ApiKeysCard() {
             {keys.map((key) => (
               <tr key={key.id} className="border-b border-border last:border-b-0">
                 <td className={TD_CLASS}>{key.title}</td>
-                <td className="py-2 text-xs text-fg-muted">{formatTimestamp(key.createdAt)}</td>
+                <td className="py-2 text-xs text-fg-muted">{formatTimestamp(key.createdAt, lang)}</td>
                 <td className="py-2">
                   <span className={key.isActive ? 'text-accent' : 'text-fg-muted'}>
-                    {key.isActive ? 'Active' : 'Revoked'}
+                    {key.isActive ? t.settings.active : t.settings.revoked}
                   </span>
                 </td>
                 <td className="py-2 text-right">
                   {isAdmin && key.isActive && (
                     <Button variant="danger" onClick={() => revoke.mutate(key.id)} disabled={revoke.isPending}>
-                      Revoke
+                      {t.settings.revoke}
                     </Button>
                   )}
                 </td>
@@ -164,12 +165,14 @@ interface ArchiveFormState {
 function ArchiveField({
   label,
   hint,
+  unit,
   value,
   onChange,
   disabled,
 }: {
   label: string
   hint?: string
+  unit: string
   value: string
   onChange: (value: string) => void
   disabled: boolean
@@ -189,13 +192,14 @@ function ArchiveField({
           disabled={disabled}
           className="w-24 text-right"
         />
-        <span className="text-xs text-fg-muted">days</span>
+        <span className="text-xs text-fg-muted">{unit}</span>
       </span>
     </label>
   )
 }
 
 function ArchiveCard() {
+  const { t } = useI18n()
   const isAdmin = useIsAdmin()
   const queryClient = useQueryClient()
   const { data: settings, error } = useQuery({ queryKey: ARCHIVE_SETTINGS_KEY, queryFn: getArchiveSettings })
@@ -239,20 +243,23 @@ function ArchiveCard() {
     <div className="flex flex-col gap-4">
       <form onSubmit={handleSave} className="flex max-w-md flex-col gap-3">
         <ArchiveField
-          label="Compress events older than"
-          hint="(0 disables archiving)"
+          label={t.settings.compressAfter}
+          hint={t.settings.compressHint}
+          unit={t.settings.days}
           value={form?.compressAfterDays ?? ''}
           onChange={(value) => setForm((current) => current && { ...current, compressAfterDays: value })}
           disabled={!isAdmin}
         />
         <ArchiveField
-          label="Keep extracted data for"
+          label={t.settings.keepExtracted}
+          unit={t.settings.days}
           value={form?.hydrationKeepDays ?? ''}
           onChange={(value) => setForm((current) => current && { ...current, hydrationKeepDays: value })}
           disabled={!isAdmin}
         />
         <ArchiveField
-          label="Delete archives older than"
+          label={t.settings.deleteArchives}
+          unit={t.settings.days}
           value={form?.retentionDays ?? ''}
           onChange={(value) => setForm((current) => current && { ...current, retentionDays: value })}
           disabled={!isAdmin}
@@ -260,9 +267,9 @@ function ArchiveCard() {
         {isAdmin && (
           <div className="flex items-center gap-3">
             <Button type="submit" variant="primary" disabled={!form || save.isPending} className="self-start">
-              Save archive settings
+              {t.settings.saveArchive}
             </Button>
-            {save.isSuccess && <span className="text-xs text-accent">Saved</span>}
+            {save.isSuccess && <span className="text-xs text-accent">{t.settings.saved}</span>}
           </div>
         )}
         {save.error && <p className="text-xs text-level-error">{save.error.message}</p>}
@@ -270,15 +277,15 @@ function ArchiveCard() {
 
       <dl className="grid grid-cols-3 gap-4 border-t border-border pt-3 text-sm">
         <div>
-          <dt className="text-xs text-fg-muted">Archived days</dt>
+          <dt className="text-xs text-fg-muted">{t.settings.archivedDays}</dt>
           <dd className="tabular text-fg">{segments?.length ?? '—'}</dd>
         </div>
         <div>
-          <dt className="text-xs text-fg-muted">Compressed size</dt>
+          <dt className="text-xs text-fg-muted">{t.settings.compressedSize}</dt>
           <dd className="tabular text-fg">{segments ? formatBytes(totalSize) : '—'}</dd>
         </div>
         <div>
-          <dt className="text-xs text-fg-muted">Compression ratio</dt>
+          <dt className="text-xs text-fg-muted">{t.settings.compressionRatio}</dt>
           <dd className="tabular text-fg">{ratio ? `${ratio.toFixed(1)}×` : '—'}</dd>
         </div>
       </dl>
@@ -289,6 +296,7 @@ function ArchiveCard() {
 const ROLES: UserRole[] = ['viewer', 'admin']
 
 function UsersCard() {
+  const { t, lang } = useI18n()
   const { data: users, isLoading, error } = useUsers()
   const createUser = useCreateUser()
   const deleteUser = useDeleteUser()
@@ -306,19 +314,19 @@ function UsersCard() {
       setPassword('')
       setRole('viewer')
     } catch (createError) {
-      setFormError(createError instanceof Error ? createError.message : 'Could not create user.')
+      setFormError(createError instanceof Error ? createError.message : t.settings.couldNotCreateUser)
     }
   }
 
   return (
     <div>
       <form onSubmit={handleCreate} className="mb-3 flex flex-wrap gap-2">
-        <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Username" />
+        <Input type="text" value={username} onChange={(event) => setUsername(event.target.value)} placeholder={t.settings.username} />
         <Input
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
+          placeholder={t.settings.password}
         />
         <Select value={role} onChange={(event) => setRole(event.target.value as UserRole)}>
           {ROLES.map((option) => (
@@ -328,23 +336,23 @@ function UsersCard() {
           ))}
         </Select>
         <Button type="submit" variant="primary" disabled={createUser.isPending}>
-          Create user
+          {t.settings.createUser}
         </Button>
       </form>
 
       {formError && <p className="mb-3 text-xs text-level-error">{formError}</p>}
 
-      {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
+      {isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
       {error && <p className="text-sm text-level-error">{error.message}</p>}
-      {users && users.length === 0 && <p className="text-sm text-fg-muted">No users yet.</p>}
+      {users && users.length === 0 && <p className="text-sm text-fg-muted">{t.settings.noUsers}</p>}
 
       {users && users.length > 0 && (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-fg-muted">
-              <th className={TH_CLASS}>Username</th>
-              <th className={TH_CLASS}>Role</th>
-              <th className={TH_CLASS}>Created</th>
+              <th className={TH_CLASS}>{t.settings.username}</th>
+              <th className={TH_CLASS}>{t.settings.role}</th>
+              <th className={TH_CLASS}>{t.settings.colCreated}</th>
               <th />
             </tr>
           </thead>
@@ -353,10 +361,10 @@ function UsersCard() {
               <tr key={user.id} className="border-b border-border last:border-b-0">
                 <td className={TD_CLASS}>{user.username}</td>
                 <td className="py-2 text-fg-muted">{user.role}</td>
-                <td className="py-2 text-xs text-fg-muted">{formatTimestamp(user.createdAt)}</td>
+                <td className="py-2 text-xs text-fg-muted">{formatTimestamp(user.createdAt, lang)}</td>
                 <td className="py-2 text-right">
                   <Button variant="danger" onClick={() => deleteUser.mutate(user.id)} disabled={deleteUser.isPending}>
-                    Delete
+                    {t.common.delete}
                   </Button>
                 </td>
               </tr>
@@ -370,6 +378,7 @@ function UsersCard() {
 }
 
 export function SettingsPage() {
+  const { t } = useI18n()
   const { data: authStatus } = useAuthStatus()
   const isAdmin = useIsAdmin()
   const logoutMutation = useLogout()
@@ -377,35 +386,35 @@ export function SettingsPage() {
   return (
     <div className="flex h-full flex-col overflow-y-auto p-4">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-fg">Settings</h1>
+        <h1 className="text-lg font-semibold text-fg">{t.settings.title}</h1>
         {authStatus?.authRequired && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-fg-muted">
-              Signed in as {authStatus.username} ({authStatus.role})
+              {t.settings.signedInAs(authStatus.username ?? '', authStatus.role)}
             </span>
             <Button variant="secondary" onClick={() => logoutMutation.mutate()}>
-              Sign out
+              {t.settings.signOut}
             </Button>
           </div>
         )}
       </div>
 
       <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg">Health</h2>
+        <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.health}</h2>
         <Card className="p-4">
           <HealthCard />
         </Card>
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg">API keys</h2>
+        <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.apiKeys}</h2>
         <Card className="p-4">
           <ApiKeysCard />
         </Card>
       </section>
 
       <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg">Archiving</h2>
+        <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.archiving}</h2>
         <Card className="p-4">
           <ArchiveCard />
         </Card>
@@ -413,7 +422,7 @@ export function SettingsPage() {
 
       {isAdmin && (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg">Users</h2>
+          <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.users}</h2>
           <Card className="p-4">
             <UsersCard />
           </Card>
