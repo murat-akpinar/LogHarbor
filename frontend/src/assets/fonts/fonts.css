@@ -1,0 +1,17 @@
+/* CaskaydiaMono Nerd Font Mono (single-cell icon glyphs), self-hosted — see LICENSE (OFL).
+   Cascadia ships no 500 weight, so SemiBold covers Tailwind's font-medium through font-bold. */
+@font-face {
+  font-family: "CaskaydiaMono NF";
+  src: url("./CaskaydiaMonoNerdFontMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "CaskaydiaMono NF";
+  src: url("./CaskaydiaMonoNerdFontMono-SemiBold.woff2") format("woff2");
+  font-weight: 500 700;
+  font-style: normal;
+  font-display: swap;
+}

@@ -98,8 +98,8 @@
   --color-level-debug: var(--logharbor-level-debug);
   --color-level-verbose: var(--logharbor-level-verbose);
 
-  --font-sans: "Inter Variable", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-sans: "CaskaydiaMono NF", ui-monospace, monospace;
+  --font-mono: "CaskaydiaMono NF", ui-monospace, monospace;
 
   --radius-card: 10px;
   --shadow-card: var(--logharbor-shadow-card);
@@ -116,10 +116,8 @@
   --text-lg--line-height: 1.75rem;
 }
 
-/* cv05 = straight-tailed l, ss03 = single-storey a: fewer 1lI0O mix-ups in a log tool */
 body {
   font-family: var(--font-sans);
-  font-feature-settings: "cv05", "ss03";
   background-color: var(--color-bg);
   color: var(--color-fg);
 }
