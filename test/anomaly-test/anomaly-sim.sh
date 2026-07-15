@@ -62,6 +62,18 @@ write_state() {
     echo "TICK=$3"; } > "$STATE_FILE"
 }
 
+# log in as admin, storing the session cookie in $COOKIEJAR (assert 200)
+login() {
+  : "${LOGHARBOR_ADMIN_USER:?set LOGHARBOR_ADMIN_USER in .env}"
+  : "${LOGHARBOR_ADMIN_PASS:?set LOGHARBOR_ADMIN_PASS in .env}"
+  COOKIEJAR=$(mktemp)
+  local code
+  code=$(curl -sS -o /dev/null -w '%{http_code}' -c "$COOKIEJAR" \
+    -X POST "$LOGHARBOR_URL/api/auth/login" -H 'Content-Type: application/json' \
+    -d "{\"username\":\"$LOGHARBOR_ADMIN_USER\",\"password\":\"$LOGHARBOR_ADMIN_PASS\"}")
+  [ "$code" = "200" ] || { echo "login failed: HTTP $code" >&2; return 1; }
+}
+
 # --- subcommands ------------------------------------------------------------
 cmd_seed_baseline() {
   local now step body="" i ts el
@@ -98,9 +110,58 @@ cmd_reset() {
   echo "state cleared. Ingested events remain; filter them with: Source = 'anomaly-sim'"
 }
 
+cmd_check() {
+  [ -f "$STATE_FILE" ] || { echo "no state; run seed-baseline first" >&2; exit 1; }
+  . "$STATE_FILE"
+  login
+  local to
+  to=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
+  curl -sS -b "$COOKIEJAR" \
+    "$LOGHARBOR_URL/api/stats/slow-operations?from=$ANOMALY_START_ISO&to=$to&minSamples=10&floorMs=40" \
+  | python3 - <<'PY'
+import sys, json
+ops = json.load(sys.stdin).get("operations", [])
+if not ops:
+    print("  not yet: no operation is >=2x its baseline in this window")
+for o in ops:
+    base = o["baselineP95"]; now = o["currentP95"]
+    ratio = now / base if base else 0
+    print(f'  DETECTED: {o["template"]}  baseline={base:.0f}ms  now={now:.0f}ms  '
+          f'x{ratio:.1f}  (n={o["count"]})')
+PY
+}
+
+cmd_setup_alert() {
+  login
+  local sid
+  # reuse an existing "anomaly-sim slow" signal, else create it
+  sid=$(curl -sS -b "$COOKIEJAR" "$LOGHARBOR_URL/api/signals" \
+    | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next((s["id"] for s in d if s["title"]=="anomaly-sim slow"), ""))')
+  if [ -z "$sid" ]; then
+    sid=$(curl -sS -b "$COOKIEJAR" -X POST "$LOGHARBOR_URL/api/signals" \
+      -H 'Content-Type: application/json' \
+      -d "{\"title\":\"anomaly-sim slow\",\"filter\":\"Elapsed > $ALERT_THRESHOLD_MS\"}" \
+      | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
+  fi
+  # create the alert rule unless one with our title already exists
+  local exists
+  exists=$(curl -sS -b "$COOKIEJAR" "$LOGHARBOR_URL/api/alerts" \
+    | python3 -c 'import sys,json; d=json.load(sys.stdin); print(any(a["title"]=="anomaly-sim alert" for a in d))')
+  if [ "$exists" = "True" ]; then
+    echo "alert 'anomaly-sim alert' already exists (signal id=$sid)"
+  else
+    curl -sS -o /dev/null -w 'alert create: HTTP %{http_code}\n' -b "$COOKIEJAR" \
+      -X POST "$LOGHARBOR_URL/api/alerts" -H 'Content-Type: application/json' \
+      -d "{\"title\":\"anomaly-sim alert\",\"signalId\":$sid,\"thresholdCount\":$ALERT_COUNT,\"windowMinutes\":$ALERT_WINDOW_MIN,\"webhookUrl\":\"http://127.0.0.1:$WEBHOOK_PORT/\",\"isEnabled\":true}"
+  fi
+  echo "signal id=$sid ('Elapsed > $ALERT_THRESHOLD_MS') -> webhook http://127.0.0.1:$WEBHOOK_PORT/"
+}
+
 case "${1:-}" in
   seed-baseline) cmd_seed_baseline ;;
   tick)          cmd_tick ;;
+  setup-alert)   cmd_setup_alert ;;
+  check)         cmd_check ;;
   reset)         cmd_reset ;;
   *) echo "usage: $0 {seed-baseline|tick|setup-alert|check|reset}" >&2; exit 2 ;;
 esac
