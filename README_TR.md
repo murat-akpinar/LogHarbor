@@ -56,11 +56,32 @@ Her iki durumda da `admin` hesabı yalnızca ilk açılışta oluşturulur; sonr
 (`admin` / `viewer` rolleri) Settings sayfasından yönetilir. Log gönderimi her zaman API key
 ile çalışır, bunlardan etkilenmez.
 
-Canlıda HTTPS yapan bir reverse proxy arkasında çalıştır — oturum çerezi geliştirme dışında
-`Secure` olarak veriliyor. HTTPS olmadan (düz HTTP) çalıştıracaksan
-`LogHarbor__AllowInsecureCookie=true` ver, aksi halde tarayıcı çerezi reddeder ve giriş yapılamaz.
-`docker-compose.yml` düz HTTP yayınladığı için bunu varsayılan olarak `true` yapıyor; önüne TLS
-sonlandıran bir proxy koyduğunda `.env` içine `LOGHARBOR_ALLOW_INSECURE_COOKIE=false` yaz.
+### Düz HTTP üzerinde test (ev / yerel ağ)
+
+Canlıda LogHarbor bir HTTPS reverse proxy arkasında çalışır; bu yüzden geliştirme dışında
+oturum çerezi `Secure` olarak verilir. Siteye düz HTTP ile eriştiğinde — `http://localhost:5000`
+ya da `http://192.168.1.50:5000` gibi bir yerel ağ adresi — giriş bozulur: tarayıcı `Secure`
+çerezi saklamaz, giriş "tutmaz" ve **admin / admin** doğru olsa bile parola-değiştirme adımı
+yerine tekrar giriş ekranına düşersin.
+
+HTTP testi için bu davranıştan `LogHarbor__AllowInsecureCookie=true` ile açıkça çık. `docker run` ile:
+
+```bash
+docker run -d --name logharbor -p 5000:5000 -v logharbor-data:/data \
+  -e LogHarbor__AllowInsecureCookie=true logharbor
+```
+
+Ya da `docker-compose.yml` içindeki `environment:` bloğuna ekle, sonra `docker compose up -d`:
+
+```yaml
+    environment:
+      - LogHarbor__AllowInsecureCookie=true
+```
+
+Artık düz HTTP üzerinden **admin / admin** ile girip istendiğinde yeni parolanı belirleyebilirsin.
+Önünde TLS sonlandıran bir reverse proxy varsa bunu **kapalı bırak** (varsayılan) — orada çerez
+`Secure` kalmalı. Bu yalnızca bir test kolaylığıdır; güvendiğin yerel ağ dışına açılan hiçbir
+kurulumda kullanma.
 
 ## Hızlı başlangıç (kaynaktan)
 
@@ -159,6 +180,7 @@ Ortam değişkenleri (ya da `appsettings.json` içinde `LogHarbor:` altında):
 | `LogHarbor__RetentionDays` | 365 | N günden eski arşivlenmiş veriyi sil |
 | `LogHarbor__Archive__CompressAfterDays` | 90 | N günden eski olayları sıkıştır (0 = kapalı) |
 | `LogHarbor__SeedDefaultAdmin` | `true` | Kullanıcı tablosu boşsa admin hesabını oluştur |
+| `LogHarbor__AllowInsecureCookie` | `false` | Oturum çerezini `Secure` olmadan ver, böylece düz HTTP üzerinde giriş çalışır (yalnızca test/yerel ağ; HTTPS proxy arkasında `false` bırak) |
 | `LOGHARBOR_ADMIN_PASSWORD` | *(boş)* | Oluşturulan admin'in parolası; boşsa admin/admin ve ilk girişte değiştirilir |
 
 Arşiv ayarları Settings sayfasından da değiştirilebilir; oradaki değerler önceliklidir.

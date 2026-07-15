@@ -55,11 +55,31 @@ Either way the `admin` account is seeded on first start only; further accounts (
 `viewer` roles) are managed on the Settings page. Ingestion always uses API keys and is
 unaffected by any of this.
 
-Run it behind an HTTPS reverse proxy in production — the session cookie is issued
-with `Secure` outside development. If you must serve it over plain HTTP, set
-`LogHarbor__AllowInsecureCookie=true`, otherwise the browser rejects the cookie and login fails.
-`docker-compose.yml` publishes plain HTTP, so it defaults that to `true`; once a proxy
-terminates TLS for you, put `LOGHARBOR_ALLOW_INSECURE_COOKIE=false` in `.env`.
+### Testing over plain HTTP (home / LAN)
+
+In production LogHarbor runs behind an HTTPS reverse proxy, so outside development the session
+cookie is issued with `Secure`. Reaching it over plain HTTP — `http://localhost:5000` or a LAN
+address like `http://192.168.1.50:5000` — then breaks login: the browser drops the `Secure`
+cookie, the sign-in never sticks, and you land back on the login screen instead of the
+change-password step (even though **admin / admin** is correct).
+
+For HTTP testing, opt out explicitly with `LogHarbor__AllowInsecureCookie=true`. With `docker run`:
+
+```bash
+docker run -d --name logharbor -p 5000:5000 -v logharbor-data:/data \
+  -e LogHarbor__AllowInsecureCookie=true logharbor
+```
+
+Or add it to the `environment:` block in `docker-compose.yml`, then `docker compose up -d`:
+
+```yaml
+    environment:
+      - LogHarbor__AllowInsecureCookie=true
+```
+
+Now log in with **admin / admin** over HTTP and set a new password when prompted. Leave this off
+(the default) whenever a reverse proxy terminates TLS in front of LogHarbor — the cookie must
+stay `Secure` there. It is a testing convenience, not for anything exposed beyond a trusted LAN.
 
 ## Quick start (from source)
 
@@ -157,6 +177,7 @@ Environment variables (or `appsettings.json` under `LogHarbor:`):
 | `LogHarbor__RetentionDays` | 365 | Delete archived data older than N days |
 | `LogHarbor__Archive__CompressAfterDays` | 90 | Compress events older than N days (0 = off) |
 | `LogHarbor__SeedDefaultAdmin` | `true` | Seed the admin account on an empty user table |
+| `LogHarbor__AllowInsecureCookie` | `false` | Issue the session cookie without `Secure` so login works over plain HTTP (testing/LAN only; leave `false` behind an HTTPS proxy) |
 | `LOGHARBOR_ADMIN_PASSWORD` | *(unset)* | Password for the seeded admin; unset means admin/admin, changed at first login |
 
 Archive settings are also editable at runtime on the Settings page, which takes precedence.
