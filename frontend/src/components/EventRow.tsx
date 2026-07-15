@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import type { Event } from '../types'
 import { formatRelative, formatTimestamp } from '../lib/dates'
 import { LEVEL_BAR } from '../lib/levels'
+import { useI18n } from '../i18n'
 import { LevelBadge } from './LevelBadge'
 import { Highlighted } from './Highlighted'
 
@@ -45,6 +46,7 @@ export function EventRow({
   onSelect,
   style,
 }: EventRowProps) {
+  const { lang } = useI18n()
   const isError = event.level === 'Error' || event.level === 'Fatal'
   return (
     <button
@@ -61,9 +63,9 @@ export function EventRow({
       />
       <span
         className={`tabular ${relativeTime ? 'w-24' : 'w-44'} shrink-0 font-mono text-xs text-fg-muted`}
-        title={formatTimestamp(event.timestamp)}
+        title={formatTimestamp(event.timestamp, lang)}
       >
-        {relativeTime ? formatRelative(event.timestamp) : formatTimestamp(event.timestamp)}
+        {relativeTime ? formatRelative(event.timestamp, lang) : formatTimestamp(event.timestamp, lang)}
       </span>
       <span className="w-10 shrink-0">
         <LevelBadge level={event.level} />

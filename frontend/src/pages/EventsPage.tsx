@@ -9,6 +9,7 @@ import { useSignals } from '../hooks/useSignals'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { extractHighlightTerms } from '../lib/highlight'
 import { combineFilter } from '../lib/filter'
+import { useI18n } from '../i18n'
 import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
 import { LevelChips } from '../components/LevelChips'
@@ -20,13 +21,6 @@ import { ColumnPicker } from '../components/ColumnPicker'
 import { VirtualizedEventList } from '../components/VirtualizedEventList'
 import type { EventListHandle } from '../components/VirtualizedEventList'
 import { EventDetail } from '../components/EventDetail'
-
-const SHORTCUTS: [key: string, action: string][] = [
-  ['/', 'Focus the search bar'],
-  ['j / k', 'Next / previous event'],
-  ['Esc', 'Close the detail panel'],
-  ['?', 'Toggle this help'],
-]
 
 // shortcuts must not fire while the user is typing into a field
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -41,6 +35,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 }
 
 export function EventsPage() {
+  const { t } = useI18n()
   // reads dashboard/analysis deep links (?from=&to=&filter=) once, on first mount only
   const [searchParams] = useSearchParams()
   const initialFilter = searchParams.get('filter') ?? ''
@@ -162,6 +157,13 @@ export function EventsPage() {
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [moveSelection, showHelp])
 
+  const shortcuts: [key: string, action: string][] = [
+    ['/', t.events.shortcutFocusSearch],
+    ['j / k', t.events.shortcutNextPrev],
+    ['Esc', t.events.shortcutCloseDetail],
+    ['?', t.events.shortcutToggleHelp],
+  ]
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border bg-surface">
@@ -176,11 +178,11 @@ export function EventsPage() {
           <div className="flex items-center gap-2">
             {!isLive && <TimeRangePicker from={range.from} to={range.to} onChange={setRange} />}
             <ColumnPicker columns={columns} onChange={setColumns} />
-            <Button variant="ghost" onClick={() => setRelativeTime((current) => !current)} title="Toggle relative timestamps">
-              {relativeTime ? 'Relative time' : 'Absolute time'}
+            <Button variant="ghost" onClick={() => setRelativeTime((current) => !current)} title={t.events.toggleTimestamps}>
+              {relativeTime ? t.events.relativeTime : t.events.absoluteTime}
             </Button>
             <span className="flex items-center gap-1 text-xs text-fg-muted">
-              Export
+              {t.events.export}
               <a
                 href={buildExportUrl({ filter, from: range.from, to: range.to, format: 'json' })}
                 className="rounded-lg px-2 py-1 font-medium text-fg-muted transition-colors duration-150 hover:bg-surface-hover hover:text-fg"
@@ -218,7 +220,7 @@ export function EventsPage() {
           onClick={resume}
           className="shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent-hover"
         >
-          {tail.pendingCount} new event{tail.pendingCount === 1 ? '' : 's'} — click to resume
+          {t.events.newEvents(tail.pendingCount)}
         </button>
       )}
 
@@ -262,18 +264,18 @@ export function EventsPage() {
           {/* a real button so closing works with the keyboard too; Escape is handled globally */}
           <button
             type="button"
-            aria-label="Close keyboard shortcuts"
+            aria-label={t.events.closeShortcuts}
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowHelp(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Keyboard shortcuts"
+            aria-label={t.events.keyboardShortcuts}
             className="relative w-72 rounded-card border border-border bg-surface-raised p-4 text-sm shadow-card"
           >
-            <h2 className="mb-3 font-semibold text-fg">Keyboard shortcuts</h2>
-            {SHORTCUTS.map(([key, action]) => (
+            <h2 className="mb-3 font-semibold text-fg">{t.events.keyboardShortcuts}</h2>
+            {shortcuts.map(([key, action]) => (
               <div key={key} className="flex items-center justify-between py-1">
                 <kbd className="rounded border border-border bg-surface-hover px-1.5 py-0.5 font-mono text-xs">
                   {key}

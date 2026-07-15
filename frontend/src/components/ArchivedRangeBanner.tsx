@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getHydrationStatus, startHydration } from '../api/archive'
+import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 
 const POLL_INTERVAL_MS = 1500
@@ -16,6 +17,7 @@ function delay(ms: number): Promise<void> {
 }
 
 export function ArchivedRangeBanner({ archivedDays, onHydrated }: ArchivedRangeBannerProps) {
+  const { t } = useI18n()
   const [isExtracting, setIsExtracting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const cancelledRef = useRef(false)
@@ -45,7 +47,7 @@ export function ArchivedRangeBanner({ archivedDays, onHydrated }: ArchivedRangeB
         }
         if (requested.some((segment) => segment.status === 'cold')) {
           // the server returns a failed segment to cold; keep the banner so the user can retry
-          throw new Error('Extraction failed; the archive segment was left untouched. Try again.')
+          throw new Error(t.events.extractionFailed)
         }
       }
     } catch (cause) {
@@ -58,12 +60,11 @@ export function ArchivedRangeBanner({ archivedDays, onHydrated }: ArchivedRangeB
   return (
     <div className="flex shrink-0 items-center justify-between gap-3 border-b border-level-warning/25 bg-level-warning/10 px-3 py-2 text-fg">
       <p className="text-sm text-fg">
-        {archivedDays.length} archived day{archivedDays.length === 1 ? '' : 's'} in this range —
-        results cover live data only.
+        {t.events.archivedDays(archivedDays.length)}
         {error && <span className="ml-2 text-level-error">{error}</span>}
       </p>
       <Button variant="primary" onClick={() => void extract()} disabled={isExtracting} className="shrink-0">
-        {isExtracting ? 'Extracting…' : 'Extract'}
+        {isExtracting ? t.events.extracting : t.events.extract}
       </Button>
     </div>
   )

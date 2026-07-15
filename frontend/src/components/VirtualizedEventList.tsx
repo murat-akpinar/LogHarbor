@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import type { Ref, UIEvent } from 'react'
 import type { Event } from '../types'
+import { useI18n } from '../i18n'
 import { EventRow } from './EventRow'
 import { Button } from './ui/Button'
 
@@ -48,6 +49,7 @@ export function VirtualizedEventList({
   onClear,
   ref,
 }: VirtualizedEventListProps) {
+  const { t } = useI18n()
   const containerRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
   const [containerHeight, setContainerHeight] = useState(0)
@@ -95,14 +97,14 @@ export function VirtualizedEventList({
       {columns.length > 0 && (
         // mirrors EventRow's flex layout so each header sits over its column
         <div className="flex shrink-0 items-center gap-3 border-b border-border px-3 py-1 text-xs font-medium text-fg-muted">
-          <span className={`${relativeTime ? 'w-24' : 'w-44'} shrink-0`}>Time</span>
-          <span className="w-10 shrink-0">Level</span>
+          <span className={`${relativeTime ? 'w-24' : 'w-44'} shrink-0`}>{t.events.timeHeader}</span>
+          <span className="w-10 shrink-0">{t.events.levelHeader}</span>
           {columns.map((column) => (
             <span key={column} className="w-32 shrink-0 truncate font-mono">
               {column}
             </span>
           ))}
-          <span className="min-w-0 flex-1">Message</span>
+          <span className="min-w-0 flex-1">{t.events.messageHeader}</span>
         </div>
       )}
       <div ref={containerRef} onScroll={handleScroll} className="relative min-h-0 flex-1 overflow-y-auto">
@@ -123,9 +125,9 @@ export function VirtualizedEventList({
         </div>
         {events.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-fg-muted">
-            <p>No events match this filter.</p>
+            <p>{t.events.noEventsMatch}</p>
             <Button variant="secondary" onClick={onClear}>
-              Clear the filter
+              {t.events.clearFilter}
             </Button>
           </div>
         )}

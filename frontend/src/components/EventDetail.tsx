@@ -1,5 +1,6 @@
 import type { Event } from '../types'
 import { formatTimestamp } from '../lib/dates'
+import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 import { LevelBadge } from './LevelBadge'
 import { Highlighted } from './Highlighted'
@@ -22,6 +23,7 @@ function parseProperties(properties: string | null): Record<string, Json> {
 }
 
 export function EventDetail({ event, highlightTerms, onClose }: EventDetailProps) {
+  const { t, lang } = useI18n()
   const properties = parseProperties(event.properties)
 
   return (
@@ -29,9 +31,9 @@ export function EventDetail({ event, highlightTerms, onClose }: EventDetailProps
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex items-center gap-2">
           <LevelBadge level={event.level} />
-          <span className="tabular font-mono text-xs text-fg-muted">{formatTimestamp(event.timestamp)}</span>
+          <span className="tabular font-mono text-xs text-fg-muted">{formatTimestamp(event.timestamp, lang)}</span>
         </div>
-        <Button variant="ghost" onClick={onClose} aria-label="Close">
+        <Button variant="ghost" onClick={onClose} aria-label={t.common.close}>
           ✕
         </Button>
       </div>
@@ -42,7 +44,7 @@ export function EventDetail({ event, highlightTerms, onClose }: EventDetailProps
 
       {event.exception && (
         <div className="mb-4">
-          <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">Exception</h3>
+          <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">{t.detail.exception}</h3>
           <pre className="whitespace-pre-wrap break-words rounded-card bg-level-error/[0.06] p-2 font-mono text-xs text-level-error">
             <Highlighted text={event.exception} terms={highlightTerms} />
           </pre>
@@ -51,13 +53,13 @@ export function EventDetail({ event, highlightTerms, onClose }: EventDetailProps
 
       {Object.keys(properties).length > 0 && (
         <div className="mb-4">
-          <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">Properties</h3>
+          <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">{t.detail.properties}</h3>
           <JsonTree value={properties} />
         </div>
       )}
 
       <div>
-        <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">Raw JSON</h3>
+        <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">{t.detail.rawJson}</h3>
         <pre className="overflow-x-auto rounded-card bg-surface-raised p-2 font-mono text-xs text-fg-muted">
           {JSON.stringify(event, null, 2)}
         </pre>
