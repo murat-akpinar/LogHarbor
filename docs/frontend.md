@@ -28,8 +28,20 @@ frontend/src/
   components/   reusable UI (EventRow, EventDetail, LevelBadge, SearchBar, TimeRangePicker)
   pages/        EventsPage, DashboardPage, AnalysisPage, SignalsPage, AlertsPage, SettingsPage
   hooks/        useLiveTail (SignalR), useEventSearch (React Query), useTheme (dark mode)
+  i18n/         typed TR/EN dictionaries (en.ts source of truth, tr.ts typed as Messages) + LanguageProvider/useI18n
   lib/          formatting helpers (dates, levels, colors, suggestContext)
   types/        Event, Signal, AlertRule, User, ApiKey, shared DTO types
+
+--- LANGUAGES ---
+
+The UI ships in English and Turkish. Language is detected from the browser on
+first load (navigator.language startswith 'tr' -> Turkish), and an explicit
+choice via the NavBar TR/EN toggle is persisted to localStorage
+('logharbor-lang') and wins thereafter. Dates and numbers format with the
+active language (Intl APIs). Not translated: log event data, level names,
+query-language syntax and operator labels, and backend API messages.
+Dictionaries live in src/i18n/ (en.ts is the source; tr.ts is typed as
+Messages = typeof en, so a missing key is a compile error).
 
 --- EVENTS PAGE ---
 
