@@ -85,7 +85,7 @@ public static class ExportEndpoints
     private static string ToCsv(IReadOnlyList<Event> events)
     {
         var csv = new StringBuilder();
-        csv.Append("id,timestamp,level,message,messageTemplate,properties,exception,ingestedAt\n");
+        csv.Append("id,timestamp,level,message,messageTemplate,properties,exception,ingestedAt,traceId,spanId\n");
         foreach (var item in events)
         {
             csv.Append(item.Id).Append(',');
@@ -95,7 +95,9 @@ public static class ExportEndpoints
             csv.Append(CsvCell(item.MessageTemplate)).Append(',');
             csv.Append(CsvCell(item.Properties)).Append(',');
             csv.Append(CsvCell(item.Exception)).Append(',');
-            csv.Append(CsvCell(item.IngestedAt)).Append('\n');
+            csv.Append(CsvCell(item.IngestedAt)).Append(',');
+            csv.Append(CsvCell(item.TraceId)).Append(',');
+            csv.Append(CsvCell(item.SpanId)).Append('\n');
         }
         return csv.ToString();
     }

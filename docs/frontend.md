@@ -69,6 +69,8 @@ Search term highlight: quoted free-text terms and contains values from the activ
 Row click: expands EventDetail with a syntax-highlighted property tree (nested
   objects/arrays collapse via native details/summary; React text nodes only,
   log content is untrusted) + raw JSON
+When the event carries a trace id, EventDetail shows it with a "View trace" button
+  that replaces the search filter with @TraceId = '<id>' (all events of that request).
 Live tail: toggle connects to /hubs/tail with current filter; new events prepend with highlight
 Time range: picker sets from/to; live tail forces "now"
 Archived range: banner "N days in this range are archived" with Extract button;

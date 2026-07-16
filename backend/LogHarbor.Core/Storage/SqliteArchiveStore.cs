@@ -9,7 +9,7 @@ public sealed class SqliteArchiveStore : IArchiveStore
         "day, file_path, event_count, size_bytes, uncompressed_bytes, status, hydrated_at, last_accessed_at";
 
     private const string EventColumns =
-        "id, timestamp, level, message, message_template, properties, exception, ingested_at";
+        "id, timestamp, level, message, message_template, properties, exception, ingested_at, trace_id, span_id";
 
     private readonly LogHarborDb _db;
 
@@ -165,8 +165,8 @@ public sealed class SqliteArchiveStore : IArchiveStore
             insert.Transaction = transaction;
             insert.CommandText =
                 "INSERT INTO events_cache " +
-                "(id, timestamp, level, message, message_template, properties, exception, ingested_at, segment_day) " +
-                "VALUES (@id, @timestamp, @level, @message, @messageTemplate, @properties, @exception, @ingestedAt, @day);";
+                "(id, timestamp, level, message, message_template, properties, exception, ingested_at, trace_id, span_id, segment_day) " +
+                "VALUES (@id, @timestamp, @level, @message, @messageTemplate, @properties, @exception, @ingestedAt, @traceId, @spanId, @day);";
 
             var id = insert.Parameters.Add("@id", SqliteType.Integer);
             var timestamp = insert.Parameters.Add("@timestamp", SqliteType.Text);
@@ -176,6 +176,8 @@ public sealed class SqliteArchiveStore : IArchiveStore
             var properties = insert.Parameters.Add("@properties", SqliteType.Text);
             var exception = insert.Parameters.Add("@exception", SqliteType.Text);
             var ingestedAt = insert.Parameters.Add("@ingestedAt", SqliteType.Text);
+            var traceId = insert.Parameters.Add("@traceId", SqliteType.Text);
+            var spanId = insert.Parameters.Add("@spanId", SqliteType.Text);
             insert.Parameters.AddWithValue("@day", day);
 
             foreach (var item in events)
@@ -188,6 +190,8 @@ public sealed class SqliteArchiveStore : IArchiveStore
                 properties.Value = (object?)item.Properties ?? DBNull.Value;
                 exception.Value = (object?)item.Exception ?? DBNull.Value;
                 ingestedAt.Value = item.IngestedAt;
+                traceId.Value = (object?)item.TraceId ?? DBNull.Value;
+                spanId.Value = (object?)item.SpanId ?? DBNull.Value;
                 await insert.ExecuteNonQueryAsync(cancellationToken);
             }
         }
@@ -375,5 +379,7 @@ public sealed class SqliteArchiveStore : IArchiveStore
         reader.IsDBNull(4) ? null : reader.GetString(4),
         reader.IsDBNull(5) ? null : reader.GetString(5),
         reader.IsDBNull(6) ? null : reader.GetString(6),
-        reader.GetString(7));
+        reader.GetString(7),
+        reader.IsDBNull(8) ? null : reader.GetString(8),
+        reader.IsDBNull(9) ? null : reader.GetString(9));
 }

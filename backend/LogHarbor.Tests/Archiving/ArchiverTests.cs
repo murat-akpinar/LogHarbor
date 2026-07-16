@@ -34,8 +34,9 @@ public sealed class ArchiverTests : IDisposable
     }
 
     private static Event MakeEvent(string timestamp, string message, string? properties = null,
-        string? exception = null, string level = "Information") =>
-        new(0, timestamp, level, message, "tpl {X}", properties, exception, timestamp);
+        string? exception = null, string level = "Information",
+        string? traceId = null, string? spanId = null) =>
+        new(0, timestamp, level, message, "tpl {X}", properties, exception, timestamp, traceId, spanId);
 
     /// <summary>Two archivable days (3 + 2 events) plus one recent event that must stay hot.</summary>
     private async Task<IReadOnlyList<Event>> SeedTwoOldDaysAndOneRecentAsync()
@@ -43,7 +44,8 @@ public sealed class ArchiverTests : IDisposable
         var seeded = new List<Event>
         {
             MakeEvent("2026-05-01T08:00:00.0000000Z", "connection refused by peer",
-                """{"UserId":7,"Host":"db-1"}""", "System.Net.SocketException: boom\n   at Api.Dial()", "Error"),
+                """{"UserId":7,"Host":"db-1"}""", "System.Net.SocketException: boom\n   at Api.Dial()", "Error",
+                traceId: "0af7651916cd43dd8448eb211c80319c", spanId: "b7ad6b7169203331"),
             MakeEvent("2026-05-01T09:00:00.0000000Z", "işlem tamamlandı ✓"),
             MakeEvent("2026-05-01T23:59:59.9999999Z", "last of day one"),
             MakeEvent("2026-05-02T00:00:00.0000000Z", "first of day two", """{"OrderId":9}"""),
@@ -228,6 +230,17 @@ public sealed class ArchiverTests : IDisposable
         var found = await _eventStore.FindAsync(archived.Id);
 
         Assert.Equal(archived, found);
+    }
+
+    [Fact]
+    public async Task Find_HydratedEvent_PreservesTraceIds()
+    {
+        var seeded = await SeedTwoOldDaysAndOneRecentAsync();
+        await _archiver.RunArchiveAsync(Now);
+        await HydrateAsync("2026-05-01", "2026-05-02");
+
+        var traced = seeded.First(item => item.TraceId is not null);
+        Assert.Equal(traced, await _eventStore.FindAsync(traced.Id));
     }
 
     [Fact]

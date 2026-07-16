@@ -6,7 +6,8 @@ namespace LogHarbor.Core.Storage;
 
 public sealed class SqliteEventStore : IEventStore
 {
-    private const string Columns = "id, timestamp, level, message, message_template, properties, exception, ingested_at";
+    private const string Columns =
+        "id, timestamp, level, message, message_template, properties, exception, ingested_at, trace_id, span_id";
 
     private readonly LogHarborDb _db;
 
@@ -25,8 +26,8 @@ public sealed class SqliteEventStore : IEventStore
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText =
-            "INSERT INTO events (timestamp, level, message, message_template, properties, exception, ingested_at) " +
-            "VALUES (@timestamp, @level, @message, @messageTemplate, @properties, @exception, @ingestedAt); " +
+            "INSERT INTO events (timestamp, level, message, message_template, properties, exception, ingested_at, trace_id, span_id) " +
+            "VALUES (@timestamp, @level, @message, @messageTemplate, @properties, @exception, @ingestedAt, @traceId, @spanId); " +
             "SELECT last_insert_rowid();";
 
         var timestamp = command.Parameters.Add("@timestamp", SqliteType.Text);
@@ -36,6 +37,8 @@ public sealed class SqliteEventStore : IEventStore
         var properties = command.Parameters.Add("@properties", SqliteType.Text);
         var exception = command.Parameters.Add("@exception", SqliteType.Text);
         var ingestedAt = command.Parameters.Add("@ingestedAt", SqliteType.Text);
+        var traceId = command.Parameters.Add("@traceId", SqliteType.Text);
+        var spanId = command.Parameters.Add("@spanId", SqliteType.Text);
 
         var ids = new List<long>(events.Count);
         foreach (var item in events)
@@ -47,6 +50,8 @@ public sealed class SqliteEventStore : IEventStore
             properties.Value = (object?)item.Properties ?? DBNull.Value;
             exception.Value = (object?)item.Exception ?? DBNull.Value;
             ingestedAt.Value = item.IngestedAt;
+            traceId.Value = (object?)item.TraceId ?? DBNull.Value;
+            spanId.Value = (object?)item.SpanId ?? DBNull.Value;
             ids.Add((long)(await command.ExecuteScalarAsync(cancellationToken))!);
         }
 
@@ -202,7 +207,7 @@ public sealed class SqliteEventStore : IEventStore
         }
 
         var found = ReadEvent(cacheReader);
-        await TouchSegmentAsync(connection, cacheReader.GetString(8), cancellationToken);
+        await TouchSegmentAsync(connection, cacheReader.GetString(10), cancellationToken);
         return found;
     }
 
@@ -599,5 +604,7 @@ public sealed class SqliteEventStore : IEventStore
         reader.IsDBNull(4) ? null : reader.GetString(4),
         reader.IsDBNull(5) ? null : reader.GetString(5),
         reader.IsDBNull(6) ? null : reader.GetString(6),
-        reader.GetString(7));
+        reader.GetString(7),
+        reader.IsDBNull(8) ? null : reader.GetString(8),
+        reader.IsDBNull(9) ? null : reader.GetString(9));
 }

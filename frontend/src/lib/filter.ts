@@ -21,3 +21,8 @@ export function combineFilter(
   }
   return parts.length > 0 ? parts.join(' and ') : undefined
 }
+
+/** Quotes a value as a filter string literal (embedded quotes doubled). */
+export function quote(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`
+}

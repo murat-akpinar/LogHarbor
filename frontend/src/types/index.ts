@@ -9,6 +9,9 @@ export interface Event {
   properties: string | null
   exception: string | null
   ingestedAt: string
+  /** W3C trace/span ids (lowercase hex), null when the event carries none. */
+  traceId: string | null
+  spanId: string | null
 }
 
 export interface EventPage {

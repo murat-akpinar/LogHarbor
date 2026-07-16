@@ -8,7 +8,7 @@ import { useLiveTail } from '../hooks/useLiveTail'
 import { useSignals } from '../hooks/useSignals'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { extractHighlightTerms } from '../lib/highlight'
-import { combineFilter } from '../lib/filter'
+import { combineFilter, quote } from '../lib/filter'
 import { useI18n } from '../i18n'
 import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
@@ -40,6 +40,9 @@ export function EventsPage() {
   const [searchParams] = useSearchParams()
   const initialFilter = searchParams.get('filter') ?? ''
   const [searchText, setSearchText] = useState(initialFilter)
+  // FilterBar seeds its chip state from initialText once; bumping the key remounts it
+  // so a programmatic filter (View trace) shows up in the bar as well as the results
+  const [filterSeed, setFilterSeed] = useState(0)
   const [activeLevels, setActiveLevels] = useState<Set<Level>>(new Set())
   const [activeSignalIds, setActiveSignalIds] = useState<Set<number>>(new Set())
   const [range, setRange] = useState<{ from: string | undefined; to: string | undefined }>(() => ({
@@ -91,6 +94,11 @@ export function EventsPage() {
   }, [tail.events, searchEvents])
 
   const liveEventIds = useMemo(() => new Set(tail.events.map((event) => event.id)), [tail.events])
+
+  function applyFilter(next: string) {
+    setSearchText(next)
+    setFilterSeed((seed) => seed + 1)
+  }
 
   function toggleLevel(level: Level) {
     setActiveLevels((current) => {
@@ -168,7 +176,7 @@ export function EventsPage() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border bg-surface">
         <div className="p-3">
-          <FilterBar initialText={initialFilter} onCommit={setSearchText} />
+          <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-3 py-1.5">
           <div className="flex flex-wrap items-center gap-3">
@@ -255,6 +263,7 @@ export function EventsPage() {
             event={selectedEvent}
             highlightTerms={highlightTerms}
             onClose={() => setSelectedEvent(undefined)}
+            onViewTrace={(traceId) => applyFilter(`@TraceId = ${quote(traceId)}`)}
           />
         )}
       </div>

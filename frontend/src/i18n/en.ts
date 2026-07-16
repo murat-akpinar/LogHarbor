@@ -105,6 +105,8 @@ export const en = {
     exception: 'Exception',
     properties: 'Properties',
     rawJson: 'Raw JSON',
+    trace: 'Trace',
+    viewTrace: 'View trace',
   },
   dashboard: {
     title: 'Dashboard',

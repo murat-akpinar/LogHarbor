@@ -34,6 +34,8 @@ public sealed class QueryParser
         ["Timestamp"] = "timestamp",
         ["Exception"] = "exception",
         ["MessageTemplate"] = "message_template",
+        ["TraceId"] = "trace_id",
+        ["SpanId"] = "span_id",
     };
 
     private readonly List<Token> _tokens;

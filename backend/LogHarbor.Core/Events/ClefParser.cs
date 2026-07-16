@@ -64,7 +64,11 @@ public static partial class ClefParser
                 MessageTemplate: messageTemplate,
                 Properties: ExtractProperties(root),
                 Exception: GetString(root, "@x"),
-                IngestedAt: FormatTimestamp(serverTime));
+                IngestedAt: FormatTimestamp(serverTime),
+                // lowercased: W3C ids are lowercase hex and OTLP ingestion will store the same
+                // canonical form, so @TraceId = '...' filters stay exact-match reliable
+                TraceId: GetString(root, "@tr")?.ToLowerInvariant(),
+                SpanId: GetString(root, "@sp")?.ToLowerInvariant());
             error = null;
             return true;
         }
