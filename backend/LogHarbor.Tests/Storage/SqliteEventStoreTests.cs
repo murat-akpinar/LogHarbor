@@ -241,6 +241,32 @@ public sealed class SqliteEventStoreTests : IDisposable
         Assert.Equal(0, summary.Total);
     }
 
+    [Fact]
+    public async Task WriteBatch_PersistsTraceAndSpanIds()
+    {
+        var written = MakeEvent() with
+        {
+            TraceId = "0af7651916cd43dd8448eb211c80319c",
+            SpanId = "b7ad6b7169203331",
+        };
+
+        var ids = await _store.WriteBatchAsync([written]);
+
+        var found = await _store.FindAsync(ids[0]);
+        Assert.Equal(written.TraceId, found!.TraceId);
+        Assert.Equal(written.SpanId, found.SpanId);
+    }
+
+    [Fact]
+    public async Task WriteBatch_NullTraceIds_StoredAsNull()
+    {
+        var ids = await _store.WriteBatchAsync([MakeEvent()]);
+
+        var found = await _store.FindAsync(ids[0]);
+        Assert.Null(found!.TraceId);
+        Assert.Null(found.SpanId);
+    }
+
     private object Scalar(string sql)
     {
         using var connection = _db.OpenConnection();
