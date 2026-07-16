@@ -62,9 +62,9 @@ CREATE TABLE events (
   message_template TEXT,
   properties TEXT,
   exception TEXT,
+  ingested_at TEXT NOT NULL,
   trace_id TEXT,
-  span_id TEXT,
-  ingested_at TEXT NOT NULL
+  span_id TEXT
 );
 CREATE INDEX ix_events_timestamp ON events(timestamp);
 CREATE INDEX ix_events_level ON events(level, timestamp);

@@ -350,7 +350,7 @@ Expected: PASS.
 
 Four edits:
 
-1. EVENT table — after the `exception` row, add:
+1. EVENT table — after the `ingested_at` row, add:
 
 ```
 trace_id        TEXT        nullable, W3C trace id (lowercase hex), from @tr; indexed (partial)
@@ -371,7 +371,7 @@ trace/span: @tr and @sp are lowercased on ingest. W3C ids are lowercase hex and
   OTLP ingestion stores the same canonical form, so @TraceId filters exact-match.
 ```
 
-4. SQLITE SCHEMA — inside the `CREATE TABLE events (...)` listing add `trace_id TEXT,` and `span_id TEXT,` after `exception TEXT,`; after the existing index lines add:
+4. SQLITE SCHEMA — inside the `CREATE TABLE events (...)` listing add `trace_id TEXT,` and `span_id TEXT,` after `ingested_at TEXT NOT NULL,`; after the existing index lines add:
 
 ```
 CREATE INDEX ix_events_trace ON events(trace_id) WHERE trace_id IS NOT NULL;
