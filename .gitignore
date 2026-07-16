@@ -20,3 +20,10 @@ CLAUDE.md
 rules.md
 todo.md
 .superpowers
+
+# anomaly test harness runtime files
+test/anomaly-test/.state
+test/anomaly-test/webhook.log
+test/anomaly-test/tick.log
+test/anomaly-test/__pycache__/
+last.md
