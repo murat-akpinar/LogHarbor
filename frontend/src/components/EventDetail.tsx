@@ -11,6 +11,7 @@ interface EventDetailProps {
   event: Event
   highlightTerms: string[]
   onClose: () => void
+  onViewTrace?: (traceId: string) => void
 }
 
 function parseProperties(properties: string | null): Record<string, Json> {
@@ -22,7 +23,7 @@ function parseProperties(properties: string | null): Record<string, Json> {
   }
 }
 
-export function EventDetail({ event, highlightTerms, onClose }: EventDetailProps) {
+export function EventDetail({ event, highlightTerms, onClose, onViewTrace }: EventDetailProps) {
   const { t, lang } = useI18n()
   const properties = parseProperties(event.properties)
 
@@ -48,6 +49,23 @@ export function EventDetail({ event, highlightTerms, onClose }: EventDetailProps
           <pre className="whitespace-pre-wrap break-words rounded-card bg-level-error/[0.06] p-2 font-mono text-xs text-level-error">
             <Highlighted text={event.exception} terms={highlightTerms} />
           </pre>
+        </div>
+      )}
+
+      {event.traceId && (
+        <div className="mb-4">
+          <h3 className="mb-1 text-xs font-semibold uppercase text-fg-muted">{t.detail.trace}</h3>
+          <div className="flex items-center justify-between gap-2">
+            <span className="min-w-0 truncate font-mono text-xs text-fg-muted" title={event.traceId}>
+              {event.traceId}
+              {event.spanId && ` / ${event.spanId}`}
+            </span>
+            {onViewTrace && (
+              <Button variant="secondary" onClick={() => onViewTrace(event.traceId!)}>
+                {t.detail.viewTrace}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

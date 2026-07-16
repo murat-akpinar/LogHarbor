@@ -6,6 +6,7 @@ import { LevelBadge } from '../components/LevelBadge'
 import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
+import { quote } from '../lib/filter'
 import { LEVELS, LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
@@ -18,11 +19,6 @@ function defaultRange() {
   const to = new Date()
   const from = new Date(to.getTime() - DEFAULT_RANGE_HOURS * 60 * 60 * 1000)
   return { from: from.toISOString(), to: to.toISOString() }
-}
-
-/** Single-quote a value for the query language ('' escapes an embedded quote). */
-function quote(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`
 }
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'

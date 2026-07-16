@@ -107,6 +107,8 @@ export const tr: Messages = {
     exception: 'İstisna',
     properties: 'Özellikler',
     rawJson: 'Ham JSON',
+    trace: 'İz',
+    viewTrace: 'İzi görüntüle',
   },
   dashboard: {
     title: 'Panel',
