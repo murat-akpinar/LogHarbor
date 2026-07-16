@@ -77,6 +77,17 @@ public sealed class SqlTranslatorTests
         Assert.Empty(result.Parameters);
     }
 
+    [Theory]
+    [InlineData("@TraceId = '0af7651916cd43dd8448eb211c80319c'", "trace_id = @q0", "0af7651916cd43dd8448eb211c80319c")]
+    [InlineData("@SpanId = 'b7ad6b7169203331'", "span_id = @q0", "b7ad6b7169203331")]
+    public void TraceBuiltins_MapToTraceColumns(string filter, string expectedSql, string expectedValue)
+    {
+        var result = Translate(filter);
+
+        Assert.Equal(expectedSql, result.Sql);
+        Assert.Equal(Pairs(Pair("@q0", expectedValue)), result.Parameters);
+    }
+
     [Fact]
     public void Has_UsesJsonType()
     {

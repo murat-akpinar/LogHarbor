@@ -16,11 +16,15 @@ Bare identifier refers to a structured property:
   UserId, RequestPath, OrderId
 
 Built-in fields (@ prefix):
-  @Level, @Message, @Timestamp, @Exception, @MessageTemplate
+  @Level, @Message, @Timestamp, @Exception, @MessageTemplate, @TraceId, @SpanId
 
 @MessageTemplate is the raw CLEF @mt value ("Order {OrderId} failed"),
 so one comparison matches every event of that error group regardless of
 the property values rendered into the message.
+
+@TraceId and @SpanId are the W3C trace/span ids (CLEF @tr/@sp, lowercase hex):
+  @TraceId = '0af7651916cd43dd8448eb211c80319c' returns every event of one
+  request, across services.
 
 --- COMPARISONS ---
 
