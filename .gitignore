@@ -13,6 +13,9 @@ data/
 # secrets
 .env
 
+# python bytecode from the test simulators
+__pycache__/
+
 # local agent / planning files (not published)
 .agent/
 .claude/
