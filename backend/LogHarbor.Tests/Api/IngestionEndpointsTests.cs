@@ -161,5 +161,37 @@ public sealed class IngestionEndpointsTests : IDisposable
         Assert.Equal(HttpStatusCode.TooManyRequests, (await PostRawAsync(line, token)).StatusCode);
     }
 
+    [Fact]
+    public async Task IngestedTraceIds_AreQueryableViaTraceIdFilter()
+    {
+        var token = await CreateApiKeyAsync();
+        var body =
+            """{"@t":"2026-07-13T10:00:00Z","@m":"traced","@tr":"0af7651916cd43dd8448eb211c80319c","@sp":"b7ad6b7169203331"}""" + "\n" +
+            """{"@t":"2026-07-13T10:00:01Z","@m":"untraced"}""";
+        var response = await PostRawAsync(body, token);
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/events?filter=" + Uri.EscapeDataString("@TraceId = '0af7651916cd43dd8448eb211c80319c'"));
+
+        var matched = page.GetProperty("events").EnumerateArray().Single();
+        Assert.Equal("traced", matched.GetProperty("message").GetString());
+        Assert.Equal("0af7651916cd43dd8448eb211c80319c", matched.GetProperty("traceId").GetString());
+        Assert.Equal("b7ad6b7169203331", matched.GetProperty("spanId").GetString());
+    }
+
+    [Fact]
+    public async Task CsvExport_IncludesTraceColumns()
+    {
+        var token = await CreateApiKeyAsync();
+        await PostRawAsync(
+            """{"@t":"2026-07-13T10:00:00Z","@m":"traced","@tr":"0af7651916cd43dd8448eb211c80319c"}""", token);
+
+        var csv = await _client.GetStringAsync("/api/events/export?format=csv");
+
+        Assert.StartsWith("id,timestamp,level,message,messageTemplate,properties,exception,ingestedAt,traceId,spanId", csv);
+        Assert.Contains("\"0af7651916cd43dd8448eb211c80319c\"", csv);
+    }
+
     public void Dispose() => _factory.Dispose();
 }
