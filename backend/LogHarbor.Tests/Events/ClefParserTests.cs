@@ -119,4 +119,24 @@ public sealed class ClefParserTests
     {
         Assert.Null(Parse("""{"@t":"2026-07-13T10:00:00Z","@m":"hi"}""").Properties);
     }
+
+    [Fact]
+    public void TraceAndSpanIds_AreParsed_AndLowercased()
+    {
+        var parsed = Parse(
+            """{"@t":"2026-07-13T10:00:00Z","@tr":"0AF7651916CD43DD8448EB211C80319C","@sp":"B7AD6B7169203331"}""");
+
+        Assert.Equal("0af7651916cd43dd8448eb211c80319c", parsed.TraceId);
+        Assert.Equal("b7ad6b7169203331", parsed.SpanId);
+        Assert.Null(parsed.Properties); // @-keys never leak into properties
+    }
+
+    [Fact]
+    public void MissingTraceAndSpanIds_AreNull()
+    {
+        var parsed = Parse("""{"@t":"2026-07-13T10:00:00Z"}""");
+
+        Assert.Null(parsed.TraceId);
+        Assert.Null(parsed.SpanId);
+    }
 }

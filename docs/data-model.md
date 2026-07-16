@@ -13,6 +13,8 @@ message_template TEXT       raw template, e.g. "User {UserId} logged in"
 properties      TEXT        JSON object of structured properties (@ prefixed keys removed)
 exception       TEXT        nullable, full exception text (@x)
 ingested_at     TEXT        UTC ISO-8601, server clock
+trace_id        TEXT        nullable, W3C trace id (lowercase hex), from @tr; indexed (partial)
+span_id         TEXT        nullable, W3C span id (lowercase hex), from @sp
 
 --- CLEF MAPPING ---
 
@@ -22,6 +24,8 @@ CLEF key   ->  Event field
 @m         ->  message (rendered)
 @mt        ->  message_template
 @x         ->  exception
+@tr        ->  trace_id (lowercased)
+@sp        ->  span_id (lowercased)
 other keys ->  properties JSON
 
 --- INGESTION NORMALIZATION ---
@@ -36,6 +40,8 @@ level: @l mapped case-insensitively to the six canonical levels:
   trace -> Verbose, info -> Information, warn -> Warning, err -> Error,
   critical/crit -> Fatal; unknown values -> Information.
   Without this, Vector/Winston-style levels fragment filters and the histogram.
+trace/span: @tr and @sp are lowercased on ingest. W3C ids are lowercase hex and
+  OTLP ingestion stores the same canonical form, so @TraceId filters exact-match.
 
 --- SQLITE SETUP (MIGRATION RUNNER, ORDER MATTERS) ---
 
@@ -56,10 +62,13 @@ CREATE TABLE events (
   message_template TEXT,
   properties TEXT,
   exception TEXT,
+  trace_id TEXT,
+  span_id TEXT,
   ingested_at TEXT NOT NULL
 );
 CREATE INDEX ix_events_timestamp ON events(timestamp);
 CREATE INDEX ix_events_level ON events(level, timestamp);
+CREATE INDEX ix_events_trace ON events(trace_id) WHERE trace_id IS NOT NULL;
 
 AUTOINCREMENT is deliberate: it forbids rowid reuse, so new hot events can never
 collide with original ids preserved in archive segments (docs/archiving.md).
@@ -135,7 +144,7 @@ status             TEXT      cold | hydrating | hydrated
 hydrated_at        TEXT      nullable
 last_accessed_at   TEXT      nullable
 
-events_cache: same columns as events + segment_day TEXT (hydrated data, transient);
+events_cache: same columns as events (including trace_id/span_id) + segment_day TEXT (hydrated data, transient);
 has its own FTS table events_cache_fts so free-text search covers hydrated data
 
 --- SETTINGS ---
