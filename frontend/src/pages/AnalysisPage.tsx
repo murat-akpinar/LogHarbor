@@ -93,7 +93,8 @@ export function AnalysisPage() {
           from={range.from}
           to={range.to}
           onChange={(next) => {
-            if (next.from && next.to) setRange({ from: next.from, to: next.to })
+            // presets leave `to` open-ended; this page compares two closed windows, so pin it to now
+            if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
           }}
         />
       </div>

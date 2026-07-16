@@ -46,7 +46,8 @@ export function DashboardPage() {
           from={rangeParams.from}
           to={rangeParams.to}
           onChange={(next) => {
-            if (next.from && next.to) setRange({ from: next.from, to: next.to })
+            // presets leave `to` open-ended; the stats queries need a closed range, so pin it to now
+            if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
           }}
         />
       </div>
