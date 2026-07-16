@@ -13,6 +13,9 @@ import json
 import os
 import random
 import sys
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 
 URL = os.environ.get("LOGHARBOR_URL", "http://127.0.0.1:5000")
@@ -165,5 +168,45 @@ def dry_run():
         print(json.dumps(build_event(service, pick_level(service), iso(datetime.now(timezone.utc)))))
 
 
+def post(event):
+    """POST one CLEF event; raise unless the server answers 201."""
+    request = urllib.request.Request(
+        f"{URL}/api/events/raw",
+        data=json.dumps(event).encode("utf-8"),
+        method="POST",
+        headers={"Content-Type": "application/vnd.serilog.clef", "X-LogHarbor-ApiKey": API_KEY},
+    )
+    with urllib.request.urlopen(request, timeout=10) as response:
+        if response.status != 201:
+            raise RuntimeError(f"HTTP {response.status}")
+
+
+def run():
+    """Stream until killed. Ingest failures back off but never stop the run."""
+    backoff = 1.0
+    while True:
+        rates = {name: service_rate(name, datetime.now(timezone.utc)) for name in SERVICES}
+        time.sleep(random.expovariate(sum(rates.values())))
+        service = random.choices(list(rates), weights=list(rates.values()))[0]
+        event = build_event(service, pick_level(service), iso(datetime.now(timezone.utc)))
+        try:
+            post(event)
+            backoff = 1.0
+        except (urllib.error.URLError, RuntimeError, OSError) as error:
+            # a week-long run must survive a container restart, so never exit on ingest failure
+            print(f"ingest failed: {error}; retry in {backoff:.0f}s", file=sys.stderr, flush=True)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 60.0)
+
+
 if __name__ == "__main__":
-    dry_run()
+    if "--dry-run" in sys.argv:
+        dry_run()
+        sys.exit(0)
+    if not API_KEY:
+        sys.exit("set LOGHARBOR_API_KEY (see .env.example)")
+    print(f"streaming to {URL} at ~{EVENTS_PER_DAY:.0f} events/day (weekday); Ctrl-C to stop", flush=True)
+    try:
+        run()
+    except KeyboardInterrupt:
+        print("stopped", flush=True)
