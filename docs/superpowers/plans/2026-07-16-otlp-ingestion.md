@@ -1328,7 +1328,8 @@ public sealed class OtlpEndpointsTests : IAsyncLifetime
     {
         var token = await CreateApiKeyAsync();
         var oversized = new LogRecord { TimeUnixNano = TenAm };
-        oversized.Attributes.Add(Attr("blob", new string('x', 300 * 1024)));
+        // over the factory's per-event cap while the whole batch stays under its batch cap
+        oversized.Attributes.Add(Attr("blob", new string('x', LogHarborApiFactory.MaxEventBytes + 1)));
         var normal = new LogRecord { TimeUnixNano = TenAm, Body = new AnyValue { StringValue = "kept" } };
 
         var response = await PostOtlpAsync(
@@ -1366,7 +1367,7 @@ public sealed class OtlpEndpointsTests : IAsyncLifetime
     {
         var token = await CreateApiKeyAsync();
         var record = new LogRecord { TimeUnixNano = TenAm };
-        record.Attributes.Add(Attr("blob", new string('x', 6 * 1024 * 1024)));
+        record.Attributes.Add(Attr("blob", new string('x', LogHarborApiFactory.MaxBatchBytes)));
 
         var response = await PostOtlpAsync(BuildRequest(record).ToByteArray(), "application/x-protobuf", token);
 
