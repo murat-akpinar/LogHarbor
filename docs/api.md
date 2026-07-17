@@ -111,9 +111,10 @@ DELETE /api/signals/{id}         204 | 404 | 400 when an alert rule still refere
 Evaluated once a minute: fires a webhook POST when a signal matches at least
 thresholdCount events within the trailing windowMinutes.
 
-GET    /api/alerts        200: [ { id, title, signalId, thresholdCount, windowMinutes,
-                                    webhookUrl, isEnabled, createdAt, lastTriggeredAt, lastError } ]
-POST   /api/alerts        body { title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled }
+GET    /api/alerts        200: [ { id, title, signalId, thresholdCount, windowMinutes, webhookUrl,
+                                    isEnabled, createdAt, lastTriggeredAt, lastError, payloadFormat } ]
+POST   /api/alerts        body { title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled,
+                                 payloadFormat? }
                           201: AlertRule | 400 validation | 400 duplicate title | 400 unknown signal
 PUT    /api/alerts/{id}   same body  200: AlertRule | 404 | 400 (as above)
 DELETE /api/alerts/{id}   204 | 404
@@ -121,7 +122,11 @@ DELETE /api/alerts/{id}   204 | 404
 webhookUrl must be an absolute http(s) URL (never a file path or other local scheme).
 After firing (successfully or not) a rule cools down for one full windowMinutes before
 it can retrigger, so a dead webhook is not hammered every evaluation pass.
-Webhook POST body: { rule, signal, filter, count, threshold, windowMinutes, from, to }
+payloadFormat picks the webhook body shape (default generic):
+  generic  { rule, signal, filter, count, threshold, windowMinutes, from, to }
+  slack    { "text": "LogHarbor alert '<rule>': <count> events matched ..." }
+  discord  { "content": same message }   (paste a Slack/Discord incoming-webhook
+                                          URL as webhookUrl and pick its format)
 
 --- API KEYS ---
 

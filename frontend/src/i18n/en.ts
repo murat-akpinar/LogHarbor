@@ -177,6 +177,8 @@ export const en = {
     minutesPlaceholder: 'Minutes',
     windowTitle: 'Window (minutes)',
     enabledLabel: 'Enabled',
+    formatTitle: 'Webhook payload format',
+    formatGeneric: 'Generic (raw JSON)',
     allRequired: 'Title, signal and webhook URL are all required.',
     couldNotSave: 'Could not save alert rule.',
   },

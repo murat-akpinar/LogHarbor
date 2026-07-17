@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSignals } from '../hooks/useSignals'
 import type { AlertRequest } from '../api/alerts'
+import type { AlertPayloadFormat } from '../types'
 import { useI18n } from '../i18n'
 import { Input } from './ui/Input'
 import { Select } from './ui/Select'
@@ -21,6 +22,7 @@ const DEFAULTS: AlertRequest = {
   windowMinutes: 5,
   webhookUrl: '',
   isEnabled: true,
+  payloadFormat: 'generic',
 }
 
 export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFormProps) {
@@ -101,6 +103,18 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           className="min-w-64 flex-1"
           disabled={isSubmitting}
         />
+        <Select
+          value={form.payloadFormat}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, payloadFormat: event.target.value as AlertPayloadFormat }))
+          }
+          title={t.alerts.formatTitle}
+          disabled={isSubmitting}
+        >
+          <option value="generic">{t.alerts.formatGeneric}</option>
+          <option value="slack">Slack</option>
+          <option value="discord">Discord</option>
+        </Select>
         <label className="flex items-center gap-1.5 text-sm text-fg">
           <input
             type="checkbox"

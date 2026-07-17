@@ -25,6 +25,7 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
             thresholdCount: alert.thresholdCount,
             windowMinutes: alert.windowMinutes,
             webhookUrl: alert.webhookUrl,
+            payloadFormat: alert.payloadFormat,
             isEnabled: alert.isEnabled,
           }}
           submitLabel={t.common.save}

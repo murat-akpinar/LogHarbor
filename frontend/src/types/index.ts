@@ -110,6 +110,8 @@ export interface User {
   createdAt: string
 }
 
+export type AlertPayloadFormat = 'generic' | 'slack' | 'discord'
+
 export interface AlertRule {
   id: number
   title: string
@@ -121,6 +123,7 @@ export interface AlertRule {
   createdAt: string
   lastTriggeredAt: string | null
   lastError: string | null
+  payloadFormat: AlertPayloadFormat
 }
 
 export interface Health {

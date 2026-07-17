@@ -63,17 +63,7 @@ public sealed class AlertEvaluator
                 continue;
             }
 
-            var payload = JsonSerializer.Serialize(new
-            {
-                rule = rule.Title,
-                signal = signalTitle,
-                filter = signalFilter,
-                count = summary.Total,
-                threshold = rule.ThresholdCount,
-                windowMinutes = rule.WindowMinutes,
-                from = fromUtc,
-                to = toUtc,
-            }, PayloadOptions);
+            var payload = BuildPayload(rule, signalTitle, signalFilter, summary.Total, fromUtc, toUtc);
 
             var error = await _webhooks.SendAsync(rule.WebhookUrl, payload, cancellationToken);
             await _alerts.MarkTriggeredAsync(rule.Id, toUtc, error, cancellationToken);
@@ -84,4 +74,36 @@ public sealed class AlertEvaluator
         }
         return fired;
     }
+
+    /// <summary>Slack and Discord incoming webhooks reject arbitrary JSON — they require
+    /// {"text"} / {"content"} respectively; everything else gets the structured payload.</summary>
+    private static string BuildPayload(
+        AlertRule rule, string signalTitle, string signalFilter, long count, string fromUtc, string toUtc)
+    {
+        switch (rule.PayloadFormat)
+        {
+            case "slack":
+                return JsonSerializer.Serialize(
+                    new { text = BuildMessage(rule, signalTitle, count) }, PayloadOptions);
+            case "discord":
+                return JsonSerializer.Serialize(
+                    new { content = BuildMessage(rule, signalTitle, count) }, PayloadOptions);
+            default:
+                return JsonSerializer.Serialize(new
+                {
+                    rule = rule.Title,
+                    signal = signalTitle,
+                    filter = signalFilter,
+                    count,
+                    threshold = rule.ThresholdCount,
+                    windowMinutes = rule.WindowMinutes,
+                    from = fromUtc,
+                    to = toUtc,
+                }, PayloadOptions);
+        }
+    }
+
+    private static string BuildMessage(AlertRule rule, string signalTitle, long count) =>
+        $"LogHarbor alert '{rule.Title}': {count} events matched '{signalTitle}' " +
+        $"in the last {rule.WindowMinutes} min (threshold {rule.ThresholdCount}).";
 }

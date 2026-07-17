@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { AlertRule } from '../types'
+import type { AlertPayloadFormat, AlertRule } from '../types'
 
 export interface AlertRequest {
   title: string
@@ -8,6 +8,7 @@ export interface AlertRequest {
   windowMinutes: number
   webhookUrl: string
   isEnabled: boolean
+  payloadFormat: AlertPayloadFormat
 }
 
 export function getAlerts(): Promise<AlertRule[]> {

@@ -1,6 +1,7 @@
 namespace LogHarbor.Core.Storage;
 
-/// <summary>Fires a webhook when a signal matches at least ThresholdCount events within WindowMinutes.</summary>
+/// <summary>Fires a webhook when a signal matches at least ThresholdCount events within WindowMinutes.
+/// PayloadFormat picks the webhook body shape: generic (raw JSON), slack, discord.</summary>
 public sealed record AlertRule(
     long Id,
     string Title,
@@ -11,7 +12,8 @@ public sealed record AlertRule(
     bool IsEnabled,
     string CreatedAt,
     string? LastTriggeredAt,
-    string? LastError);
+    string? LastError,
+    string PayloadFormat);
 
 /// <summary>An enabled rule joined with its signal, ready for evaluation.</summary>
 public sealed record EnabledAlert(AlertRule Rule, string SignalTitle, string SignalFilter);
@@ -24,14 +26,14 @@ public interface IAlertStore
     /// </summary>
     Task<AlertRule> CreateAsync(
         string title, long signalId, int thresholdCount, int windowMinutes, string webhookUrl,
-        bool isEnabled, CancellationToken cancellationToken = default);
+        bool isEnabled, string payloadFormat, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<AlertRule>> ListAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Returns null when id does not exist; same exceptions as CreateAsync.</summary>
     Task<AlertRule?> UpdateAsync(
         long id, string title, long signalId, int thresholdCount, int windowMinutes, string webhookUrl,
-        bool isEnabled, CancellationToken cancellationToken = default);
+        bool isEnabled, string payloadFormat, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(long id, CancellationToken cancellationToken = default);
 

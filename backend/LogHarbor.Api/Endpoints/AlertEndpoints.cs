@@ -6,8 +6,11 @@ public static class AlertEndpoints
 {
     private const int MaxWindowMinutes = 7 * 24 * 60;
 
+    private static readonly string[] PayloadFormats = ["generic", "slack", "discord"];
+
     public sealed record AlertRequest(
-        string? Title, long? SignalId, int? ThresholdCount, int? WindowMinutes, string? WebhookUrl, bool? IsEnabled);
+        string? Title, long? SignalId, int? ThresholdCount, int? WindowMinutes, string? WebhookUrl, bool? IsEnabled,
+        string? PayloadFormat);
 
     public static void MapAlerts(this IEndpointRouteBuilder app)
     {
@@ -27,7 +30,8 @@ public static class AlertEndpoints
             {
                 var created = await store.CreateAsync(
                     request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount!.Value,
-                    request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true, cancellationToken);
+                    request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true,
+                    request.PayloadFormat ?? "generic", cancellationToken);
                 return Results.Created($"/api/alerts/{created.Id}", created);
             }
             catch (DuplicateAlertTitleException ex)
@@ -52,7 +56,8 @@ public static class AlertEndpoints
             {
                 var updated = await store.UpdateAsync(
                     id, request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount!.Value,
-                    request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true, cancellationToken);
+                    request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true,
+                    request.PayloadFormat ?? "generic", cancellationToken);
                 return updated is not null
                     ? Results.Ok(updated)
                     : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert rule not found");
@@ -97,6 +102,10 @@ public static class AlertEndpoints
             || (url.Scheme != Uri.UriSchemeHttp && url.Scheme != Uri.UriSchemeHttps))
         {
             errors["webhookUrl"] = ["Must be an absolute http(s) URL."];
+        }
+        if (request.PayloadFormat is not null && !PayloadFormats.Contains(request.PayloadFormat))
+        {
+            errors["payloadFormat"] = [$"Must be one of: {string.Join(", ", PayloadFormats)}."];
         }
         return errors.Count > 0 ? Results.ValidationProblem(errors) : null;
     }

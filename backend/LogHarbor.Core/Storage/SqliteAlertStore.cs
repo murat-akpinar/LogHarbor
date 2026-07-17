@@ -5,9 +5,10 @@ namespace LogHarbor.Core.Storage;
 
 public sealed class SqliteAlertStore : IAlertStore
 {
+    // payload_format stays last so reader ordinals never shift for older columns
     private const string Columns =
         "id, title, signal_id, threshold_count, window_minutes, webhook_url, is_enabled, " +
-        "created_at, last_triggered_at, last_error";
+        "created_at, last_triggered_at, last_error, payload_format";
 
     private const int UniqueConstraintCode = 2067;     // SQLITE_CONSTRAINT_UNIQUE
     private const int ForeignKeyConstraintCode = 787;  // SQLITE_CONSTRAINT_FOREIGNKEY
@@ -18,17 +19,17 @@ public sealed class SqliteAlertStore : IAlertStore
 
     public async Task<AlertRule> CreateAsync(
         string title, long signalId, int thresholdCount, int windowMinutes, string webhookUrl,
-        bool isEnabled, CancellationToken cancellationToken = default)
+        bool isEnabled, string payloadFormat, CancellationToken cancellationToken = default)
     {
         var createdAt = ClefParser.FormatTimestamp(DateTimeOffset.UtcNow);
 
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText =
-            "INSERT INTO alert_rules (title, signal_id, threshold_count, window_minutes, webhook_url, is_enabled, created_at) " +
-            "VALUES (@title, @signalId, @threshold, @window, @webhookUrl, @isEnabled, @createdAt); " +
+            "INSERT INTO alert_rules (title, signal_id, threshold_count, window_minutes, webhook_url, is_enabled, payload_format, created_at) " +
+            "VALUES (@title, @signalId, @threshold, @window, @webhookUrl, @isEnabled, @payloadFormat, @createdAt); " +
             "SELECT last_insert_rowid();";
-        AddRuleParameters(command, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled);
+        AddRuleParameters(command, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled, payloadFormat);
         command.Parameters.AddWithValue("@createdAt", createdAt);
 
         long id;
@@ -46,7 +47,7 @@ public sealed class SqliteAlertStore : IAlertStore
         }
 
         return new AlertRule(id, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled,
-            createdAt, LastTriggeredAt: null, LastError: null);
+            createdAt, LastTriggeredAt: null, LastError: null, payloadFormat);
     }
 
     public async Task<IReadOnlyList<AlertRule>> ListAsync(CancellationToken cancellationToken = default)
@@ -66,15 +67,16 @@ public sealed class SqliteAlertStore : IAlertStore
 
     public async Task<AlertRule?> UpdateAsync(
         long id, string title, long signalId, int thresholdCount, int windowMinutes, string webhookUrl,
-        bool isEnabled, CancellationToken cancellationToken = default)
+        bool isEnabled, string payloadFormat, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText =
             "UPDATE alert_rules SET title = @title, signal_id = @signalId, threshold_count = @threshold, " +
-            "window_minutes = @window, webhook_url = @webhookUrl, is_enabled = @isEnabled " +
+            "window_minutes = @window, webhook_url = @webhookUrl, is_enabled = @isEnabled, " +
+            "payload_format = @payloadFormat " +
             $"WHERE id = @id RETURNING {Columns};";
-        AddRuleParameters(command, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled);
+        AddRuleParameters(command, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled, payloadFormat);
         command.Parameters.AddWithValue("@id", id);
 
         try
@@ -108,7 +110,8 @@ public sealed class SqliteAlertStore : IAlertStore
         using var command = connection.CreateCommand();
         command.CommandText =
             "SELECT r.id, r.title, r.signal_id, r.threshold_count, r.window_minutes, r.webhook_url, " +
-            "r.is_enabled, r.created_at, r.last_triggered_at, r.last_error, s.title, s.filter " +
+            "r.is_enabled, r.created_at, r.last_triggered_at, r.last_error, r.payload_format, " +
+            "s.title, s.filter " +
             "FROM alert_rules r JOIN signals s ON s.id = r.signal_id " +
             "WHERE r.is_enabled = 1 ORDER BY r.id;";
 
@@ -116,7 +119,7 @@ public sealed class SqliteAlertStore : IAlertStore
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            alerts.Add(new EnabledAlert(ReadRule(reader), reader.GetString(10), reader.GetString(11)));
+            alerts.Add(new EnabledAlert(ReadRule(reader), reader.GetString(11), reader.GetString(12)));
         }
         return alerts;
     }
@@ -146,7 +149,7 @@ public sealed class SqliteAlertStore : IAlertStore
 
     private static void AddRuleParameters(
         SqliteCommand command, string title, long signalId, int thresholdCount, int windowMinutes,
-        string webhookUrl, bool isEnabled)
+        string webhookUrl, bool isEnabled, string payloadFormat)
     {
         command.Parameters.AddWithValue("@title", title);
         command.Parameters.AddWithValue("@signalId", signalId);
@@ -154,6 +157,7 @@ public sealed class SqliteAlertStore : IAlertStore
         command.Parameters.AddWithValue("@window", windowMinutes);
         command.Parameters.AddWithValue("@webhookUrl", webhookUrl);
         command.Parameters.AddWithValue("@isEnabled", isEnabled ? 1 : 0);
+        command.Parameters.AddWithValue("@payloadFormat", payloadFormat);
     }
 
     private static AlertRule ReadRule(SqliteDataReader reader) => new(
@@ -166,5 +170,6 @@ public sealed class SqliteAlertStore : IAlertStore
         reader.GetInt64(6) == 1,
         reader.GetString(7),
         reader.IsDBNull(8) ? null : reader.GetString(8),
-        reader.IsDBNull(9) ? null : reader.GetString(9));
+        reader.IsDBNull(9) ? null : reader.GetString(9),
+        reader.GetString(10));
 }

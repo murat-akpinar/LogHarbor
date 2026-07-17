@@ -179,6 +179,8 @@ export const tr: Messages = {
     minutesPlaceholder: 'Dakika',
     windowTitle: 'Pencere (dakika)',
     enabledLabel: 'Etkin',
+    formatTitle: 'Webhook gövde biçimi',
+    formatGeneric: 'Genel (ham JSON)',
     allRequired: 'Başlık, sinyal ve webhook URL alanlarının tümü zorunludur.',
     couldNotSave: 'Uyarı kuralı kaydedilemedi.',
   },

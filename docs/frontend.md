@@ -127,7 +127,8 @@ Row click (errors and slow operations): navigates to Events with
 --- ALERTS PAGE ---
 
 List, create, edit, delete alert rules: title, signal, threshold count, window
-(minutes), webhook URL, enabled toggle. Shows last-fired time and last error inline.
+(minutes), webhook URL, payload format (generic / Slack / Discord), enabled toggle.
+Shows last-fired time and last error inline.
 Read-only for viewers (list only; the create form and edit/delete buttons are admin-only).
 
 --- DESIGN TOKENS ---
