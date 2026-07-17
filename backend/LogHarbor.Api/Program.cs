@@ -149,11 +149,6 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 }));
 app.UseStatusCodePages();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
 
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api/events/raw")
@@ -196,6 +191,12 @@ app.UseWhen(
         }
         await next();
     }));
+
+// registered AFTER the session gate on purpose: middleware order is what puts /swagger behind
+// the admin session (AuthPolicy) in every environment — the Grafana pattern, so a deployed
+// instance's admin can explore the API while anonymous visitors get 401 before a single byte
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapHealth();
 app.MapAuth();

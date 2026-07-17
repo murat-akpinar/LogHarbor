@@ -222,6 +222,8 @@ Only events matching the subscribed filter are pushed.
 
 GET /healthz    200: { "status": "ok", "eventCount": n, "dbSizeBytes": n }
 
---- SWAGGER ---
+--- SWAGGER (admin only) ---
 
-GET /swagger    interactive API docs (Swashbuckle), development environment only
+GET /swagger    interactive API docs (Swashbuckle), every environment; requires an
+                admin session — anonymous 401, viewer 403. The session cookie is
+                already in the browser, so "Try it out" executes real requests.

@@ -52,7 +52,8 @@ SignalR Hub:
 
 Web API:
   REST endpoints for search, signals, API keys, dashboard queries (docs/api.md)
-  Swagger UI at /swagger (development only)
+  Swagger UI at /swagger — every environment, admin session required
+  (middleware registered after the auth gate; AuthPolicy lists /swagger)
 
 Auth:
   Multi-user accounts (admin / viewer roles), PBKDF2-hashed passwords, session cookie

@@ -15,6 +15,7 @@ public sealed class LogHarborApiFactory : WebApplicationFactory<Program>
 
     private readonly string? _adminPassword;
     private readonly bool _seedDefaultAdmin;
+    private readonly string? _environment;
 
     private readonly string _dbPath =
         Path.Combine(Path.GetTempPath(), $"logharbor-test-{Guid.NewGuid():N}.db");
@@ -24,14 +25,22 @@ public sealed class LogHarborApiFactory : WebApplicationFactory<Program>
     /// <param name="adminPassword">When set, the app starts with admin auth enabled.</param>
     /// <param name="seedDefaultAdmin">Production seeds admin/admin; tests opt in, so the rest of
     /// them keep exercising the no-users, no-auth path without logging in first.</param>
-    public LogHarborApiFactory(string? adminPassword = null, bool seedDefaultAdmin = false)
+    /// <param name="environment">WebApplicationFactory defaults to Development; tests that pin
+    /// production-only behavior (Swagger availability) pass "Production".</param>
+    public LogHarborApiFactory(
+        string? adminPassword = null, bool seedDefaultAdmin = false, string? environment = null)
     {
         _adminPassword = adminPassword;
         _seedDefaultAdmin = seedDefaultAdmin;
+        _environment = environment;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        if (_environment is not null)
+        {
+            builder.UseEnvironment(_environment);
+        }
         builder.UseSetting("LogHarbor:DatabasePath", _dbPath);
         // the scheduler's startup pass would race seeded events; archive tests call Archiver directly
         builder.UseSetting("LogHarbor:RunBackgroundJobs", "false");
