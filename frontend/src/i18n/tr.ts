@@ -191,6 +191,10 @@ export const tr: Messages = {
     events: 'Olaylar',
     dbSize: 'Veritabanı boyutu',
     apiKeys: 'API anahtarları',
+    backup: 'Yedekleme',
+    backupHint:
+      'Veritabanının tamamının tutarlı bir anlık görüntüsünü indirir — sunucu çalışırken güvenlidir. Geri yükleme adımları README dosyasında.',
+    downloadBackup: 'Yedeği indir',
     keyTitlePlaceholder: 'Anahtar başlığı (isteğe bağlı), örn. OrderService production',
     createKey: 'Anahtar oluştur',
     copyTokenNotice: 'Bu belirteci şimdi kopyala — yalnızca bir kez gösterilir ve sonradan alınamaz.',

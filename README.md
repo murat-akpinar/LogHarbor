@@ -198,6 +198,30 @@ Archive settings are also editable at runtime on the Settings page, which takes 
 
 ---
 
+## Backup & restore
+
+The whole server is one SQLite file, and `GET /api/admin/backup` (admin only —
+also linked on the Settings page) streams a consistent snapshot of it, taken
+with `VACUUM INTO` so it is safe while the server keeps ingesting.
+
+Restore:
+
+```bash
+docker compose stop logharbor
+# replace the database inside the data volume with the downloaded snapshot
+docker run --rm -v logharbor_logharbor-data:/data -v "$PWD":/backup alpine \
+  cp /backup/logharbor-backup-YYYYMMDD-HHmmss.db /data/logharbor.db
+docker compose start logharbor
+```
+
+The volume name carries your compose project as a prefix (`logharbor_...` when
+the project directory is `logharbor`); `docker volume ls` shows the exact name.
+
+Running from source: stop the backend and replace the file at
+`LogHarbor__DatabasePath` (default `data/logharbor.db`), then start again.
+
+---
+
 ## Docs
 
 | File | Contents |

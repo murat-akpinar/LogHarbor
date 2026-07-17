@@ -421,6 +421,22 @@ export function SettingsPage() {
       </section>
 
       {isAdmin && (
+        <section className="mb-6">
+          <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.backup}</h2>
+          <Card className="p-4">
+            <p className="mb-3 text-sm text-fg-muted">{t.settings.backupHint}</p>
+            {/* a plain anchor: the session cookie rides along and the browser handles the download */}
+            <a
+              href="/api/admin/backup"
+              className="inline-block rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-hover"
+            >
+              {t.settings.downloadBackup}
+            </a>
+          </Card>
+        </section>
+      )}
+
+      {isAdmin && (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.users}</h2>
           <Card className="p-4">

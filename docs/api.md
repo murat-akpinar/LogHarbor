@@ -191,6 +191,15 @@ PUT  /api/settings/archive                body same shape  200: saved settings |
 Note: GET /api/events responses always include "archivedDays": [ "YYYY-MM-DD" ] — the
 cold (non-hydrated) archive days the requested range touches; empty when none.
 
+--- BACKUP (admin only) ---
+
+GET /api/admin/backup    200: application/octet-stream, a consistent snapshot of the
+                         whole SQLite database (VACUUM INTO, safe while the server runs;
+                         WAL folded in, output compacted); Content-Disposition names it
+                         logharbor-backup-YYYYMMDD-HHmmss.db. Everything under /api/admin
+                         is admin-only even for GET (AuthPolicy.RequiresAdmin).
+                         Restore steps: README "Backup & restore".
+
 --- NOT FOUND ---
 
 Unknown paths under /api and /hubs return 404 ProblemDetails, never the SPA shell;

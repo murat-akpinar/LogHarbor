@@ -189,6 +189,10 @@ export const en = {
     events: 'Events',
     dbSize: 'Database size',
     apiKeys: 'API keys',
+    backup: 'Backup',
+    backupHint:
+      'Downloads a consistent snapshot of the whole database — safe while the server is running. Restore steps are in the README.',
+    downloadBackup: 'Download backup',
     keyTitlePlaceholder: 'Key title (optional), e.g. OrderService production',
     createKey: 'Create key',
     copyTokenNotice: 'Copy this token now — it is shown only once and cannot be retrieved later.',

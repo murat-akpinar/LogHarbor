@@ -12,8 +12,8 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              range; rows deep-link to filtered Events
 /signals     List, create, edit, delete signals
 /alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
-/settings    API key management, archive/retention settings, user management
-             (admin only), health status, sign out
+/settings    API key management, archive/retention settings, backup download
+             (admin only), user management (admin only), health status, sign out
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
 seeds the first admin on startup). While enabled, a login screen (username + password)

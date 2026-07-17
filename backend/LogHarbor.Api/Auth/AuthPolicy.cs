@@ -24,11 +24,12 @@ public static class AuthPolicy
 
     /// <summary>
     /// Viewers are read-only: reads, live tail, filter validation and archive extraction
-    /// stay open to them; every other mutation and all of /api/users is admin-only.
+    /// stay open to them; every other mutation and all of /api/users and /api/admin is
+    /// admin-only — /api/admin holds the reads that expose the whole database (backup).
     /// </summary>
     public static bool RequiresAdmin(PathString path, string method)
     {
-        if (path.StartsWithSegments("/api/users"))
+        if (path.StartsWithSegments("/api/users") || path.StartsWithSegments("/api/admin"))
         {
             return true;
         }

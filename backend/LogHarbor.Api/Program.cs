@@ -211,6 +211,7 @@ app.MapAlerts();
 app.MapStats();
 app.MapArchive();
 app.MapSettings();
+app.MapBackup();
 app.MapHub<TailHub>("/hubs/tail");
 
 // single deployable: the SPA build is served from wwwroot, unknown paths fall back to index.html

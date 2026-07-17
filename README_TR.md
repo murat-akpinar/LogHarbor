@@ -200,6 +200,32 @@ Arşiv ayarları Settings sayfasından da değiştirilebilir; oradaki değerler 
 
 ---
 
+## Yedekleme ve geri yükleme
+
+Sunucunun tamamı tek bir SQLite dosyası; `GET /api/admin/backup` (yalnızca
+admin — Settings sayfasında da bağlantısı var) bu dosyanın tutarlı bir anlık
+görüntüsünü indirir. Görüntü `VACUUM INTO` ile alınır, yani sunucu log almaya
+devam ederken bile güvenlidir.
+
+Geri yükleme:
+
+```bash
+docker compose stop logharbor
+# veri volume'ündeki veritabanını indirilen anlık görüntüyle değiştir
+docker run --rm -v logharbor_logharbor-data:/data -v "$PWD":/backup alpine \
+  cp /backup/logharbor-backup-YYYYMMDD-HHmmss.db /data/logharbor.db
+docker compose start logharbor
+```
+
+Volume adının başında compose projesinin adı bulunur (proje klasörü
+`logharbor` ise `logharbor_...`); tam adı `docker volume ls` gösterir.
+
+Kaynaktan çalıştırıyorsan: backend'i durdur, `LogHarbor__DatabasePath`
+konumundaki dosyayı (varsayılan `data/logharbor.db`) indirilen dosyayla
+değiştir, yeniden başlat.
+
+---
+
 ## Dokümanlar
 
 Dokümanlar İngilizcedir (rules.md).
