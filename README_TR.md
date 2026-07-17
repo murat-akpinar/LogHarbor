@@ -14,6 +14,9 @@ canlı akış, panolar ve uyarılar için bir web arayüzü sunar.
 
 *[English README](README.md)*
 
+**Yeni misin?** [5 dakikada çalıştır](docs/running-in-5-minutes.md) — container'ı
+başlat, giriş yap, anahtar oluştur, ilk log satırını ekranda gör.
+
 - **Arama**: Seq benzeri filtre dili (`@Level = 'Error' and Elapsed > 500`)
 - **Canlı akış (live tail)**: SignalR üzerinden, filtre sunucu tarafında uygulanır
 - **Signal**: kaydedilmiş filtreler, tek tıkla açılıp kapanır
@@ -232,11 +235,13 @@ Dokümanlar İngilizcedir (rules.md).
 
 | Dosya | İçerik |
 |---|---|
+| [docs/running-in-5-minutes.md](docs/running-in-5-minutes.md) | Sıfırdan ilk log satırına, adım adım |
 | [docs/architecture.md](docs/architecture.md) | Sistemin genel yapısı ve bileşenleri |
 | [docs/data-model.md](docs/data-model.md) | Olay şeması ve depolama tasarımı |
 | [docs/api.md](docs/api.md) | HTTP API uçları |
 | [docs/query-language.md](docs/query-language.md) | Filtre/arama sözdizimi |
 | [docs/frontend.md](docs/frontend.md) | Arayüz yapısı ve sayfalar |
 | [docs/ingestion-app.md](docs/ingestion-app.md) | Uygulama içinden log gönderme |
+| [docs/ingestion-otlp.md](docs/ingestion-otlp.md) | OpenTelemetry (OTLP) ile log gönderme |
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Vector ile Docker loglarını toplama |
 | [docs/archiving.md](docs/archiving.md) | Katmanlı depolama: sıkıştırma, geri açma, saklama |

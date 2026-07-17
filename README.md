@@ -14,6 +14,9 @@ serves a web UI for search, live tail, dashboards and alerts.
 
 *[Türkçe README](README_TR.md)*
 
+**New here?** [Running in 5 minutes](docs/running-in-5-minutes.md) — start the
+container, sign in, create a key, see your first log line on screen.
+
 - **Search** with a Seq-like filter language (`@Level = 'Error' and Elapsed > 500`)
 - **Live tail** over SignalR, filtered server-side
 - **Signals**: saved filters you can toggle on
@@ -226,11 +229,13 @@ Running from source: stop the backend and replace the file at
 
 | File | Contents |
 |---|---|
+| [docs/running-in-5-minutes.md](docs/running-in-5-minutes.md) | Zero to first log line, step by step |
 | [docs/architecture.md](docs/architecture.md) | System overview and components |
 | [docs/data-model.md](docs/data-model.md) | Event schema and storage design |
 | [docs/api.md](docs/api.md) | HTTP API endpoints |
 | [docs/query-language.md](docs/query-language.md) | Filter/search syntax |
 | [docs/frontend.md](docs/frontend.md) | UI structure and pages |
 | [docs/ingestion-app.md](docs/ingestion-app.md) | Sending logs from your app |
+| [docs/ingestion-otlp.md](docs/ingestion-otlp.md) | Sending logs with OpenTelemetry (OTLP) |
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Collecting Docker logs via Vector |
 | [docs/archiving.md](docs/archiving.md) | Tiered storage: compression, hydration, retention |
