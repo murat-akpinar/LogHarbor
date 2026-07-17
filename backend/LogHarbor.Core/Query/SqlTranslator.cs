@@ -7,7 +7,7 @@ namespace LogHarbor.Core.Query;
 /// </summary>
 public sealed record QuerySql(string SqlTemplate, IReadOnlyList<KeyValuePair<string, object>> Parameters)
 {
-    // never produced by the tokenizer (identifiers are [A-Za-z0-9_]) and all user values are
+    // never produced by the tokenizer (identifiers are [A-Za-z0-9_.]) and all user values are
     // parameters, so this token can only come from the translator itself
     internal const string FtsTableToken = "{fts}";
 

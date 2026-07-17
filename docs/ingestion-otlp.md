@@ -45,7 +45,8 @@ severity_number 1-24 -> the six canonical levels in blocks of four
   21-24 Fatal); missing number -> severity_text through the CLEF alias map
 time_unix_nano -> timestamp (UTC fixed format, future clamp — same normalization
   as CLEF @t); 0 -> observed_time_unix_nano; both 0 -> server time
-body            -> message (string bodies as-is, structured bodies as JSON text)
+body            -> message (string bodies as-is, structured bodies as JSON text;
+  empty/absent body falls back to the message_template text)
 message_template.text attribute -> message_template (Serilog's OTel sink sends it;
   error grouping on the Analysis page works exactly like CLEF @mt)
 trace_id/span_id -> lowercase hex into the trace columns (@TraceId/@SpanId filters)
