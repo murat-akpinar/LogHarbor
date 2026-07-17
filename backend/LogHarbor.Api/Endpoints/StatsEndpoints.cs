@@ -81,9 +81,9 @@ public static class StatsEndpoints
         double factor = 2.0,
         int limit = 20)
     {
-        if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_'))
+        if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
         {
-            return BadRequest("Invalid query", "property must contain only letters, digits, or underscores.");
+            return BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
         }
         if (minSamples < 1 || floorMs < 0 || factor < 1)
         {
@@ -110,9 +110,9 @@ public static class StatsEndpoints
         int limit = 20)
     {
         // same alphabet as query-language identifiers; anything else could escape the JSON path
-        if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_'))
+        if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
         {
-            return BadRequest("Invalid query", "property must contain only letters, digits, or underscores.");
+            return BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
         }
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {

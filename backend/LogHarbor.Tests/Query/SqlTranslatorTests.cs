@@ -20,8 +20,17 @@ public sealed class SqlTranslatorTests
     {
         var result = Translate("UserId = 42");
 
-        Assert.Equal("json_extract(properties, '$.UserId') = @q0", result.Sql);
+        Assert.Equal("json_extract(properties, '$.\"UserId\"') = @q0", result.Sql);
         Assert.Equal(Pairs(Pair("@q0", 42L)), result.Parameters);
+    }
+
+    [Fact]
+    public void DottedProperty_UsesQuotedJsonPathStep()
+    {
+        var result = Translate("service.name = 'checkout-api'");
+
+        Assert.Equal("json_extract(properties, '$.\"service.name\"') = @q0", result.Sql);
+        Assert.Equal(Pairs(Pair("@q0", "checkout-api")), result.Parameters);
     }
 
     [Fact]
@@ -38,7 +47,7 @@ public sealed class SqlTranslatorTests
     {
         var result = Translate("RequestPath like '/api/%'");
 
-        Assert.Equal("json_extract(properties, '$.RequestPath') LIKE @q0", result.Sql);
+        Assert.Equal("json_extract(properties, '$.\"RequestPath\"') LIKE @q0", result.Sql);
         Assert.Equal(Pairs(Pair("@q0", "/api/%")), result.Parameters);
     }
 
@@ -58,17 +67,17 @@ public sealed class SqlTranslatorTests
 
         Assert.Equal(
             "(id IN (SELECT rowid FROM events_cache_fts WHERE events_cache_fts MATCH @q0) " +
-            "AND json_extract(properties, '$.UserId') = @q1)",
+            "AND json_extract(properties, '$.\"UserId\"') = @q1)",
             result.SqlFor("events_cache_fts"));
         // a property that happens to contain the hot table's name must never be rewritten
-        Assert.Equal("json_type(properties, '$.events_fts') IS NOT NULL",
+        Assert.Equal("json_type(properties, '$.\"events_fts\"') IS NOT NULL",
             Translate("Has(events_fts)").SqlFor("events_cache_fts"));
     }
 
     [Theory]
     [InlineData("@Exception = null", "exception IS NULL")]
     [InlineData("@Exception <> null", "exception IS NOT NULL")]
-    [InlineData("null = OrderId", "json_extract(properties, '$.OrderId') IS NULL")]
+    [InlineData("null = OrderId", "json_extract(properties, '$.\"OrderId\"') IS NULL")]
     public void NullComparison_BecomesIsNull(string filter, string expectedSql)
     {
         var result = Translate(filter);
@@ -91,7 +100,14 @@ public sealed class SqlTranslatorTests
     [Fact]
     public void Has_UsesJsonType()
     {
-        Assert.Equal("json_type(properties, '$.OrderId') IS NOT NULL", Translate("Has(OrderId)").Sql);
+        Assert.Equal("json_type(properties, '$.\"OrderId\"') IS NOT NULL", Translate("Has(OrderId)").Sql);
+    }
+
+    [Fact]
+    public void Has_WithDottedProperty_UsesQuotedJsonPathStep()
+    {
+        Assert.Equal("json_type(properties, '$.\"http.route\"') IS NOT NULL",
+            Translate("Has(http.route)").Sql);
     }
 
     [Fact]
@@ -108,7 +124,7 @@ public sealed class SqlTranslatorTests
         var result = Translate("@Level = 'Error' and not (UserId = 1 or UserId = 2)");
 
         Assert.Equal(
-            "(level = @q0 AND NOT ((json_extract(properties, '$.UserId') = @q1 OR json_extract(properties, '$.UserId') = @q2)))",
+            "(level = @q0 AND NOT ((json_extract(properties, '$.\"UserId\"') = @q1 OR json_extract(properties, '$.\"UserId\"') = @q2)))",
             result.Sql);
         Assert.Equal(
             Pairs(Pair("@q0", "Error"), Pair("@q1", 1L), Pair("@q2", 2L)),

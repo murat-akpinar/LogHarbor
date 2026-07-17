@@ -401,8 +401,9 @@ public sealed class SqliteEventStore : IEventStore
             connection, command, filter, "message_template, properties, timestamp",
             baselineFromUtc, toUtc, cancellationToken);
 
-        // safe to embed: property is restricted to [A-Za-z0-9_] at the API boundary
-        var extract = $"json_extract(properties, '$.{property}')";
+        // safe to embed: property is restricted to [A-Za-z0-9_.] at the API boundary;
+        // the quoted step keeps dots literal
+        var extract = $"json_extract(properties, '$.\"{property}\"')";
         command.CommandText =
             "WITH v AS (" +
             $"SELECT message_template AS tmpl, CAST({extract} AS REAL) AS ms, " +
@@ -472,8 +473,9 @@ public sealed class SqliteEventStore : IEventStore
         var source = await BuildStatsSourceAsync(
             connection, command, filter, "properties", fromUtc, toUtc, cancellationToken);
 
-        // safe to embed: the API boundary restricts property to [A-Za-z0-9_], same alphabet as query identifiers
-        var extract = $"json_extract(properties, '$.{property}')";
+        // safe to embed: property is restricted to [A-Za-z0-9_.] at the API boundary;
+        // the quoted step keeps dots literal
+        var extract = $"json_extract(properties, '$.\"{property}\"')";
         command.CommandText =
             $"SELECT CAST({extract} AS TEXT) AS value, COUNT(*) AS cnt FROM {source} " +
             $"WHERE {extract} IS NOT NULL GROUP BY value ORDER BY cnt DESC, value LIMIT @limit;";

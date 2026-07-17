@@ -40,7 +40,7 @@ public sealed class SqlTranslator
         OrNode n => $"({Visit(n.Left)} OR {Visit(n.Right)})",
         NotNode n => $"NOT ({Visit(n.Inner)})",
         // json_type is NULL only when the path is absent, so a property holding JSON null still counts as present
-        HasNode n => $"json_type(properties, '$.{n.Property}') IS NOT NULL",
+        HasNode n => $"json_type(properties, '$.\"{n.Property}\"') IS NOT NULL",
         FreeTextNode n =>
             $"id IN (SELECT rowid FROM {QuerySql.FtsTableToken} WHERE {QuerySql.FtsTableToken} MATCH {AddParameter(FtsPhrase(n.Text))})",
         ComparisonNode n => VisitComparison(n),
@@ -72,8 +72,9 @@ public sealed class SqlTranslator
     private string Operand(OperandNode operand) => operand switch
     {
         BuiltinOperand b => b.Column,
-        // safe to embed: the tokenizer restricts identifiers to [A-Za-z0-9_]
-        PropertyOperand p => $"json_extract(properties, '$.{p.Name}')",
+        // safe to embed: the tokenizer restricts identifiers to [A-Za-z0-9_.]; the quoted
+        // path step makes a dot part of the key, never a nesting separator
+        PropertyOperand p => $"json_extract(properties, '$.\"{p.Name}\"')",
         LiteralOperand l => AddParameter(l.Value!),
         _ => throw new InvalidOperationException($"unhandled operand {operand.GetType().Name}"),
     };
