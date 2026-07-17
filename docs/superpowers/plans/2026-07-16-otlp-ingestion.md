@@ -816,11 +816,12 @@ public sealed class OtlpJsonTests
     private const string HexTrace = "0af7651916cd43dd8448eb211c80319c";
     private const string HexSpan = "b7ad6b7169203331";
 
-    private static string Payload(string idFields) => $$"""
+    // plain raw string + Replace: interpolated raw strings reject nested JSON's }} runs (CS9007)
+    private static string Payload(string idFields) => """
         {"resourceLogs":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"checkout"}}]},
         "scopeLogs":[{"logRecords":[{"timeUnixNano":"1783936800000000000","severityNumber":17,
-        "body":{"stringValue":"boom"}{{idFields}}}]}]}]}
-        """;
+        "body":{"stringValue":"boom"}__IDS__}]}]}]}
+        """.Replace("__IDS__", idFields);
 
     [Fact]
     public void HexTraceIds_AreTranscoded_ForTheProtobufJsonParser()
@@ -850,10 +851,10 @@ public sealed class OtlpJsonTests
     [Fact]
     public void SnakeCaseKeys_AreAccepted()
     {
-        var json = $$"""
+        var json = """
             {"resource_logs":[{"scope_logs":[{"log_records":[
-            {"trace_id":"{{HexTrace}}","body":{"stringValue":"x"}}]}]}]}
-            """;
+            {"trace_id":"__TRACE__","body":{"stringValue":"x"}}]}]}]}
+            """.Replace("__TRACE__", HexTrace);
 
         Assert.True(OtlpJson.TryParse(json, out var request, out var error), error);
         var record = request!.ResourceLogs[0].ScopeLogs[0].LogRecords[0];
