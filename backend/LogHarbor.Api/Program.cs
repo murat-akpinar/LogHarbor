@@ -156,7 +156,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseWhen(
-    context => context.Request.Path.StartsWithSegments("/api/events/raw"),
+    context => context.Request.Path.StartsWithSegments("/api/events/raw")
+        || context.Request.Path.StartsWithSegments("/v1"),
     branch => branch.UseMiddleware<ApiKeyMiddleware>());
 app.UseRateLimiter();
 
@@ -201,6 +202,7 @@ app.MapAuth();
 app.MapUsers();
 app.MapApiKeys();
 app.MapIngestion();
+app.MapOtlp();
 app.MapEvents();
 app.MapExport();
 app.MapSuggest();
@@ -218,7 +220,8 @@ app.MapFallback(async context =>
 {
     // an unknown /api or /hubs path is a client error, not a deep link: answering with the SPA's
     // HTML and a 200 would hide typos and broken integrations behind a page that never loads data
-    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/hubs"))
+    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/hubs")
+        || context.Request.Path.StartsWithSegments("/v1"))
     {
         await Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found").ExecuteAsync(context);
         return;

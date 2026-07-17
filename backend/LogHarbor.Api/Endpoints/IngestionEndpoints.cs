@@ -30,16 +30,12 @@ public static class IngestionEndpoints
         IngestionOptions options,
         CancellationToken cancellationToken)
     {
-        if (request.ContentLength > options.MaxBatchBytes)
+        var bytes = await RequestBody.ReadCappedAsync(request, options.MaxBatchBytes, cancellationToken);
+        if (bytes is null)
         {
             return PayloadTooLarge($"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).");
         }
-
-        var body = await ReadBodyCappedAsync(request.Body, options.MaxBatchBytes, cancellationToken);
-        if (body is null)
-        {
-            return PayloadTooLarge($"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).");
-        }
+        var body = Encoding.UTF8.GetString(bytes);
 
         var serverTime = DateTimeOffset.UtcNow;
         var events = new List<Event>();
@@ -72,21 +68,4 @@ public static class IngestionEndpoints
     private static IResult PayloadTooLarge(string detail) =>
         Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
             title: "Payload too large", detail: detail);
-
-    /// <summary>Reads at most maxBytes; returns null when the body is larger (chunked bodies have no Content-Length).</summary>
-    private static async Task<string?> ReadBodyCappedAsync(Stream body, int maxBytes, CancellationToken cancellationToken)
-    {
-        using var buffer = new MemoryStream();
-        var chunk = new byte[64 * 1024];
-        int read;
-        while ((read = await body.ReadAsync(chunk, cancellationToken)) > 0)
-        {
-            buffer.Write(chunk, 0, read);
-            if (buffer.Length > maxBytes)
-            {
-                return null;
-            }
-        }
-        return Encoding.UTF8.GetString(buffer.GetBuffer(), 0, (int)buffer.Length);
-    }
 }
