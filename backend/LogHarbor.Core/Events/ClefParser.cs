@@ -46,11 +46,7 @@ public static partial class ClefParser
                 return false;
             }
 
-            // a client with a broken clock must not create rows that never age into the archive
-            if (timestamp > serverTime + FutureTolerance)
-            {
-                timestamp = serverTime;
-            }
+            timestamp = ClampFuture(timestamp, serverTime);
 
             var messageTemplate = GetString(root, "@mt");
             var message = GetString(root, "@m")
@@ -59,7 +55,7 @@ public static partial class ClefParser
             parsed = new Event(
                 Id: 0,
                 Timestamp: FormatTimestamp(timestamp),
-                Level: MapLevel(GetString(root, "@l")),
+                Level: Levels.FromAlias(GetString(root, "@l")),
                 Message: message,
                 MessageTemplate: messageTemplate,
                 Properties: ExtractProperties(root),
@@ -77,20 +73,14 @@ public static partial class ClefParser
     public static string FormatTimestamp(DateTimeOffset value) =>
         value.ToUniversalTime().ToString(TimestampFormat, CultureInfo.InvariantCulture);
 
+    /// <summary>A client with a broken clock must not create rows that never age into the archive.</summary>
+    public static DateTimeOffset ClampFuture(DateTimeOffset value, DateTimeOffset serverTime) =>
+        value > serverTime + FutureTolerance ? serverTime : value;
+
     private static string? GetString(JsonElement root, string name) =>
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
-
-    private static string MapLevel(string? level) => level?.Trim().ToLowerInvariant() switch
-    {
-        "verbose" or "trace" => "Verbose",
-        "debug" => "Debug",
-        "warning" or "warn" => "Warning",
-        "error" or "err" => "Error",
-        "fatal" or "critical" or "crit" => "Fatal",
-        _ => "Information", // includes missing @l and unknown values (docs/data-model.md)
-    };
 
     private static string? ExtractProperties(JsonElement root)
     {
