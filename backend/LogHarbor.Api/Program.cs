@@ -11,6 +11,9 @@ using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Alerting;
 using LogHarbor.Core.Archiving;
 using LogHarbor.Core.Storage;
+using LogHarbor.Core.Telemetry;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -114,6 +117,20 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// self-telemetry (docs/superpowers/specs/2026-07-18-self-telemetry-design.md): metrics only,
+// and only when an OTLP endpoint is configured — off by default, zero overhead otherwise.
+// The exporter still honors the other standard OTEL_EXPORTER_OTLP_* env vars.
+var otlpMetricsEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
+if (!string.IsNullOrEmpty(otlpMetricsEndpoint))
+{
+    builder.Services.AddOpenTelemetry()
+        .ConfigureResource(resource => resource.AddService("logharbor"))
+        .WithMetrics(metrics => metrics
+            .AddMeter(LogHarborMetrics.Meter.Name)
+            .AddAspNetCoreInstrumentation()
+            .AddOtlpExporter(options => options.Endpoint = new Uri(otlpMetricsEndpoint)));
+}
 
 var app = builder.Build();
 

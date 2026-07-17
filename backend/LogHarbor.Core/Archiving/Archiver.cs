@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Storage;
+using LogHarbor.Core.Telemetry;
 
 namespace LogHarbor.Core.Archiving;
 
@@ -34,24 +36,32 @@ public sealed class Archiver
     public async Task<IReadOnlyList<ArchiveSegment>> RunArchiveAsync(
         DateTimeOffset now, CancellationToken cancellationToken = default)
     {
-        var settings = await _settings.GetArchiveSettingsAsync(cancellationToken);
-        if (!settings.ArchivingEnabled)
+        var started = Stopwatch.GetTimestamp();
+        try
         {
-            return [];
-        }
+            var settings = await _settings.GetArchiveSettingsAsync(cancellationToken);
+            if (!settings.ArchivingEnabled)
+            {
+                return [];
+            }
 
-        var cutoffDay = ToDay(now.UtcDateTime.Date.AddDays(-settings.CompressAfterDays));
-        var created = new List<ArchiveSegment>();
-        foreach (var day in await _store.GetArchivableDaysAsync(cutoffDay, cancellationToken))
-        {
-            created.Add(await ArchiveDayAsync(day, cancellationToken));
-        }
+            var cutoffDay = ToDay(now.UtcDateTime.Date.AddDays(-settings.CompressAfterDays));
+            var created = new List<ArchiveSegment>();
+            foreach (var day in await _store.GetArchivableDaysAsync(cutoffDay, cancellationToken))
+            {
+                created.Add(await ArchiveDayAsync(day, cancellationToken));
+            }
 
-        if (created.Count > 0)
-        {
-            await _store.IncrementalVacuumAsync(cancellationToken);
+            if (created.Count > 0)
+            {
+                await _store.IncrementalVacuumAsync(cancellationToken);
+            }
+            return created;
         }
-        return created;
+        finally
+        {
+            LogHarborMetrics.ArchiveJobDuration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+        }
     }
 
     /// <summary>

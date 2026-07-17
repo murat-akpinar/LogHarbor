@@ -89,6 +89,18 @@ public sealed class ArchiverTests : IDisposable
     }
 
     [Fact]
+    public async Task RunArchive_RecordsJobDurationMetric()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        using var capture = new Telemetry.MeterCapture();
+
+        await _archiver.RunArchiveAsync(Now);
+
+        Assert.Contains(capture.Measurements,
+            m => m.Instrument == "logharbor.archive.job.duration" && m.Value >= 0);
+    }
+
+    [Fact]
     public async Task RunArchive_SecondRun_CreatesNothing()
     {
         await SeedTwoOldDaysAndOneRecentAsync();

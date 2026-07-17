@@ -55,6 +55,13 @@ Web API:
   Swagger UI at /swagger — every environment, admin session required
   (middleware registered after the auth gate; AuthPolicy lists /swagger)
 
+Self-telemetry:
+  Custom meters (Meter "LogHarbor", plain System.Diagnostics.Metrics in Core):
+  ingest rate by source (clef/otlp), event query duration, archive job duration.
+  Exported via OTLP together with ASP.NET Core request metrics ONLY when
+  OTEL_EXPORTER_OTLP_ENDPOINT is set — off by default, near-zero cost unlistened
+  (docs/superpowers/specs/2026-07-18-self-telemetry-design.md)
+
 Auth:
   Multi-user accounts (admin / viewer roles), PBKDF2-hashed passwords, session cookie
   First start seeds an admin account, so an install is never left open: LOGHARBOR_ADMIN_PASSWORD

@@ -4,6 +4,7 @@ using OpenTelemetry.Proto.Collector.Logs.V1;
 using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Events.Otlp;
 using LogHarbor.Core.Storage;
+using LogHarbor.Core.Telemetry;
 
 namespace LogHarbor.Api.Endpoints;
 
@@ -67,6 +68,7 @@ public static class OtlpEndpoints
 
         var result = OtlpLogParser.Parse(request, DateTimeOffset.UtcNow, options.MaxEventBytes);
         var ids = await eventStore.WriteBatchAsync(result.Events, cancellationToken);
+        LogHarborMetrics.CountIngested(result.Events.Count, "otlp");
         await tailBroadcaster.BroadcastAsync(ids, cancellationToken);
 
         var response = new ExportLogsServiceResponse();

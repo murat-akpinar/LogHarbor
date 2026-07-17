@@ -198,6 +198,7 @@ Ortam değişkenleri (ya da `appsettings.json` içinde `LogHarbor:` altında):
 | `LogHarbor__SeedDefaultAdmin` | `true` | Kullanıcı tablosu boşsa admin hesabını oluştur |
 | `LogHarbor__AllowInsecureCookie` | `false` | Oturum çerezini `Secure` olmadan ver, böylece düz HTTP üzerinde giriş çalışır (yalnızca test/yerel ağ; HTTPS proxy arkasında `false` bırak) |
 | `LOGHARBOR_ADMIN_PASSWORD` | *(boş)* | Oluşturulan admin'in parolası; boşsa admin/admin ve ilk girişte değiştirilir |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | *(boş)* | Ayarlanırsa LogHarbor kendi metriklerini (ingest hızı, sorgu gecikmesi, arşiv işi süresi, HTTP sunucu metrikleri) bu OTLP adresine gönderir; boşsa öz-telemetri tamamen kapalıdır |
 
 Arşiv ayarları Settings sayfasından da değiştirilebilir; oradaki değerler önceliklidir.
 

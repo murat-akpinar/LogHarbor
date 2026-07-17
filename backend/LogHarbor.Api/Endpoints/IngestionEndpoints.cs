@@ -2,6 +2,7 @@ using System.Text;
 using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Storage;
+using LogHarbor.Core.Telemetry;
 
 namespace LogHarbor.Api.Endpoints;
 
@@ -61,6 +62,7 @@ public static class IngestionEndpoints
         }
 
         var ids = await eventStore.WriteBatchAsync(events, cancellationToken);
+        LogHarborMetrics.CountIngested(events.Count, "clef");
         await tailBroadcaster.BroadcastAsync(ids, cancellationToken);
         return Results.StatusCode(StatusCodes.Status201Created);
     }

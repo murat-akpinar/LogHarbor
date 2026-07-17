@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Query;
+using LogHarbor.Core.Telemetry;
 
 namespace LogHarbor.Core.Storage;
 
@@ -100,6 +102,19 @@ public sealed class SqliteEventStore : IEventStore
     }
 
     public async Task<EventPage> QueryAsync(EventQuery query, CancellationToken cancellationToken = default)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            return await QueryCoreAsync(query, cancellationToken);
+        }
+        finally
+        {
+            LogHarborMetrics.QueryDuration.Record(Stopwatch.GetElapsedTime(started).TotalMilliseconds);
+        }
+    }
+
+    private async Task<EventPage> QueryCoreAsync(EventQuery query, CancellationToken cancellationToken)
     {
         using var connection = _db.OpenConnection();
 

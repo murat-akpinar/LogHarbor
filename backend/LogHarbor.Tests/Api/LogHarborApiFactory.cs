@@ -16,6 +16,7 @@ public sealed class LogHarborApiFactory : WebApplicationFactory<Program>
     private readonly string? _adminPassword;
     private readonly bool _seedDefaultAdmin;
     private readonly string? _environment;
+    private readonly string? _otlpMetricsEndpoint;
 
     private readonly string _dbPath =
         Path.Combine(Path.GetTempPath(), $"logharbor-test-{Guid.NewGuid():N}.db");
@@ -27,12 +28,16 @@ public sealed class LogHarborApiFactory : WebApplicationFactory<Program>
     /// them keep exercising the no-users, no-auth path without logging in first.</param>
     /// <param name="environment">WebApplicationFactory defaults to Development; tests that pin
     /// production-only behavior (Swagger availability) pass "Production".</param>
+    /// <param name="otlpMetricsEndpoint">When set, plays the OTEL_EXPORTER_OTLP_ENDPOINT env var
+    /// so the app registers its OpenTelemetry metrics pipeline (off by default, like production).</param>
     public LogHarborApiFactory(
-        string? adminPassword = null, bool seedDefaultAdmin = false, string? environment = null)
+        string? adminPassword = null, bool seedDefaultAdmin = false, string? environment = null,
+        string? otlpMetricsEndpoint = null)
     {
         _adminPassword = adminPassword;
         _seedDefaultAdmin = seedDefaultAdmin;
         _environment = environment;
+        _otlpMetricsEndpoint = otlpMetricsEndpoint;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -40,6 +45,10 @@ public sealed class LogHarborApiFactory : WebApplicationFactory<Program>
         if (_environment is not null)
         {
             builder.UseEnvironment(_environment);
+        }
+        if (_otlpMetricsEndpoint is not null)
+        {
+            builder.UseSetting("OTEL_EXPORTER_OTLP_ENDPOINT", _otlpMetricsEndpoint);
         }
         builder.UseSetting("LogHarbor:DatabasePath", _dbPath);
         // the scheduler's startup pass would race seeded events; archive tests call Archiver directly

@@ -196,6 +196,7 @@ Environment variables (or `appsettings.json` under `LogHarbor:`):
 | `LogHarbor__SeedDefaultAdmin` | `true` | Seed the admin account on an empty user table |
 | `LogHarbor__AllowInsecureCookie` | `false` | Issue the session cookie without `Secure` so login works over plain HTTP (testing/LAN only; leave `false` behind an HTTPS proxy) |
 | `LOGHARBOR_ADMIN_PASSWORD` | *(unset)* | Password for the seeded admin; unset means admin/admin, changed at first login |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | *(unset)* | When set, LogHarbor exports its own metrics (ingest rate, query latency, archive job duration, HTTP server metrics) to this OTLP endpoint; unset means self-telemetry is fully off |
 
 Archive settings are also editable at runtime on the Settings page, which takes precedence.
 
