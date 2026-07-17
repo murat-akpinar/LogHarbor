@@ -106,7 +106,7 @@ cd frontend && npm run build && npm run lint
 
 ## Log gönderme
 
-Birbirinden bağımsız iki yol var; birini ya da ikisini birden kullanabilirsin.
+Birbirinden bağımsız üç yol var; birini ya da birkaçını birden kullanabilirsin.
 
 ### Uygulamanın içinden — yapısal alanlarla
 

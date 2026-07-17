@@ -104,7 +104,7 @@ cd frontend && npm run build && npm run lint
 
 ## Sending logs
 
-Two independent routes; run either or both.
+Three independent routes; run any or all of them.
 
 ### From inside your app — structured properties
 
