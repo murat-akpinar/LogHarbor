@@ -23,9 +23,6 @@ public static class OtlpLogParser
     private const string ExceptionMessageAttribute = "exception.message";
     private const string ExceptionStacktraceAttribute = "exception.stacktrace";
 
-    private static readonly ulong MaxTicksFromEpoch =
-        (ulong)(DateTimeOffset.MaxValue.Ticks - DateTimeOffset.UnixEpoch.Ticks);
-
     public static OtlpParseResult Parse(
         ExportLogsServiceRequest request, DateTimeOffset serverTime, int maxEventBytes)
     {
@@ -140,11 +137,9 @@ public static class OtlpLogParser
         {
             return serverTime;
         }
-        var ticks = nanos / 100;
-        // beyond year 9999 AddTicks would overflow; treat like any other broken clock
-        var parsed = ticks > MaxTicksFromEpoch
-            ? serverTime
-            : DateTimeOffset.UnixEpoch.AddTicks((long)ticks);
+        // ulong nanos saturate around year 2554, so AddTicks can never overflow;
+        // anything far-future lands in the clamp like any other broken clock
+        var parsed = DateTimeOffset.UnixEpoch.AddTicks((long)(nanos / 100));
         return ClefParser.ClampFuture(parsed, serverTime);
     }
 

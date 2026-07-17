@@ -24,8 +24,8 @@ CLEF key   ->  Event field
 @m         ->  message (rendered)
 @mt        ->  message_template
 @x         ->  exception
-@tr        ->  trace_id (lowercased)
-@sp        ->  span_id (lowercased)
+@tr        ->  trace_id (validated + lowercased)
+@sp        ->  span_id (validated + lowercased)
 other keys ->  properties JSON
 
 --- INGESTION NORMALIZATION ---
@@ -40,8 +40,10 @@ level: @l mapped case-insensitively to the six canonical levels:
   trace -> Verbose, info -> Information, warn -> Warning, err -> Error,
   critical/crit -> Fatal; unknown values -> Information.
   Without this, Vector/Winston-style levels fragment filters and the histogram.
-trace/span: @tr and @sp are lowercased on ingest. W3C ids are lowercase hex and
-  OTLP ingestion stores the same canonical form, so @TraceId filters exact-match.
+trace/span: @tr and @sp are validated on ingest — 32/16 hex chars, not all-zero
+  (the W3C invalid value) — and lowercased; anything else stores as NULL rather
+  than rejecting the event, the same contract as the OTLP path, so @TraceId
+  filters exact-match across both ingestion routes.
 OTLP: /v1/logs events go through the same normalization; the full
   LogRecord -> Event mapping table lives in docs/ingestion-otlp.md.
 

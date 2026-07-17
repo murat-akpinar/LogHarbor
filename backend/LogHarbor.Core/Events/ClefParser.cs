@@ -61,10 +61,8 @@ public static partial class ClefParser
                 Properties: ExtractProperties(root),
                 Exception: GetString(root, "@x"),
                 IngestedAt: FormatTimestamp(serverTime),
-                // lowercased: W3C ids are lowercase hex and OTLP ingestion will store the same
-                // canonical form, so @TraceId = '...' filters stay exact-match reliable
-                TraceId: GetString(root, "@tr")?.ToLowerInvariant(),
-                SpanId: GetString(root, "@sp")?.ToLowerInvariant());
+                TraceId: NormalizeId(GetString(root, "@tr"), 32),
+                SpanId: NormalizeId(GetString(root, "@sp"), 16));
             error = null;
             return true;
         }
@@ -81,6 +79,27 @@ public static partial class ClefParser
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
+
+    /// <summary>W3C ids are fixed-length hex and never all-zero; anything else stores as null
+    /// rather than rejecting the event — same contract as OtlpLogParser.ToHexId, lowercased
+    /// so @TraceId = '...' filters stay exact-match reliable across both ingestion paths.</summary>
+    private static string? NormalizeId(string? value, int expectedLength)
+    {
+        if (value is null || value.Length != expectedLength)
+        {
+            return null;
+        }
+        var allZero = true;
+        foreach (var c in value)
+        {
+            if (!char.IsAsciiHexDigit(c))
+            {
+                return null;
+            }
+            allZero &= c == '0';
+        }
+        return allZero ? null : value.ToLowerInvariant();
+    }
 
     private static string? ExtractProperties(JsonElement root)
     {

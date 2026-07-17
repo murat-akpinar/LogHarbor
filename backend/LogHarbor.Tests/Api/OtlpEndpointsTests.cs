@@ -172,6 +172,16 @@ public sealed class OtlpEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task MalformedJson_Returns400()
+    {
+        var token = await CreateApiKeyAsync();
+        var response = await PostOtlpAsync(
+            Encoding.UTF8.GetBytes("""{"resourceLogs": [ broken"""), "application/json", token);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task BatchOverMaxBatchBytes_Returns413()
     {
         var token = await CreateApiKeyAsync();

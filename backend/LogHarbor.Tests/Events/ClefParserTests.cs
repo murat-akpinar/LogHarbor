@@ -131,6 +131,26 @@ public sealed class ClefParserTests
         Assert.Null(parsed.Properties); // @-keys never leak into properties
     }
 
+    [Theory]
+    [InlineData("abc123")]                               // wrong length
+    [InlineData("0af7651916cd43dd8448eb211c80319g")]     // right length, not hex
+    [InlineData("00000000000000000000000000000000")]     // all-zero = invalid per W3C
+    public void InvalidTraceId_IsStoredAsNull(string traceId)
+    {
+        var parsed = Parse($$"""{"@t":"2026-07-13T10:00:00Z","@tr":"{{traceId}}"}""");
+        Assert.Null(parsed.TraceId);
+    }
+
+    [Theory]
+    [InlineData("b7ad6b71692033")]     // wrong length
+    [InlineData("b7ad6b716920333g")]   // right length, not hex
+    [InlineData("0000000000000000")]   // all-zero = invalid per W3C
+    public void InvalidSpanId_IsStoredAsNull(string spanId)
+    {
+        var parsed = Parse($$"""{"@t":"2026-07-13T10:00:00Z","@sp":"{{spanId}}"}""");
+        Assert.Null(parsed.SpanId);
+    }
+
     [Fact]
     public void MissingTraceAndSpanIds_AreNull()
     {

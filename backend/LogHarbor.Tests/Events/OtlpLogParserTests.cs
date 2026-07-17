@@ -66,6 +66,20 @@ public sealed class OtlpLogParserTests
         Assert.Equal(expected, ParseSingle(record).Level);
     }
 
+    [Theory]
+    [InlineData(25, "warn", "Warning")]
+    [InlineData(100, "", "Information")]
+    public void SeverityNumberOutOfRange_FallsBackToSeverityText(int number, string text, string expected)
+    {
+        var record = new LogRecord
+        {
+            TimeUnixNano = TenAm,
+            SeverityNumber = (SeverityNumber)number,
+            SeverityText = text,
+        };
+        Assert.Equal(expected, ParseSingle(record).Level);
+    }
+
     [Fact]
     public void TimeUnixNano_IsNormalizedToFixedUtcFormat()
     {
@@ -92,6 +106,14 @@ public sealed class OtlpLogParserTests
     }
 
     [Fact]
+    public void MaxUlongTime_YearBeyond2500_IsClampedToServerTime()
+    {
+        // ulong nanos saturate around year 2554 — far future, so the clamp catches it
+        var record = new LogRecord { TimeUnixNano = ulong.MaxValue };
+        Assert.Equal("2026-07-13T12:00:00.0000000Z", ParseSingle(record).Timestamp);
+    }
+
+    [Fact]
     public void StringBody_BecomesMessage()
     {
         var record = new LogRecord { TimeUnixNano = TenAm, Body = new AnyValue { StringValue = "hello otlp" } };
@@ -105,6 +127,16 @@ public sealed class OtlpLogParserTests
         body.KvlistValue.Values.Add(Attr("k", "v"));
         var record = new LogRecord { TimeUnixNano = TenAm, Body = body };
         Assert.Equal("""{"k":"v"}""", ParseSingle(record).Message);
+    }
+
+    [Fact]
+    public void NonKvlistStructuredBody_BecomesCompactJsonText()
+    {
+        var body = new AnyValue { ArrayValue = new ArrayValue() };
+        body.ArrayValue.Values.Add(new AnyValue { StringValue = "a" });
+        body.ArrayValue.Values.Add(new AnyValue { IntValue = 1 });
+        var record = new LogRecord { TimeUnixNano = TenAm, Body = body };
+        Assert.Equal("""["a",1]""", ParseSingle(record).Message);
     }
 
     [Fact]
@@ -188,6 +220,30 @@ public sealed class OtlpLogParserTests
 
         Assert.Equal("System.InvalidOperationException: boom\n   at Api.Do()", parsed.Exception);
         Assert.Null(parsed.Properties);
+    }
+
+    [Theory]
+    [InlineData("System.TimeoutException", null, null, "System.TimeoutException")]
+    [InlineData(null, "boom", null, "boom")]
+    [InlineData(null, null, "   at Api.Do()", "   at Api.Do()")]
+    public void PartialExceptionAttributes_ComposeWhatIsPresent(
+        string? type, string? message, string? stacktrace, string expected)
+    {
+        var record = new LogRecord { TimeUnixNano = TenAm };
+        if (type is not null)
+        {
+            record.Attributes.Add(Attr("exception.type", type));
+        }
+        if (message is not null)
+        {
+            record.Attributes.Add(Attr("exception.message", message));
+        }
+        if (stacktrace is not null)
+        {
+            record.Attributes.Add(Attr("exception.stacktrace", stacktrace));
+        }
+
+        Assert.Equal(expected, ParseSingle(record).Exception);
     }
 
     [Fact]
