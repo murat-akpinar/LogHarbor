@@ -24,6 +24,15 @@ export const tr: Messages = {
     close: 'Kapat',
     dismiss: 'Kapat',
   },
+  onboarding: {
+    title: 'İlk logunu gönder',
+    intro:
+      'Bu sunucuda henüz hiç event yok. Bir API anahtarı oluştur, aşağıdan bir örnek seç; ilk event geldiği anda burada görünecek.',
+    askAdmin: 'Bir yöneticiden Ayarlar bölümünde API anahtarı oluşturmasını iste, sonra aşağıdaki örneklerde kullan.',
+    waiting: 'İlk event bekleniyor…',
+    copy: 'Kopyala',
+    copied: 'Kopyalandı',
+  },
   login: {
     tagline: 'Yapılandırılmış log sunucusu',
     username: 'Kullanıcı adı',

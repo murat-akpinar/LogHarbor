@@ -21,6 +21,7 @@ import { ColumnPicker } from '../components/ColumnPicker'
 import { VirtualizedEventList } from '../components/VirtualizedEventList'
 import type { EventListHandle } from '../components/VirtualizedEventList'
 import { EventDetail } from '../components/EventDetail'
+import { OnboardingPanel } from '../components/OnboardingPanel'
 
 // shortcuts must not fire while the user is typing into a field
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -78,7 +79,10 @@ export function EventsPage() {
   )
   const highlightTerms = useMemo(() => extractHighlightTerms(searchText), [searchText])
 
-  const search = useEventSearch({ filter, from: range.from, to: range.to })
+  // no filter, no chips/signals (folded into `filter`), no range: an empty result can
+  // only mean the server has no events at all -> first-run onboarding (see the spec)
+  const isUnfiltered = !filter && !range.from && !range.to
+  const search = useEventSearch({ filter, from: range.from, to: range.to, pollWhenEmpty: isUnfiltered })
   const tail = useLiveTail({ filter, enabled: isLive, paused: !isAtTop })
 
   const searchEvents = useMemo(() => search.data?.pages.flatMap((page) => page.events) ?? [], [search.data])
@@ -240,6 +244,8 @@ export function EventsPage() {
                 <div key={index} className="h-7 rounded bg-surface-hover" />
               ))}
             </div>
+          ) : isUnfiltered && !search.error && events.length === 0 ? (
+            <OnboardingPanel />
           ) : (
             <VirtualizedEventList
               ref={listRef}

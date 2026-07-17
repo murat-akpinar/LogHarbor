@@ -75,6 +75,12 @@ Live tail: toggle connects to /hubs/tail with current filter; new events prepend
 Time range: picker sets from/to; live tail forces "now"
 Archived range: banner "N days in this range are archived" with Extract button;
   polls hydration status, refreshes results when segments become hydrated
+First-run onboarding: when the server has no events at all (empty result with no
+  filter, level chips, signals or time range active), the list area shows a
+  "send your first log" panel instead of an empty table — inline API key creation
+  (admins; viewers are told to ask one), copy-paste curl / Serilog / OTel snippets
+  with the origin and created key filled in, and a 5 s poll on the events query so
+  the panel replaces itself with the list the moment the first event arrives
 
 --- LEVEL COLORS ---
 

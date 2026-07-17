@@ -22,6 +22,15 @@ export const en = {
     close: 'Close',
     dismiss: 'Dismiss',
   },
+  onboarding: {
+    title: 'Send your first log',
+    intro:
+      'This server has no events yet. Create an API key, pick a snippet below, and your first event will show up here the moment it arrives.',
+    askAdmin: 'Ask an admin to create an API key under Settings, then use it in the snippets below.',
+    waiting: 'Waiting for your first event…',
+    copy: 'Copy',
+    copied: 'Copied',
+  },
   login: {
     tagline: 'Structured log server',
     username: 'Username',
