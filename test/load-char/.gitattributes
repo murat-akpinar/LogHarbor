@@ -1,0 +1,4 @@
+# Shell + python must stay LF: these run on the Linux test server, and CRLF breaks sh.
+# Force LF regardless of the repo's core.autocrlf (same as test/anomaly-test).
+*.sh text eol=lf
+*.py text eol=lf
