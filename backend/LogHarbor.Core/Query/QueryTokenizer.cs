@@ -118,7 +118,8 @@ public static class QueryTokenizer
     private static string ScanIdentifier(string input, ref int i)
     {
         var start = i;
-        while (i < input.Length && (char.IsAsciiLetterOrDigit(input[i]) || input[i] == '_'))
+        // '.' joins OTLP-style attribute keys (service.name); it names a literal flat key
+        while (i < input.Length && (char.IsAsciiLetterOrDigit(input[i]) || input[i] == '_' || input[i] == '.'))
         {
             i++;
         }

@@ -267,6 +267,19 @@ public sealed class SqliteEventStoreTests : IDisposable
         Assert.Null(found.SpanId);
     }
 
+    [Fact]
+    public async Task PropertyValues_WithDottedKey_GroupsTheFlatKey()
+    {
+        await _store.WriteBatchAsync([MakeEvent(properties: """{"service.name":"checkout"}""")]);
+
+        var rows = await _store.GetPropertyValuesAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-13T23:59:59.9999999Z", "service.name", 10);
+
+        var row = Assert.Single(rows);
+        Assert.Equal("checkout", row.Value);
+        Assert.Equal(1L, row.Count);
+    }
+
     private object Scalar(string sql)
     {
         using var connection = _db.OpenConnection();

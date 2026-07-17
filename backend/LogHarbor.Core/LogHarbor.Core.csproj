@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -7,7 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Protobuf" Version="3.35.1" />
+    <!-- build-time protoc only; GrpcServices=None below keeps the gRPC server stack out -->
+    <PackageReference Include="Grpc.Tools" Version="2.82.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- vendored from open-telemetry/opentelemetry-proto v1.10.0 -->
+    <Protobuf Include="Protos\**\*.proto" ProtoRoot="Protos" GrpcServices="None" />
   </ItemGroup>
 
 </Project>

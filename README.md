@@ -104,7 +104,7 @@ cd frontend && npm run build && npm run lint
 
 ## Sending logs
 
-Two independent routes; run either or both.
+Three independent routes; run any or all of them.
 
 ### From inside your app — structured properties
 
@@ -137,6 +137,20 @@ curl -X POST http://localhost:5000/api/events/raw \
   -H "Content-Type: application/vnd.serilog.clef" \
   --data-binary '{"@t":"2026-07-13T10:00:00Z","@l":"Error","@mt":"Order {OrderId} failed","OrderId":123}'
 ```
+
+### OpenTelemetry (OTLP)
+
+Any OTel SDK or Collector can send logs directly — no Seq sink needed:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:5000
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=X-LogHarbor-ApiKey=<your-key>
+```
+
+Both protobuf and JSON encodings are accepted on `/v1/logs`. See
+[docs/ingestion-otlp.md](docs/ingestion-otlp.md) for the Collector config and
+the full field mapping.
 
 ### From Docker containers — no app changes
 

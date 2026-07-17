@@ -14,6 +14,9 @@ Null:     null
 
 Bare identifier refers to a structured property:
   UserId, RequestPath, OrderId
+Dots are allowed and name the literal flat key (OTLP attribute style):
+  service.name, http.route  ->  json_extract(properties, '$."service.name"')
+  (a dot never means nesting; the JSON path step is quoted)
 
 Built-in fields (@ prefix):
   @Level, @Message, @Timestamp, @Exception, @MessageTemplate, @TraceId, @SpanId
@@ -76,7 +79,7 @@ freetext    = string_literal
   -> level = @p0
 
 UserId = 42
-  -> json_extract(properties, '$.UserId') = @p0
+  -> json_extract(properties, '$."UserId"') = @p0
 
 @Message contains 'timeout'
   -> message LIKE '%' || @p0 || '%' ESCAPE '\'

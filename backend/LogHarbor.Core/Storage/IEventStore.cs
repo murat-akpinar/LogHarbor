@@ -73,7 +73,7 @@ public interface IEventStore
 
     /// <summary>
     /// Top values of one property with counts, most frequent first. Searches hot + hydrated data.
-    /// <paramref name="property"/> must be a bare identifier ([A-Za-z0-9_]); the API boundary validates it.
+    /// <paramref name="property"/> must be a bare identifier ([A-Za-z0-9_.]); the API boundary validates it.
     /// </summary>
     Task<IReadOnlyList<PropertyValueCount>> GetPropertyValuesAsync(
         QuerySql? filter, string fromUtc, string toUtc, string property, int limit,

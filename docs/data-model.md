@@ -42,6 +42,8 @@ level: @l mapped case-insensitively to the six canonical levels:
   Without this, Vector/Winston-style levels fragment filters and the histogram.
 trace/span: @tr and @sp are lowercased on ingest. W3C ids are lowercase hex and
   OTLP ingestion stores the same canonical form, so @TraceId filters exact-match.
+OTLP: /v1/logs events go through the same normalization; the full
+  LogRecord -> Event mapping table lives in docs/ingestion-otlp.md.
 
 --- SQLITE SETUP (MIGRATION RUNNER, ORDER MATTERS) ---
 

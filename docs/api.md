@@ -60,6 +60,12 @@ POST /api/events/raw
 Example body:
 {"@t":"2026-07-13T10:00:00Z","@l":"Error","@mt":"Order {OrderId} failed","OrderId":123}
 
+POST /v1/logs
+  OTLP/HTTP log ingestion (docs/ingestion-otlp.md). X-LogHarbor-ApiKey header;
+  Content-Type application/x-protobuf or application/json.
+  200 ExportLogsServiceResponse (partial_success when records were dropped),
+  400/401/413/415/429 as for CLEF ingestion.
+
 --- EVENTS (SEARCH) ---
 
 GET /api/events
