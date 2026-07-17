@@ -141,6 +141,19 @@ curl -X POST http://localhost:5000/api/events/raw \
   --data-binary '{"@t":"2026-07-13T10:00:00Z","@l":"Error","@mt":"Order {OrderId} failed","OrderId":123}'
 ```
 
+### OpenTelemetry (OTLP)
+
+Herhangi bir OTel SDK'sı veya Collector, Seq sink'i olmadan doğrudan log gönderebilir:
+
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:5000
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+OTEL_EXPORTER_OTLP_HEADERS=X-LogHarbor-ApiKey=<anahtarınız>
+```
+
+`/v1/logs` hem protobuf hem JSON kodlamasını kabul eder. Collector yapılandırması
+ve alan eşleme tablosu için [docs/ingestion-otlp.md](docs/ingestion-otlp.md).
+
 ### Docker container'larından — uygulamaya hiç dokunmadan
 
 İzlenen makinede tek bir Vector container'ı çalıştırırsın. Makinedeki bütün container'ların

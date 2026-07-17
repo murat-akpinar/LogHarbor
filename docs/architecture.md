@@ -22,6 +22,10 @@ Ingestion API:
   Validates API key, parses events, writes batch to store, broadcasts to live tail
   Wire-compatible with Seq (same path, same body, X-Seq-ApiKey accepted as a header alias),
   so existing Seq sinks ingest into LogHarbor unchanged (docs/ingestion-app.md)
+  POST /v1/logs accepts OTLP/HTTP (OpenTelemetry logs) in protobuf and JSON
+  encodings — standard path, so OTEL_EXPORTER_OTLP_ENDPOINT pointed at LogHarbor
+  works with any OTel SDK or Collector (docs/ingestion-otlp.md); same API-key
+  gate and rate limits as CLEF
 
 Event Store:
   SQLite (WAL mode) with JSON1 for property queries and FTS5 for full-text message search
