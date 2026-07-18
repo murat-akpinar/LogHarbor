@@ -21,8 +21,12 @@ başlat, giriş yap, anahtar oluştur, ilk log satırını ekranda gör.
 - **Canlı akış (live tail)**: SignalR üzerinden, filtre sunucu tarafında uygulanır
 - **Signal**: kaydedilmiş filtreler, tek tıkla açılıp kapanır
 - **Pano**: seviye histogramı, özet kartları, yoğunluk haritası
-- **Analiz**: mesaj şablonuna göre gruplanmış en sık hatalar, en sık exception tipleri
-- **Uyarı**: bir signal, belirlenen sürede N olayı yakalarsa webhook tetiklenir
+- **Analiz**: mesaj şablonuna göre gruplanmış en sık hatalar, en sık exception tipleri,
+  ve kendi p95 baseline'ından yavaşlayan işlemler
+- **Servisler**: loglardan servis başına RED özeti (olay hızı, hata %, p95)
+- **Trace**: bir isteği servisler arasında izle; OTLP span'leri waterfall olarak çizilir
+- **Uyarı**: bir signal belirlenen sürede N olayı yakalarsa webhook — ya da bir signal
+  sustuğunda dead man's switch; Slack / Discord / generic gövde
 - **Arşiv**: eski olaylar günlük Brotli parçalarına sıkıştırılır, istendiğinde geri açılır
 - **Seq uyumlu**: mevcut Seq sink'leri LogHarbor'a olduğu gibi log gönderebilir
 - Tek süreç, tek container, tek SQLite dosyası
@@ -107,6 +111,25 @@ cd frontend && npm run build && npm run lint
 
 ---
 
+## Web arayüzü
+
+Her şey giriş kapısının arkasındadır. Üst çubukta sayfa menüsünün yanında EN/TR dil ve
+açık/koyu tema düğmeleri bulunur.
+
+| Sayfa | Ne işe yarar |
+|---|---|
+| **Olaylar** | Akışı ara ve canlı izle, bir olayı açıp property'lerini ve ham JSON'unu gör, bir isteğin trace'ini span waterfall olarak aç ("View trace"). Aktif Sinyaller filtreye AND'lenir. |
+| **Panel** | Seviye histogramı (üzerinde sürükleyerek bir aralığa yakınlaş), özet kartları, ve saat × haftanın-günü yoğunluk haritası. |
+| **Servisler** | `service.name` / `Service`'e göre servis başına RED tablosu — olay hızı, hata %, p95 `Elapsed` + sparkline. Satırlar filtreli Olaylar'a gider. |
+| **Analiz** | Mesaj şablonuna göre en sık hatalar, en sık exception tipleri, ve "Slower than usual" — güncel p95'i kendi baseline'ını aşan işlemler. |
+| **Sinyaller** | Kaydedilmiş filtreleri oluştur/düzenle/sil; Olaylar sayfasında aç-kapa. |
+| **Uyarılar** | Bir Sinyal pencerede N olay yakalayınca webhook, ya da bir Sinyal sustuğunda tetiklenen dead man's switch. Slack, Discord veya generic gövde. |
+| **Ayarlar** | API key'ler, kullanıcılar ve roller, arşiv ayarları + istatistik, sağlık bilgisi, ve tek tıkla veritabanı yedeği. |
+
+Tam UI referansı: [docs/frontend.md](docs/frontend.md).
+
+---
+
 ## Log gönderme
 
 Birbirinden bağımsız üç yol var; birini ya da birkaçını birden kullanabilirsin.
@@ -154,8 +177,9 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS=X-LogHarbor-ApiKey=<anahtarınız>
 ```
 
-`/v1/logs` hem protobuf hem JSON kodlamasını kabul eder. Collector yapılandırması
-ve alan eşleme tablosu için [docs/ingestion-otlp.md](docs/ingestion-otlp.md).
+`/v1/logs` hem protobuf hem JSON kodlamasını kabul eder; OTLP trace'leri ise `/v1/traces`
+üzerinden (span'ler Olaylar sayfasında trace waterfall olarak çizilir). Collector
+yapılandırması ve alan eşleme tablosu için [docs/ingestion-otlp.md](docs/ingestion-otlp.md).
 
 ### Docker container'larından — uygulamaya hiç dokunmadan
 

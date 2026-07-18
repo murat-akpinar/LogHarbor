@@ -21,8 +21,12 @@ container, sign in, create a key, see your first log line on screen.
 - **Live tail** over SignalR, filtered server-side
 - **Signals**: saved filters you can toggle on
 - **Dashboard**: level histogram, summary cards, activity heatmap
-- **Analysis**: top errors grouped by message template, top exception types
-- **Alerts**: webhook when a signal matches N events in a time window
+- **Analysis**: top errors grouped by message template, top exception types, and
+  operations slower than their own p95 baseline
+- **Services**: per-service RED overview (event rate, error %, p95) straight from the logs
+- **Traces**: follow one request across services; OTLP spans render as a waterfall
+- **Alerts**: webhook when a signal matches N events — or a dead man's switch when one
+  goes silent; Slack / Discord / generic payloads
 - **Archive**: old events compressed to daily Brotli segments, hydrated back on demand
 - **Seq wire-compatible**: existing Seq sinks ingest into LogHarbor unchanged
 - Single process, single container, one SQLite file
@@ -105,6 +109,25 @@ cd frontend && npm run build && npm run lint
 
 ---
 
+## The web UI
+
+Everything sits behind the login gate. The top bar carries the page nav plus an EN/TR
+language toggle and a light/dark theme toggle.
+
+| Page | What it's for |
+|---|---|
+| **Events** | Search and live-tail the stream, expand an event for its properties and raw JSON, and open a request's trace as a span waterfall ("View trace"). Active Signals AND into the filter. |
+| **Dashboard** | Level histogram (drag across it to zoom a range), summary cards, and an hour-of-day × day-of-week activity heatmap. |
+| **Services** | Per-service RED table — event rate, error %, p95 `Elapsed` with sparklines — grouped by `service.name` / `Service`. Rows deep-link to filtered Events. |
+| **Analysis** | Top errors grouped by message template, top exception types, and "Slower than usual" — operations whose current p95 regressed past their own baseline. |
+| **Signals** | Create, edit and delete saved filters; toggle them on the Events page. |
+| **Alerts** | Call a webhook when a Signal matches N events in a window, or a dead man's switch that fires when a Signal goes silent. Slack, Discord or generic payloads. |
+| **Settings** | API keys, users and roles, archive settings and stats, health info, and a one-click database backup. |
+
+Full UI reference: [docs/frontend.md](docs/frontend.md).
+
+---
+
 ## Sending logs
 
 Three independent routes; run any or all of them.
@@ -151,7 +174,8 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 OTEL_EXPORTER_OTLP_HEADERS=X-LogHarbor-ApiKey=<your-key>
 ```
 
-Both protobuf and JSON encodings are accepted on `/v1/logs`. See
+Both protobuf and JSON encodings are accepted on `/v1/logs`, and OTLP traces on
+`/v1/traces` (spans render as the trace waterfall on the Events page). See
 [docs/ingestion-otlp.md](docs/ingestion-otlp.md) for the Collector config and
 the full field mapping.
 
