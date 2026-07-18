@@ -1,4 +1,6 @@
 using LogHarbor.Core.Archiving;
+using LogHarbor.Core.Events;
+using LogHarbor.Core.Storage;
 
 namespace LogHarbor.Api.Archiving;
 
@@ -10,11 +12,16 @@ namespace LogHarbor.Api.Archiving;
 public sealed class ArchiveScheduler : BackgroundService
 {
     private readonly Archiver _archiver;
+    private readonly ISpanStore _spans;
+    private readonly ISettingsStore _settings;
     private readonly ILogger<ArchiveScheduler> _logger;
 
-    public ArchiveScheduler(Archiver archiver, ILogger<ArchiveScheduler> logger)
+    public ArchiveScheduler(
+        Archiver archiver, ISpanStore spans, ISettingsStore settings, ILogger<ArchiveScheduler> logger)
     {
         _archiver = archiver;
+        _spans = spans;
+        _settings = settings;
         _logger = logger;
     }
 
@@ -59,6 +66,14 @@ public sealed class ArchiveScheduler : BackgroundService
                 if (removed > 0)
                 {
                     _logger.LogInformation("Retention removed {Count} segment(s)/row(s)", removed);
+                }
+
+                var retention = await _settings.GetArchiveSettingsAsync(stoppingToken);
+                var spanCutoff = ClefParser.FormatTimestamp(now.AddDays(-retention.RetentionDays));
+                var spansRemoved = await _spans.DeleteSpansOlderThanAsync(spanCutoff, stoppingToken);
+                if (spansRemoved > 0)
+                {
+                    _logger.LogInformation("Retention removed {Count} span(s)", spansRemoved);
                 }
                 lastArchiveDate = today;
             }

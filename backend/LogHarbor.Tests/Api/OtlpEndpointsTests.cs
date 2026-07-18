@@ -201,15 +201,16 @@ public sealed class OtlpEndpointsTests : IAsyncLifetime
             BuildRequest(new LogRecord()).ToByteArray(), "application/x-protobuf", token);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, "/v1/traces")
+        // /v1/traces is implemented now; /v1/metrics is still an unmapped OTLP signal
+        var request = new HttpRequestMessage(HttpMethod.Post, "/v1/metrics")
         {
             Content = new ByteArrayContent([]),
         };
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-protobuf");
         request.Headers.Add("X-LogHarbor-ApiKey", token);
-        var traces = await _client.SendAsync(request);
+        var metrics = await _client.SendAsync(request);
 
-        Assert.Equal(HttpStatusCode.NotFound, traces.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, metrics.StatusCode);
     }
 
     [Fact]

@@ -224,6 +224,7 @@ app.MapIngestion();
 app.MapOtlp();
 app.MapOtlpTraces();
 app.MapEvents();
+app.MapTraces();
 app.MapExport();
 app.MapSuggest();
 app.MapSignals();

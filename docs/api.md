@@ -203,6 +203,15 @@ GET /api/stats/services
   Ordered by total descending.
   200: { "services": [ { service, total, errorCount, p95ElapsedMs } ] }
 
+--- TRACES ---
+
+GET /api/traces/{traceId}
+  All spans of a trace, ordered by startTimestamp then id, for the waterfall on the
+  trace page. Session-gated, read-only; an unknown id returns an empty list, not 404.
+  Spans are ingested via POST /v1/traces, retained by RetentionDays, and never archived.
+  200: { "spans": [ { traceId, spanId, parentSpanId, name, kind, service, startTimestamp,
+                      durationMs, statusCode, statusMessage, attributes } ] }
+
 --- ARCHIVE ---
 
 GET  /api/archive/segments                200: [ { day, filePath, eventCount, sizeBytes,
