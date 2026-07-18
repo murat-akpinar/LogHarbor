@@ -177,8 +177,10 @@ export const en = {
     newBadge: 'new',
     noErrors: 'No errors in the selected range.',
     noExceptions: 'No exceptions in the selected range.',
-    noSlowOpsBefore: 'No operations are slower than usual. (Needs an ',
-    noSlowOpsAfter: ' duration property on your events.)',
+    noTimedOpsBefore: 'No operation reports an ',
+    noTimedOpsAfter: ' duration in this range.',
+    noBaselineToCompare: 'No operation has enough history before the selected range to compare against. Try a narrower range.',
+    noSlowOps: 'No operations are slower than usual.',
   },
   signals: {
     title: 'Signals',

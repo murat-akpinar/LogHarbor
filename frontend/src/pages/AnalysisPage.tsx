@@ -15,6 +15,8 @@ const DEFAULT_RANGE_HOURS = 24
 const ROW_LIMIT = 20
 // baseline window start: anything before this predates the server itself
 const BASELINE_START = '2000-01-01T00:00:00.000Z'
+// the frontend never overrides the endpoint's `property` default, so the timed message names it
+const SLOW_PROPERTY = 'Elapsed'
 
 function defaultRange() {
   const to = new Date()
@@ -56,7 +58,7 @@ export function AnalysisPage() {
     navigate(`/?${params.toString()}`)
   }
 
-  const queryError = errors.error ?? exceptions.error
+  const queryError = errors.error ?? exceptions.error ?? slow.error
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
@@ -200,11 +202,19 @@ export function AnalysisPage() {
               ))}
             </tbody>
           </table>
-          {slow.data?.operations.length === 0 && (
+          {slow.data && slow.data.operations.length === 0 && (
             <p className="p-3 text-sm text-fg-muted">
-              {t.analysis.noSlowOpsBefore}
-              <span className="font-mono">Elapsed</span>
-              {t.analysis.noSlowOpsAfter}
+              {slow.data.timedOperationCount === 0 ? (
+                <>
+                  {t.analysis.noTimedOpsBefore}
+                  <span className="font-mono">{SLOW_PROPERTY}</span>
+                  {t.analysis.noTimedOpsAfter}
+                </>
+              ) : slow.data.comparableOperationCount === 0 ? (
+                t.analysis.noBaselineToCompare
+              ) : (
+                t.analysis.noSlowOps
+              )}
             </p>
           )}
         </Card>

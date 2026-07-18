@@ -179,8 +179,10 @@ export const tr: Messages = {
     newBadge: 'yeni',
     noErrors: 'Seçilen aralıkta hata yok.',
     noExceptions: 'Seçilen aralıkta istisna yok.',
-    noSlowOpsBefore: 'Normalden yavaş işlem yok. (Olaylarınızda ',
-    noSlowOpsAfter: ' adlı bir süre özelliği gerekir.)',
+    noTimedOpsBefore: 'Bu aralıkta hiçbir işlem ',
+    noTimedOpsAfter: ' süresi bildirmiyor.',
+    noBaselineToCompare: 'Seçilen aralıktan önce karşılaştırılacak yeterli geçmişi olan işlem yok. Daha dar bir aralık deneyin.',
+    noSlowOps: 'Normalden yavaş işlem yok.',
   },
   signals: {
     title: 'Sinyaller',

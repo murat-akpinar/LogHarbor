@@ -80,6 +80,13 @@ export interface SlowOperation {
   count: number
 }
 
+/** GET /api/stats/slow-operations response: the regressed groups plus why the list may be empty. */
+export interface SlowOperationsResult {
+  operations: SlowOperation[]
+  timedOperationCount: number
+  comparableOperationCount: number
+}
+
 /** RED numbers for one service; p95ElapsedMs is null when no event carried Elapsed. */
 export interface ServiceOverview {
   service: string
