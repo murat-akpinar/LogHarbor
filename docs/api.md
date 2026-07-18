@@ -66,6 +66,12 @@ POST /v1/logs
   200 ExportLogsServiceResponse (partial_success when records were dropped),
   400/401/413/415/429 as for CLEF ingestion.
 
+POST /v1/traces
+  OTLP/HTTP trace ingestion (docs/ingestion-otlp.md). Same header and encodings as
+  /v1/logs; spans land in the spans table (read them via GET /api/traces/{id}).
+  200 ExportTraceServiceResponse (partial_success.rejected_spans when spans were
+  dropped for a missing id or exceeding MaxEventBytes), 400/401/413/415/429 as above.
+
 --- EVENTS (SEARCH) ---
 
 GET /api/events

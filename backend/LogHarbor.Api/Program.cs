@@ -222,6 +222,7 @@ app.MapUsers();
 app.MapApiKeys();
 app.MapIngestion();
 app.MapOtlp();
+app.MapOtlpTraces();
 app.MapEvents();
 app.MapExport();
 app.MapSuggest();

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using Google.Protobuf;
 using OpenTelemetry.Proto.Collector.Logs.V1;
+using OpenTelemetry.Proto.Collector.Trace.V1;
 
 namespace LogHarbor.Core.Events.Otlp;
 
@@ -52,6 +53,61 @@ public static class OtlpJson
 
         error = null;
         return true;
+    }
+
+    public static bool TryParseTraces(string json, out ExportTraceServiceRequest? request, out string? error)
+    {
+        request = null;
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(json);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            error = "invalid JSON";
+            return false;
+        }
+        if (root is not JsonObject rootObject)
+        {
+            error = "payload must be a JSON object";
+            return false;
+        }
+
+        try
+        {
+            RewriteSpanHexIds(rootObject);
+            request = Parser.Parse<ExportTraceServiceRequest>(rootObject.ToJsonString());
+        }
+        catch (FormatException ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+        catch (InvalidProtocolBufferException ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+
+        error = null;
+        return true;
+    }
+
+    private static void RewriteSpanHexIds(JsonObject root)
+    {
+        foreach (var resourceSpans in ArrayOf(root, "resourceSpans", "resource_spans"))
+        {
+            foreach (var scopeSpans in ArrayOf(resourceSpans, "scopeSpans", "scope_spans"))
+            {
+                foreach (var span in ArrayOf(scopeSpans, "spans", "spans"))
+                {
+                    RewriteId(span, "traceId", "trace_id");
+                    RewriteId(span, "spanId", "span_id");
+                    RewriteId(span, "parentSpanId", "parent_span_id");
+                }
+            }
+        }
     }
 
     private static void RewriteHexIds(JsonObject root)

@@ -1,16 +1,23 @@
 # Sending Events With OpenTelemetry (OTLP)
 
-LogHarbor accepts the OpenTelemetry protocol for logs: OTLP/HTTP on the standard
-/v1/logs path, in BOTH encodings (binary protobuf and JSON). Anything that speaks
-OTLP — an OTel SDK in any language, an OTel Collector, or another forwarder —
-ingests into LogHarbor without a Seq-compatible sink.
+LogHarbor accepts the OpenTelemetry protocol for logs and traces: OTLP/HTTP on the
+standard /v1/logs and /v1/traces paths, in BOTH encodings (binary protobuf and JSON).
+Anything that speaks OTLP — an OTel SDK in any language, an OTel Collector, or another
+forwarder — ingests into LogHarbor without a Seq-compatible sink.
 
-  POST /v1/logs
+  POST /v1/logs                          (log records -> events table)
+  POST /v1/traces                        (spans -> spans table; see the trace page)
     X-LogHarbor-ApiKey: <token>          (same key as CLEF ingestion)
     Content-Type: application/x-protobuf | application/json
 
-Not implemented: OTLP/gRPC (:4317) and the traces/metrics signals; POST /v1/traces
-answers 404 so exporters fail fast instead of buffering forever.
+Spans are stored by trace_id and rendered as a waterfall on the Events page when the
+filter is exactly @TraceId = '...' (the detail pane's "View trace" button). A span with
+no usable trace/span id, or larger than MaxEventBytes, is dropped and reported in the
+response's partial_success.rejected_spans. Spans are retained by RetentionDays and are
+never archived.
+
+Not implemented: OTLP/gRPC (:4317) and the metrics signal; POST /v1/metrics answers 404
+so exporters fail fast instead of buffering forever.
 
 --- SDK CONFIGURATION (ANY LANGUAGE) ---
 
