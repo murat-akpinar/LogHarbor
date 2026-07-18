@@ -4,11 +4,15 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
 import { getEvents } from '../api/events'
+import { getTrace } from '../api/traces'
 import type { Event } from '../types'
 import { TracePanel } from './TracePanel'
 
 vi.mock('../api/events', () => ({
   getEvents: vi.fn(async () => ({ events: [], hasMore: false, archivedDays: [] })),
+}))
+vi.mock('../api/traces', () => ({
+  getTrace: vi.fn(async () => ({ spans: [] })),
 }))
 
 const TRACE = '0af7651916cd43dd8448eb211c80319c'
@@ -115,4 +119,37 @@ it('explains when the whole trace carries no span ids', async () => {
 
   expect(await screen.findByText('This trace carries no span ids; events sit on one timeline.')).toBeDefined()
   expect(screen.queryByText('(no span)')).toBeNull()
+})
+
+it('renders the real waterfall when the trace has spans', async () => {
+  vi.mocked(getTrace).mockResolvedValue({
+    spans: [
+      {
+        traceId: TRACE, spanId: 'root', parentSpanId: null, name: 'GET /cart', kind: 'server',
+        service: 'checkout', startTimestamp: '2026-07-18T10:00:00.000Z', durationMs: 120,
+        statusCode: 'error', statusMessage: 'boom', attributes: null,
+      },
+    ],
+  })
+  vi.mocked(getEvents).mockResolvedValue({ events: [], hasMore: false, archivedDays: [] })
+  renderPanel()
+
+  expect(await screen.findByText('GET /cart')).toBeDefined()
+  expect(screen.getByText('120 ms')).toBeDefined()
+
+  // clicking the span opens its detail with the status message
+  screen.getByRole('button', { name: /GET \/cart/ }).click()
+  expect(await screen.findByText(/error — boom/)).toBeDefined()
+})
+
+it('falls back to the inferred layout when the trace has no spans', async () => {
+  vi.mocked(getTrace).mockResolvedValue({ spans: [] })
+  vi.mocked(getEvents).mockResolvedValue({
+    events: [makeEvent({ id: 1, spanId: 'b7ad6b7169203331', messageTemplate: 'inferred-op' })],
+    hasMore: false,
+    archivedDays: [],
+  })
+  renderPanel()
+
+  expect(await screen.findByText('inferred-op')).toBeDefined()
 })

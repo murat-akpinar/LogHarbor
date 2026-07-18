@@ -72,12 +72,17 @@ Row click: expands EventDetail with a syntax-highlighted property tree (nested
 When the event carries a trace id, EventDetail shows it with a "View trace" button
   that replaces the search filter with @TraceId = '<id>' (all events of that request).
 Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
-  applies), a waterfall panel renders above the list: one row per span_id, bounds
-  inferred from the span's earliest/latest event timestamps (a lower bound on real
-  span duration), one dot per event colored by level, bars tinted red when the span
-  carries an Error/Fatal event. Spanless events collect into a trailing "(no span)"
-  row. Clicking a dot opens that event's detail. Pure frontend over GET /api/events
-  (count=1000, newest first; a note appears when the trace has more).
+  applies), a waterfall panel renders above the list. When the trace has real spans
+  (GET /api/traces/{id}, ingested via OTLP /v1/traces) it draws a real parent/child
+  waterfall: rows nested by parent_span_id (orphans and cross-service parents treated
+  as roots), bars from each span's actual start + duration, error-status spans tinted
+  red, and the trace's log events overlaid as dots on the matching span (spanless ones
+  on a trailing "(no span)" row). Clicking a span opens its detail (service, kind,
+  status + message, attributes JSON); clicking a dot opens that event's detail.
+  When the trace has NO spans (log-only senders), it falls back to a waterfall inferred
+  from log timestamps: one row per span_id, bounds from the span's earliest/latest
+  event (a lower bound on real duration), a dot per event. Both paths are pure frontend;
+  a note appears when the log fetch (count=1000, newest first) is truncated.
 Live tail: toggle connects to /hubs/tail with current filter; new events prepend with highlight
 Time range: picker sets from/to; live tail forces "now"
 Archived range: banner "N days in this range are archived" with Extract button;

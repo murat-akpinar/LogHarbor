@@ -132,6 +132,10 @@ export const tr: Messages = {
     noSpanIds: 'Bu iz span kimliği taşımıyor; olaylar tek zaman çizgisinde.',
     truncated: 'Bu izin en yeni 1000 olayı gösteriliyor.',
     dotAria: (level: string, message: string) => `${level}: ${message}`,
+    spanStatus: 'Durum',
+    spanKind: 'Tür',
+    spanService: 'Servis',
+    spanAttributes: 'Öznitelikler',
   },
   dashboard: {
     title: 'Panel',

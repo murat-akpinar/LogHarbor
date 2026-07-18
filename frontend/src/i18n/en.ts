@@ -130,6 +130,10 @@ export const en = {
     noSpanIds: 'This trace carries no span ids; events sit on one timeline.',
     truncated: 'Showing the newest 1000 events of this trace.',
     dotAria: (level: string, message: string) => `${level}: ${message}`,
+    spanStatus: 'Status',
+    spanKind: 'Kind',
+    spanService: 'Service',
+    spanAttributes: 'Attributes',
   },
   dashboard: {
     title: 'Dashboard',

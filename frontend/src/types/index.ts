@@ -88,6 +88,21 @@ export interface ServiceOverview {
   p95ElapsedMs: number | null
 }
 
+/** One OTLP span from GET /api/traces/{id}; parentSpanId null for a root span. */
+export interface SpanRecord {
+  traceId: string
+  spanId: string
+  parentSpanId: string | null
+  name: string
+  kind: string
+  service: string | null
+  startTimestamp: string
+  durationMs: number
+  statusCode: string
+  statusMessage: string | null
+  attributes: string | null
+}
+
 export interface ApiKey {
   id: number
   title: string

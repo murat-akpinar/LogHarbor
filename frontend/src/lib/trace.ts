@@ -1,4 +1,4 @@
-import type { Event } from '../types'
+import type { Event, SpanRecord } from '../types'
 
 /** One waterfall row; spanId null is the trailing row collecting spanless events. */
 export interface TraceSpan {
@@ -81,4 +81,82 @@ export function buildTraceLayout(events: Event[]): TraceLayout | null {
     startMs: Date.parse(ascending[0].timestamp),
     endMs: Date.parse(ascending[ascending.length - 1].timestamp),
   }
+}
+
+/** One waterfall row: a span at a tree depth, plus the trace's log events on it. */
+export interface SpanWaterfallRow {
+  span: SpanRecord
+  depth: number
+  startMs: number
+  endMs: number
+  events: Event[]
+}
+
+export interface SpanWaterfall {
+  rows: SpanWaterfallRow[]
+  startMs: number
+  endMs: number
+  /** Log events whose spanId matches no span (or is null). */
+  orphanEvents: Event[]
+}
+
+/**
+ * Orders spans as a depth-first tree: roots (no parent, or a parent absent from the set)
+ * first by start time, each followed by its children. Log events attach to the row whose
+ * spanId matches; the rest are orphans. Returns null when there are no spans.
+ */
+export function buildSpanWaterfall(spans: SpanRecord[], events: Event[]): SpanWaterfall | null {
+  if (spans.length === 0) return null
+
+  const ids = new Set(spans.map((span) => span.spanId))
+  const childrenOf = new Map<string, SpanRecord[]>()
+  const roots: SpanRecord[] = []
+  for (const span of spans) {
+    const parent = span.parentSpanId
+    if (parent !== null && ids.has(parent)) {
+      const siblings = childrenOf.get(parent)
+      if (siblings) siblings.push(span)
+      else childrenOf.set(parent, [span])
+    } else {
+      roots.push(span)
+    }
+  }
+
+  const byStart = (a: SpanRecord, b: SpanRecord) =>
+    Date.parse(a.startTimestamp) - Date.parse(b.startTimestamp) || a.spanId.localeCompare(b.spanId)
+
+  const eventsBySpan = new Map<string, Event[]>()
+  const orphanEvents: Event[] = []
+  for (const event of events) {
+    if (event.spanId !== null && ids.has(event.spanId)) {
+      const group = eventsBySpan.get(event.spanId)
+      if (group) group.push(event)
+      else eventsBySpan.set(event.spanId, [event])
+    } else {
+      orphanEvents.push(event)
+    }
+  }
+
+  const rows: SpanWaterfallRow[] = []
+  const seen = new Set<string>()
+  const visit = (span: SpanRecord, depth: number) => {
+    if (seen.has(span.spanId)) return // guard against a parent cycle
+    seen.add(span.spanId)
+    const startMs = Date.parse(span.startTimestamp)
+    rows.push({
+      span,
+      depth,
+      startMs,
+      endMs: startMs + span.durationMs,
+      events: eventsBySpan.get(span.spanId) ?? [],
+    })
+    for (const child of (childrenOf.get(span.spanId) ?? []).sort(byStart)) {
+      visit(child, depth + 1)
+    }
+  }
+  for (const root of roots.sort(byStart)) visit(root, 0)
+
+  const startMs = Math.min(...rows.map((row) => row.startMs))
+  const endMs = Math.max(...rows.map((row) => row.endMs))
+  return { rows, startMs, endMs, orphanEvents }
 }
