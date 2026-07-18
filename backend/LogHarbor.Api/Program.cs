@@ -23,6 +23,7 @@ builder.Services.AddSingleton<IEventStore, SqliteEventStore>();
 builder.Services.AddSingleton<IApiKeyStore, SqliteApiKeyStore>();
 builder.Services.AddSingleton<ISignalStore, SqliteSignalStore>();
 builder.Services.AddSingleton<IArchiveStore, SqliteArchiveStore>();
+builder.Services.AddSingleton<ISpanStore, SqliteSpanStore>();
 
 // appsettings values are only defaults: values saved from the Settings page win (docs/archiving.md)
 var archiveDefaults = new ArchiveSettings

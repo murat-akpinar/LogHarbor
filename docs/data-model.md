@@ -134,6 +134,29 @@ created_at         TEXT      UTC ISO-8601
 last_triggered_at  TEXT      nullable, set after each firing attempt (success or failure)
 last_error         TEXT      nullable, last webhook/evaluation error, cleared on next success
 
+--- SPAN ---
+
+One OTLP span (docs/ingestion-otlp.md, /v1/traces). Trace-scoped: read only by
+trace_id for the waterfall, so no FTS. Ids are lowercase W3C hex.
+
+Field            Type      Notes
+id               INTEGER   primary key (autoincrement)
+trace_id         TEXT      32 hex; indexed (ix_spans_trace)
+span_id          TEXT      16 hex
+parent_span_id   TEXT      16 hex, nullable (null = root span)
+name             TEXT
+kind             TEXT      internal | server | client | producer | consumer | unspecified
+service          TEXT      resource service.name, nullable
+start_timestamp  TEXT      UTC ISO-8601; indexed (ix_spans_start, for retention)
+duration_ms      REAL      (end - start) in ms, 0 when unknown
+status_code      TEXT      unset | ok | error
+status_message   TEXT      nullable
+attributes       TEXT      JSON object, nullable
+ingested_at      TEXT
+
+Spans are never archived; retention deletes rows older than RetentionDays by
+start_timestamp (regardless of the archive on/off setting).
+
 --- ARCHIVE SEGMENT ---
 
 Compressed daily chunk of old events (docs/archiving.md).
