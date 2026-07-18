@@ -24,6 +24,12 @@ public sealed record PropertyValueCount(string Value, long Count);
 /// <summary>One operation group whose current-window p95 latency regressed past its own baseline p95.</summary>
 public sealed record SlowOperation(string Template, double BaselineP95, double CurrentP95, long Count);
 
+/// <summary>Regressed groups plus why the list may be empty:
+/// TimedOperationCount = groups with >= 1 timed sample in [from, to) (a setup check, not gated by minSamples);
+/// ComparableOperationCount = groups with >= minSamples samples in BOTH windows (eligible for the ratio test).</summary>
+public sealed record SlowOperationsResult(
+    IReadOnlyList<SlowOperation> Operations, long TimedOperationCount, long ComparableOperationCount);
+
 /// <summary>Event count for one (day-of-week, hour-of-day) cell, both UTC; DayOfWeek 0 = Sunday.</summary>
 public sealed record HeatmapCell(int DayOfWeek, int Hour, long Count);
 
@@ -65,7 +71,7 @@ public interface IEventStore
     /// (history in [baselineFromUtc, splitUtc)), most-regressed first. Guardrails: a group needs
     /// >= <paramref name="minSamples"/> timed events in each window and a baseline p95 >= <paramref name="floorMs"/>.
     /// </summary>
-    Task<IReadOnlyList<SlowOperation>> GetSlowOperationsAsync(
+    Task<SlowOperationsResult> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,
         CancellationToken cancellationToken = default);

@@ -192,7 +192,12 @@ GET /api/stats/slow-operations
   is >= factor x the group's own baseline p95 (its history before `from`), most-regressed
   first. Guardrails: a group needs >= minSamples timed events in each window and a baseline
   p95 >= floorMs. No global threshold; each group is compared to itself.
-  200: { "operations": [ { template, baselineP95, currentP95, count } ] }
+  200: { "operations": [ { template, baselineP95, currentP95, count } ],
+         "timedOperationCount": N,        // groups with >= 1 timed sample in [from, to)
+         "comparableOperationCount": N }  // groups with >= minSamples in BOTH windows
+  timedOperationCount is 0 when no event in the range carries the property; when it is
+  non-zero but comparableOperationCount is 0, no group has a baseline before `from` to
+  compare against (narrow the range). The two counts let the UI explain an empty list.
 
 GET /api/stats/services
   Query: limit? default 50

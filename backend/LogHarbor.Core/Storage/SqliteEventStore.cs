@@ -444,7 +444,7 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
-    public async Task<IReadOnlyList<SlowOperation>> GetSlowOperationsAsync(
+    public async Task<SlowOperationsResult> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,
         CancellationToken cancellationToken = default)
@@ -459,7 +459,8 @@ public sealed class SqliteEventStore : IEventStore
         // safe to embed: property is restricted to [A-Za-z0-9_.] at the API boundary;
         // the quoted step keeps dots literal
         var extract = $"json_extract(properties, '$.\"{property}\"')";
-        command.CommandText =
+        // shared prefix: SQLite CTEs do not span statements, so it is re-declared in both below
+        var cte =
             "WITH v AS (" +
             $"SELECT message_template AS tmpl, CAST({extract} AS REAL) AS ms, " +
             "CASE WHEN timestamp < @split THEN 0 ELSE 1 END AS cur " +
@@ -469,12 +470,20 @@ public sealed class SqliteEventStore : IEventStore
             "ROW_NUMBER() OVER (PARTITION BY tmpl, cur ORDER BY ms) AS rn, " +
             "COUNT(*) OVER (PARTITION BY tmpl, cur) AS n FROM v), " +
             "p AS (SELECT tmpl, cur, MAX(n) AS n, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 " +
-            "FROM r GROUP BY tmpl, cur) " +
+            "FROM r GROUP BY tmpl, cur) ";
+        command.CommandText =
+            cte +
             "SELECT b.tmpl, b.p95 AS base_p95, c.p95 AS cur_p95, c.n AS cur_n " +
             "FROM p b JOIN p c ON c.tmpl = b.tmpl AND b.cur = 0 AND c.cur = 1 " +
             "WHERE b.n >= @minSamples AND c.n >= @minSamples AND b.p95 >= @floorMs AND b.p95 > 0 " +
             "AND c.p95 >= b.p95 * @factor " +
-            "ORDER BY c.p95 / b.p95 DESC, c.p95 DESC LIMIT @limit;";
+            "ORDER BY c.p95 / b.p95 DESC, c.p95 DESC LIMIT @limit; " +
+            // counts over the same CTE: timed = any current-window sample (not gated by minSamples);
+            // comparable = >= minSamples in both windows (no floorMs/factor)
+            cte +
+            "SELECT (SELECT COUNT(*) FROM p WHERE cur = 1) AS timed, " +
+            "(SELECT COUNT(*) FROM p b JOIN p c ON c.tmpl = b.tmpl AND b.cur = 0 AND c.cur = 1 " +
+            "WHERE b.n >= @minSamples AND c.n >= @minSamples) AS comparable;";
         command.Parameters.AddWithValue("@split", splitUtc);
         command.Parameters.AddWithValue("@minSamples", minSamples);
         command.Parameters.AddWithValue("@floorMs", floorMs);
@@ -488,7 +497,13 @@ public sealed class SqliteEventStore : IEventStore
             rows.Add(new SlowOperation(
                 reader.GetString(0), reader.GetDouble(1), reader.GetDouble(2), reader.GetInt64(3)));
         }
-        return rows;
+        long timed = 0, comparable = 0;
+        if (await reader.NextResultAsync(cancellationToken) && await reader.ReadAsync(cancellationToken))
+        {
+            timed = reader.GetInt64(0);
+            comparable = reader.GetInt64(1);
+        }
+        return new SlowOperationsResult(rows, timed, comparable);
     }
 
     public async Task<IReadOnlyList<TopException>> GetTopExceptionsAsync(

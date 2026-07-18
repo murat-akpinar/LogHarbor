@@ -327,6 +327,31 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.True(handle.GetProperty("currentP95").GetDouble() >= handle.GetProperty("baselineP95").GetDouble() * 2);
     }
 
+    [Fact]
+    public async Task SlowOperations_ReportsTimedAndComparableCounts()
+    {
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        var batch = new List<Event>();
+        // "Cold {Path}": timed samples only in the current window, no baseline before `from`
+        for (var i = 0; i < 5; i++) batch.Add(Timed("2026-07-17T10:10:00.0000000Z", "Cold {Path}", 100 + i));
+        // "Even {Path}": timed samples in both windows, same level => comparable but not regressed
+        for (var i = 0; i < 5; i++) batch.Add(Timed("2026-07-17T09:00:00.0000000Z", "Even {Path}", 200 + i));
+        for (var i = 0; i < 5; i++) batch.Add(Timed("2026-07-17T10:10:00.0000000Z", "Even {Path}", 200 + i));
+        // "Thin {Path}": only 2 current-window samples (below minSamples=3) => still counts as timed
+        for (var i = 0; i < 2; i++) batch.Add(Timed("2026-07-17T10:10:00.0000000Z", "Thin {Path}", 300 + i));
+        await store.WriteBatchAsync(batch);
+
+        var body = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/slow-operations?from=2026-07-17T10:00:00Z&to=2026-07-17T11:00:00Z&minSamples=3&floorMs=10&factor=2");
+
+        Assert.Empty(body.GetProperty("operations").EnumerateArray());
+        // Cold, Even and Thin all have current-window samples; timed is NOT gated by minSamples,
+        // so Thin (2 < 3) is still counted
+        Assert.Equal(3, body.GetProperty("timedOperationCount").GetInt64());
+        // only Even has >= minSamples in BOTH windows
+        Assert.Equal(1, body.GetProperty("comparableOperationCount").GetInt64());
+    }
+
     [Theory]
     [InlineData("/api/stats/slow-operations?from=2026-07-16T10:00:00Z&to=2026-07-16T11:00:00Z&property=bad%27name")]
     [InlineData("/api/stats/slow-operations?from=2026-07-16T10:00:00Z&to=2026-07-16T11:00:00Z&factor=0.5")]

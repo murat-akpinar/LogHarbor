@@ -95,10 +95,10 @@ public static class StatsEndpoints
             return error!;
         }
 
-        var operations = await eventStore.GetSlowOperationsAsync(
+        var result = await eventStore.GetSlowOperationsAsync(
             filterSql, BaselineStart, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
             property, minSamples, floorMs, factor, limit, cancellationToken);
-        return Results.Ok(new { operations });
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> ServicesAsync(
