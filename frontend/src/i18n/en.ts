@@ -118,6 +118,10 @@ export const en = {
     trace: 'Trace',
     viewTrace: 'View trace',
   },
+  notFound: {
+    title: 'Page not found',
+    backToEvents: 'Back to Events',
+  },
   trace: {
     title: 'Trace timeline',
     noSpan: '(no span)',

@@ -9,6 +9,7 @@ import { AnalysisPage } from './pages/AnalysisPage'
 import { SignalsPage } from './pages/SignalsPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { useTheme } from './hooks/useTheme'
 import { LanguageProvider } from './i18n'
 
@@ -33,6 +34,7 @@ function App() {
                   <Route path="/signals" element={<SignalsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </main>
             </div>

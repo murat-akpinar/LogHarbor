@@ -120,6 +120,10 @@ export const tr: Messages = {
     trace: 'İz',
     viewTrace: 'İzi görüntüle',
   },
+  notFound: {
+    title: 'Sayfa bulunamadı',
+    backToEvents: 'Olaylar sayfasına dön',
+  },
   trace: {
     title: 'İz zaman çizelgesi',
     noSpan: '(span yok)',

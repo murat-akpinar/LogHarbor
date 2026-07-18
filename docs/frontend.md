@@ -149,6 +149,12 @@ List, create, edit, delete alert rules: title, signal, threshold count, window
 Shows last-fired time and last error inline.
 Read-only for viewers (list only; the create form and edit/delete buttons are admin-only).
 
+--- NOT FOUND ---
+
+Unknown client routes render a "Page not found" view with a link back to Events
+(the server serves index.html for any non-/api path — docs/api.md NOT FOUND —
+so the SPA router owns the error state).
+
 --- DESIGN TOKENS ---
 
 src/index.css is the single source of truth for color, radius, shadow and fonts. Custom
