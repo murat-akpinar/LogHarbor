@@ -57,13 +57,33 @@ public sealed class AlertEvaluator
                 continue;
             }
 
-            var summary = await _events.GetSummaryAsync(filterSql, fromUtc, toUtc, cancellationToken);
-            if (summary.Total < rule.ThresholdCount)
+            var windowCount = (await _events.GetSummaryAsync(filterSql, fromUtc, toUtc, cancellationToken)).Total;
+
+            long count;
+            if (rule.Condition == "silence")
             {
-                continue;
+                if (windowCount > 0)
+                {
+                    continue; // still alive
+                }
+                // proof of life: was the signal ever seen between rule creation and the window?
+                var prior = await _events.GetSummaryAsync(filterSql, rule.CreatedAt, fromUtc, cancellationToken);
+                if (prior.Total == 0)
+                {
+                    continue; // never alive (or younger than one window) -> nothing to mourn
+                }
+                count = 0;
+            }
+            else
+            {
+                if (windowCount < rule.ThresholdCount)
+                {
+                    continue;
+                }
+                count = windowCount;
             }
 
-            var payload = BuildPayload(rule, signalTitle, signalFilter, summary.Total, fromUtc, toUtc);
+            var payload = BuildPayload(rule, signalTitle, signalFilter, count, fromUtc, toUtc);
 
             var error = await _webhooks.SendAsync(rule.WebhookUrl, payload, cancellationToken);
             await _alerts.MarkTriggeredAsync(rule.Id, toUtc, error, cancellationToken);
@@ -76,34 +96,53 @@ public sealed class AlertEvaluator
     }
 
     /// <summary>Slack and Discord incoming webhooks reject arbitrary JSON — they require
-    /// {"text"} / {"content"} respectively; everything else gets the structured payload.</summary>
+    /// {"text"} / {"content"} respectively; everything else gets the structured payload.
+    /// A silence payload carries condition:"silence" and count:0 instead of a threshold.</summary>
     private static string BuildPayload(
         AlertRule rule, string signalTitle, string signalFilter, long count, string fromUtc, string toUtc)
     {
+        var message = rule.Condition == "silence"
+            ? BuildSilenceMessage(rule, signalTitle)
+            : BuildMessage(rule, signalTitle, count);
+
         switch (rule.PayloadFormat)
         {
             case "slack":
-                return JsonSerializer.Serialize(
-                    new { text = BuildMessage(rule, signalTitle, count) }, PayloadOptions);
+                return JsonSerializer.Serialize(new { text = message }, PayloadOptions);
             case "discord":
-                return JsonSerializer.Serialize(
-                    new { content = BuildMessage(rule, signalTitle, count) }, PayloadOptions);
+                return JsonSerializer.Serialize(new { content = message }, PayloadOptions);
             default:
-                return JsonSerializer.Serialize(new
-                {
-                    rule = rule.Title,
-                    signal = signalTitle,
-                    filter = signalFilter,
-                    count,
-                    threshold = rule.ThresholdCount,
-                    windowMinutes = rule.WindowMinutes,
-                    from = fromUtc,
-                    to = toUtc,
-                }, PayloadOptions);
+                return rule.Condition == "silence"
+                    ? JsonSerializer.Serialize(new
+                    {
+                        rule = rule.Title,
+                        signal = signalTitle,
+                        filter = signalFilter,
+                        condition = "silence",
+                        count,
+                        windowMinutes = rule.WindowMinutes,
+                        from = fromUtc,
+                        to = toUtc,
+                    }, PayloadOptions)
+                    : JsonSerializer.Serialize(new
+                    {
+                        rule = rule.Title,
+                        signal = signalTitle,
+                        filter = signalFilter,
+                        count,
+                        threshold = rule.ThresholdCount,
+                        windowMinutes = rule.WindowMinutes,
+                        from = fromUtc,
+                        to = toUtc,
+                    }, PayloadOptions);
         }
     }
 
     private static string BuildMessage(AlertRule rule, string signalTitle, long count) =>
         $"LogHarbor alert '{rule.Title}': {count} events matched '{signalTitle}' " +
         $"in the last {rule.WindowMinutes} min (threshold {rule.ThresholdCount}).";
+
+    private static string BuildSilenceMessage(AlertRule rule, string signalTitle) =>
+        $"LogHarbor alert '{rule.Title}': signal '{signalTitle}' has been silent for " +
+        $"{rule.WindowMinutes} min (expected at least one event).";
 }
