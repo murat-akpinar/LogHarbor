@@ -95,6 +95,8 @@ export const tr: Messages = {
     messageContains: 'Mesaj şunu içerir',
     textPlaceholder: 'metin…',
     valuePlaceholder: 'değer…',
+    traceId: 'İz kimliği (trace id)',
+    spanId: 'Span kimliği (span id)',
     invalidFilter: 'Geçersiz filtre',
     errorAtPosition: (error: string, position: number) => `${error} (konum ${position})`,
     validateConnectionError: 'Filtre doğrulanamadı; bağlantını kontrol et.',

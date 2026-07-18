@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { suggest } from '../api/events'
 import { LEVELS } from '../lib/levels'
-import { FIELD_OP_LABELS, LEVEL_OPS, STRING_OPS, type Chip, type FieldOp } from '../lib/filterChips'
+import { FIELD_OP_LABELS, ID_OPS, LEVEL_OPS, STRING_OPS, type Chip, type FieldOp } from '../lib/filterChips'
 import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
@@ -23,6 +23,8 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
     { field: 'Message', label: t.filters.messageText },
     { field: '@Level', label: t.filters.level },
     { field: '@Exception', label: t.filters.exception },
+    { field: '@TraceId', label: t.filters.traceId },
+    { field: '@SpanId', label: t.filters.spanId },
   ]
   const [field, setField] = useState<string | null>(initial ? initialField(initial) : null)
   const [fieldQuery, setFieldQuery] = useState('')
@@ -131,7 +133,8 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
     )
   }
 
-  const ops = field === '@Level' ? LEVEL_OPS : STRING_OPS
+  const ops =
+    field === '@Level' ? LEVEL_OPS : field === '@TraceId' || field === '@SpanId' ? ID_OPS : STRING_OPS
   const submitField = () => value.trim() && onSubmit({ kind: 'field', field, op, value: value.trim() })
 
   // @Level and structured properties → operator + value
@@ -203,7 +206,10 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
 }
 
 function isBuiltin(field: string): boolean {
-  return field === 'Message' || field === '@Level' || field === '@Exception'
+  return (
+    field === 'Message' || field === '@Level' || field === '@Exception' ||
+    field === '@TraceId' || field === '@SpanId'
+  )
 }
 
 function initialField(chip: Chip): string {

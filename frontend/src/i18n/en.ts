@@ -93,6 +93,8 @@ export const en = {
     messageContains: 'Message contains',
     textPlaceholder: 'text…',
     valuePlaceholder: 'value…',
+    traceId: 'Trace id',
+    spanId: 'Span id',
     invalidFilter: 'Invalid filter',
     errorAtPosition: (error: string, position: number) => `${error} (position ${position})`,
     validateConnectionError: 'Could not validate filter; check your connection.',
