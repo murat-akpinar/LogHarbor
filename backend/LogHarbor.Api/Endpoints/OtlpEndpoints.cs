@@ -27,6 +27,7 @@ public static class OtlpEndpoints
         IngestionOptions options,
         CancellationToken cancellationToken)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var contentType = httpRequest.ContentType ?? "";
         var isProtobuf = contentType.StartsWith("application/x-protobuf", StringComparison.OrdinalIgnoreCase);
         var isJson = contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase);
@@ -70,6 +71,8 @@ public static class OtlpEndpoints
         var ids = await eventStore.WriteBatchAsync(result.Events, cancellationToken);
         LogHarborMetrics.CountIngested(result.Events.Count, "otlp");
         await tailBroadcaster.BroadcastAsync(ids, cancellationToken);
+        LogHarborMetrics.RecordIngestDuration(
+            System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, "otlp");
 
         var response = new ExportLogsServiceResponse();
         if (result.RejectedLogRecords > 0)

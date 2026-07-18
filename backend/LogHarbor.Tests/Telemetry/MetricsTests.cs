@@ -97,6 +97,41 @@ public sealed class MetricsTests : IDisposable
     }
 
     [Fact]
+    public async Task Ingest_RecordsDurationPerSource()
+    {
+        var token = await CreateApiKeyAsync();
+        using var capture = new MeterCapture();
+
+        var clef = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent(
+                """{"@t":"2026-07-13T10:00:00Z","@m":"timed"}""",
+                Encoding.UTF8, "application/vnd.serilog.clef"),
+        };
+        clef.Headers.Add("X-LogHarbor-ApiKey", token);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(clef)).StatusCode);
+
+        var scope = new ScopeLogs();
+        scope.LogRecords.Add(new LogRecord { Body = new AnyValue { StringValue = "timed" } });
+        var resourceLogs = new ResourceLogs();
+        resourceLogs.ScopeLogs.Add(scope);
+        var export = new ExportLogsServiceRequest();
+        export.ResourceLogs.Add(resourceLogs);
+        var otlp = new HttpRequestMessage(HttpMethod.Post, "/v1/logs")
+        {
+            Content = new ByteArrayContent(export.ToByteArray()),
+        };
+        otlp.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-protobuf");
+        otlp.Headers.Add("X-LogHarbor-ApiKey", token);
+        Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(otlp)).StatusCode);
+
+        Assert.Contains(capture.Measurements,
+            m => m.Instrument == "logharbor.ingest.duration" && m.Value >= 0 && m.Source == "clef");
+        Assert.Contains(capture.Measurements,
+            m => m.Instrument == "logharbor.ingest.duration" && m.Value >= 0 && m.Source == "otlp");
+    }
+
+    [Fact]
     public async Task EventSearch_RecordsQueryDuration()
     {
         using var capture = new MeterCapture();

@@ -21,6 +21,16 @@ public static class LogHarborMetrics
         Meter.CreateHistogram<double>("logharbor.query.duration", unit: "ms",
             description: "Event search duration");
 
+    /// <summary>One successful ingestion request (parse + write + broadcast), in milliseconds;
+    /// tag "source" is "clef" or "otlp". The tripwire for the parked write-path channel refactor:
+    /// its p99 degrading in a real deployment is the signal to revisit (todo.md Phase 13).</summary>
+    public static readonly Histogram<double> IngestDuration =
+        Meter.CreateHistogram<double>("logharbor.ingest.duration", unit: "ms",
+            description: "Successful ingestion request duration");
+
+    public static void RecordIngestDuration(double milliseconds, string source) =>
+        IngestDuration.Record(milliseconds, new KeyValuePair<string, object?>("source", source));
+
     /// <summary>One archiver compression pass, in milliseconds.</summary>
     public static readonly Histogram<double> ArchiveJobDuration =
         Meter.CreateHistogram<double>("logharbor.archive.job.duration", unit: "ms",

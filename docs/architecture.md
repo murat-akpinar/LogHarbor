@@ -57,7 +57,9 @@ Web API:
 
 Self-telemetry:
   Custom meters (Meter "LogHarbor", plain System.Diagnostics.Metrics in Core):
-  ingest rate by source (clef/otlp), event query duration, archive job duration.
+  ingest rate and ingest request duration by source (clef/otlp), event query
+  duration, archive job duration. logharbor.ingest.duration doubles as the
+  tripwire for the parked write-path channel refactor (todo.md Phase 13).
   Exported via OTLP together with ASP.NET Core request metrics ONLY when
   OTEL_EXPORTER_OTLP_ENDPOINT is set — off by default, near-zero cost unlistened
   (docs/superpowers/specs/2026-07-18-self-telemetry-design.md)

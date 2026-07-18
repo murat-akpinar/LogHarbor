@@ -31,6 +31,7 @@ public static class IngestionEndpoints
         IngestionOptions options,
         CancellationToken cancellationToken)
     {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var bytes = await RequestBody.ReadCappedAsync(request, options.MaxBatchBytes, cancellationToken);
         if (bytes is null)
         {
@@ -64,6 +65,8 @@ public static class IngestionEndpoints
         var ids = await eventStore.WriteBatchAsync(events, cancellationToken);
         LogHarborMetrics.CountIngested(events.Count, "clef");
         await tailBroadcaster.BroadcastAsync(ids, cancellationToken);
+        LogHarborMetrics.RecordIngestDuration(
+            System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds, "clef");
         return Results.StatusCode(StatusCodes.Status201Created);
     }
 
