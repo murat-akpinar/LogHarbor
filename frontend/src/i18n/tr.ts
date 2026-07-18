@@ -120,6 +120,13 @@ export const tr: Messages = {
     trace: 'İz',
     viewTrace: 'İzi görüntüle',
   },
+  trace: {
+    title: 'İz zaman çizelgesi',
+    noSpan: '(span yok)',
+    noSpanIds: 'Bu iz span kimliği taşımıyor; olaylar tek zaman çizgisinde.',
+    truncated: 'Bu izin en yeni 1000 olayı gösteriliyor.',
+    dotAria: (level: string, message: string) => `${level}: ${message}`,
+  },
   dashboard: {
     title: 'Panel',
     totalEvents: 'Toplam olay',

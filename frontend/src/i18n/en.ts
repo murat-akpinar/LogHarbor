@@ -118,6 +118,13 @@ export const en = {
     trace: 'Trace',
     viewTrace: 'View trace',
   },
+  trace: {
+    title: 'Trace timeline',
+    noSpan: '(no span)',
+    noSpanIds: 'This trace carries no span ids; events sit on one timeline.',
+    truncated: 'Showing the newest 1000 events of this trace.',
+    dotAria: (level: string, message: string) => `${level}: ${message}`,
+  },
   dashboard: {
     title: 'Dashboard',
     totalEvents: 'Total events',
