@@ -2,6 +2,7 @@ export const en = {
   nav: {
     events: 'Events',
     dashboard: 'Dashboard',
+    services: 'Services',
     analysis: 'Analysis',
     signals: 'Signals',
     alerts: 'Alerts',
@@ -130,6 +131,15 @@ export const en = {
     bucketAria: (time: string, count: number) => `${time}: ${count} events`,
     dayLabels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     cellAria: (day: string, hour: string, count: string) => `${day} ${hour}:00 UTC — ${count} events`,
+  },
+  services: {
+    title: 'Services',
+    service: 'Service',
+    rate: 'Events/min',
+    errors: 'Errors',
+    p95: 'p95',
+    trend: 'Trend',
+    empty: 'No events with a service identity (service.name or Service) in the selected range.',
   },
   analysis: {
     title: 'Analysis',

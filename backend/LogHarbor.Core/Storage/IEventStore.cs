@@ -27,6 +27,9 @@ public sealed record SlowOperation(string Template, double BaselineP95, double C
 /// <summary>Event count for one (day-of-week, hour-of-day) cell, both UTC; DayOfWeek 0 = Sunday.</summary>
 public sealed record HeatmapCell(int DayOfWeek, int Hour, long Count);
 
+/// <summary>RED numbers for one service; P95ElapsedMs is null when no event carried Elapsed.</summary>
+public sealed record ServiceOverview(string Service, long Total, long ErrorCount, double? P95ElapsedMs);
+
 public interface IEventStore
 {
     /// <summary>Writes all events in a single transaction; all or nothing. Returns the ids assigned, in insertion order.</summary>
@@ -82,6 +85,14 @@ public interface IEventStore
     /// <summary>Counts by (day-of-week, hour-of-day) UTC, ordered by day then hour. Searches hot + hydrated data.</summary>
     Task<IReadOnlyList<HeatmapCell>> GetHeatmapAsync(
         QuerySql? filter, string fromUtc, string toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-service totals, Error+Fatal counts and p95 of Elapsed, largest first. Service identity
+    /// is the "service.name" property (OTLP resources) falling back to "Service" (CLEF/Seq senders);
+    /// events carrying neither are excluded. Searches hot + hydrated data.
+    /// </summary>
+    Task<IReadOnlyList<ServiceOverview>> GetServiceOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>Distinct property names in recent events, prefix-filtered (search-bar autocomplete).</summary>
     Task<IReadOnlyList<string>> SuggestPropertyNamesAsync(

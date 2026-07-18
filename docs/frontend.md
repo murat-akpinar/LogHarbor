@@ -107,6 +107,17 @@ Dragging across two or more bars zooms the dashboard range into that slice
 Heatmap: hour-of-day x day-of-week density grid (/api/stats/heatmap, UTC),
 single-hue cells scaled by count, per-cell native title tooltip
 
+--- SERVICES PAGE ---
+
+Per-service RED table (/api/stats/services): event rate (events/min from
+total over the selected range), error % (Error+Fatal share, tinted red when
+non-zero), p95 Elapsed (em dash when the service carries no Elapsed), and a
+24-bucket sparkline (/api/stats/histogram filtered to the service, red when
+the service has errors). Service identity is service.name (OTLP) falling back
+to Service (CLEF/Seq); events with neither stay off the page.
+Row click: navigates to Events with (service.name = 'x' or Service = 'x')
+and the range as from/to — the filter matches both spellings.
+
 --- ANALYSIS PAGE ---
 
 Top errors table: /api/stats/top-errors grouped by (message template, level);

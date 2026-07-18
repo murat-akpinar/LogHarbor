@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { HeatmapCell, Histogram, SlowOperation, StatsSummary, TopError, TopException } from '../types'
+import type { HeatmapCell, Histogram, ServiceOverview, SlowOperation, StatsSummary, TopError, TopException } from '../types'
 
 export interface StatsRangeParams {
   from: string
@@ -33,6 +33,10 @@ export function getTopErrors(params: StatsRangeParams & { limit?: number }): Pro
 
 export function getTopExceptions(params: StatsRangeParams & { limit?: number }): Promise<{ exceptions: TopException[] }> {
   return api.get<{ exceptions: TopException[] }>(`/api/stats/top-exceptions${buildQuery(params)}`)
+}
+
+export function getServices(params: StatsRangeParams & { limit?: number }): Promise<{ services: ServiceOverview[] }> {
+  return api.get<{ services: ServiceOverview[] }>(`/api/stats/services${buildQuery(params)}`)
 }
 
 export function getSlowOperations(

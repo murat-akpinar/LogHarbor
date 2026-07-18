@@ -4,6 +4,7 @@ import { LoginGate } from './components/LoginGate'
 import { NavBar } from './components/NavBar'
 import { EventsPage } from './pages/EventsPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { ServicesPage } from './pages/ServicesPage'
 import { AnalysisPage } from './pages/AnalysisPage'
 import { SignalsPage } from './pages/SignalsPage'
 import { AlertsPage } from './pages/AlertsPage'
@@ -27,6 +28,7 @@ function App() {
                 <Routes>
                   <Route path="/" element={<EventsPage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/services" element={<ServicesPage />} />
                   <Route path="/analysis" element={<AnalysisPage />} />
                   <Route path="/signals" element={<SignalsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />

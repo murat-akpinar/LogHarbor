@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { TopError } from '../types'
-import { useHistogram, useSlowOperations, useTopErrors, useTopExceptions } from '../hooks/useStats'
+import { useSlowOperations, useTopErrors, useTopExceptions } from '../hooks/useStats'
 import { LevelBadge } from '../components/LevelBadge'
+import { Sparkline } from '../components/Sparkline'
 import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
-import { LEVELS, LEVEL_HEX } from '../lib/levels'
+import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const DEFAULT_RANGE_HOURS = 24
@@ -23,30 +24,6 @@ function defaultRange() {
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
-
-const SPARKLINE_BUCKETS = 24
-
-/** Mini trend over the selected range for any filter, one bar per bucket. */
-function Sparkline({ filter, color, from, to }: { filter: string; color: string; from: string; to: string }) {
-  const histogram = useHistogram({ from, to, filter, buckets: SPARKLINE_BUCKETS })
-  const totals = (histogram.data?.buckets ?? []).map((bucket) =>
-    LEVELS.reduce((total, level) => total + bucket.counts[level], 0),
-  )
-  const max = Math.max(1, ...totals)
-
-  return (
-    <div className="flex h-5 w-24 items-end gap-px" aria-hidden="true">
-      {totals.map((total, index) => (
-        <span
-          key={index}
-          className="min-w-0 flex-1 rounded-t-[1px]"
-          // 8% floor keeps single events visible next to the peak bucket
-          style={{ height: total > 0 ? `${Math.max(8, (total / max) * 100)}%` : '0%', backgroundColor: color }}
-        />
-      ))}
-    </div>
-  )
-}
 
 /** ms with locale thousands grouping: 2559 -> "2.559 ms" (tr) / "2,559 ms" (en). */
 function formatMs(ms: number, locale: string): string {

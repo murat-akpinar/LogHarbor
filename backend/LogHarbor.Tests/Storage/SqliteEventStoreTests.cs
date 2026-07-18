@@ -31,6 +31,51 @@ public sealed class SqliteEventStoreTests : IDisposable
         IngestedAt: "2026-07-13T10:00:01.0000000Z");
 
     [Fact]
+    public async Task ServiceOverview_CoalescesSpellings_CountsErrors_ComputesP95()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"service.name":"checkout","Elapsed":10}"""),
+            MakeEvent("b", """{"service.name":"checkout","Elapsed":100}""") with { Level = "Error" },
+            MakeEvent("c", """{"service.name":"checkout","Elapsed":50}"""),
+            // the CLEF/Seq spelling merges into the same service
+            MakeEvent("d", """{"Service":"checkout"}""") with { Level = "Fatal" },
+            MakeEvent("e", """{"Service":"worker"}"""),
+            // no service identity -> stays off the page
+            MakeEvent("f", """{"UserId":1}"""),
+            MakeEvent("g"),
+        ]);
+
+        var rows = await _store.GetServiceOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", 50);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("checkout", rows[0].Service);
+        Assert.Equal(4, rows[0].Total);
+        Assert.Equal(2, rows[0].ErrorCount);
+        Assert.Equal(100, rows[0].P95ElapsedMs);
+        Assert.Equal("worker", rows[1].Service);
+        Assert.Equal(1, rows[1].Total);
+        Assert.Equal(0, rows[1].ErrorCount);
+        Assert.Null(rows[1].P95ElapsedMs);
+    }
+
+    [Fact]
+    public async Task ServiceOverview_RespectsRangeBounds()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("in", """{"Service":"api"}"""),
+            MakeEvent("out", """{"Service":"api"}""") with { Timestamp = "2026-07-12T10:00:00.0000000Z" },
+        ]);
+
+        var rows = await _store.GetServiceOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", 50);
+
+        Assert.Equal(1, Assert.Single(rows).Total);
+    }
+
+    [Fact]
     public async Task WriteBatch_PersistsAllFields()
     {
         var written = MakeEvent(properties: """{"UserId":7}""") with

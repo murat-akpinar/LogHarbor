@@ -80,6 +80,14 @@ export interface SlowOperation {
   count: number
 }
 
+/** RED numbers for one service; p95ElapsedMs is null when no event carried Elapsed. */
+export interface ServiceOverview {
+  service: string
+  total: number
+  errorCount: number
+  p95ElapsedMs: number | null
+}
+
 export interface ApiKey {
   id: number
   title: string

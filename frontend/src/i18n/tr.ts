@@ -4,6 +4,7 @@ export const tr: Messages = {
   nav: {
     events: 'Olaylar',
     dashboard: 'Panel',
+    services: 'Servisler',
     analysis: 'Analiz',
     signals: 'Sinyaller',
     alerts: 'Uyarılar',
@@ -132,6 +133,15 @@ export const tr: Messages = {
     bucketAria: (time: string, count: number) => `${time}: ${count} olay`,
     dayLabels: ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'],
     cellAria: (day: string, hour: string, count: string) => `${day} ${hour}:00 UTC — ${count} olay`,
+  },
+  services: {
+    title: 'Servisler',
+    service: 'Servis',
+    rate: 'Olay/dk',
+    errors: 'Hatalar',
+    p95: 'p95',
+    trend: 'Eğilim',
+    empty: 'Seçilen aralıkta servis kimliği (service.name veya Service) taşıyan olay yok.',
   },
   analysis: {
     title: 'Analiz',

@@ -53,6 +53,29 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         new(0, timestamp, "Information", "msg", template, $$"""{"Elapsed":{{elapsedMs}}}""", null, timestamp);
 
     [Fact]
+    public async Task Services_GroupsByServiceIdentity_WithRedNumbers()
+    {
+        // 2026-07-16: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-16T10:00:00.0000000Z", "Information", "ok", null,
+                """{"service.name":"checkout","Elapsed":20}""", null, "2026-07-16T10:00:00.0000000Z"),
+            new Event(0, "2026-07-16T10:01:00.0000000Z", "Error", "boom", null,
+                """{"Service":"checkout","Elapsed":80}""", null, "2026-07-16T10:01:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/services?from=2026-07-16T10:00:00Z&to=2026-07-16T11:00:00Z");
+
+        var row = page.GetProperty("services").EnumerateArray().Single();
+        Assert.Equal("checkout", row.GetProperty("service").GetString());
+        Assert.Equal(2, row.GetProperty("total").GetInt64());
+        Assert.Equal(1, row.GetProperty("errorCount").GetInt64());
+        Assert.Equal(80, row.GetProperty("p95ElapsedMs").GetDouble());
+    }
+
+    [Fact]
     public async Task Histogram_BucketsCountsByLevel()
     {
         var response = await _client.GetAsync(

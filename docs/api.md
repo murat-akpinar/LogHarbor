@@ -153,9 +153,9 @@ GET /api/stats/heatmap
 
 --- ANALYSIS ---
 
-All three endpoints share filter?/from/to (from/to required) and limit?
-(default 20, max 100), and search hot + hydrated data (same UNION as
-/api/events). Results are ordered by count descending.
+These endpoints share filter?/from/to (from/to required) and limit?
+(default 20 unless noted, max 100), and search hot + hydrated data (same
+UNION as /api/events). Results are ordered by count descending.
 
 GET /api/stats/top-errors
   Query: also levels? (repeatable, default Error and Fatal)
@@ -180,6 +180,15 @@ GET /api/stats/slow-operations
   first. Guardrails: a group needs >= minSamples timed events in each window and a baseline
   p95 >= floorMs. No global threshold; each group is compared to itself.
   200: { "operations": [ { template, baselineP95, currentP95, count } ] }
+
+GET /api/stats/services
+  Query: limit? default 50
+  Per-service RED numbers. Service identity is the "service.name" property (OTLP
+  resources) falling back to "Service" (CLEF/Seq senders); events carrying neither
+  are excluded. errorCount counts Error + Fatal levels; p95ElapsedMs is the p95 of
+  the numeric Elapsed property, null when no event of the service carried Elapsed.
+  Ordered by total descending.
+  200: { "services": [ { service, total, errorCount, p95ElapsedMs } ] }
 
 --- ARCHIVE ---
 

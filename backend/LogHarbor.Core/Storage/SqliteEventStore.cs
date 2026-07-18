@@ -404,6 +404,46 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IReadOnlyList<ServiceOverview>> GetServiceOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "level, properties", fromUtc, toUtc, cancellationToken);
+
+        // "service.name" (OTLP resources) wins over "Service" (CLEF/Seq senders); the quoted
+        // path steps keep the dot literal (docs/query-language.md PROPERTY ACCESS)
+        command.CommandText =
+            "WITH v AS (" +
+            "SELECT COALESCE(json_extract(properties, '$.\"service.name\"'), " +
+            "json_extract(properties, '$.\"Service\"')) AS svc, level, " +
+            "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms " +
+            $"FROM {source}), " +
+            "s AS (SELECT svc, COUNT(*) AS total, " +
+            "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors " +
+            "FROM v WHERE svc IS NOT NULL GROUP BY svc), " +
+            // same ROW_NUMBER percentile as GetSlowOperationsAsync: a burst of equal
+            // durations must not collapse to rank 0
+            "r AS (SELECT svc, ms, ROW_NUMBER() OVER (PARTITION BY svc ORDER BY ms) AS rn, " +
+            "COUNT(*) OVER (PARTITION BY svc) AS n FROM v WHERE svc IS NOT NULL AND ms IS NOT NULL), " +
+            "p AS (SELECT svc, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY svc) " +
+            "SELECT s.svc, s.total, s.errors, p.p95 " +
+            "FROM s LEFT JOIN p ON p.svc = s.svc " +
+            "ORDER BY s.total DESC, s.svc LIMIT @limit;";
+        command.Parameters.AddWithValue("@limit", limit);
+
+        var rows = new List<ServiceOverview>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new ServiceOverview(
+                reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2),
+                reader.IsDBNull(3) ? null : reader.GetDouble(3)));
+        }
+        return rows;
+    }
+
     public async Task<IReadOnlyList<SlowOperation>> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,
