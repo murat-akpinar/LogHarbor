@@ -8,9 +8,11 @@ public static class AlertEndpoints
 
     private static readonly string[] PayloadFormats = ["generic", "slack", "discord"];
 
+    private static readonly string[] Conditions = ["at-least", "silence"];
+
     public sealed record AlertRequest(
         string? Title, long? SignalId, int? ThresholdCount, int? WindowMinutes, string? WebhookUrl, bool? IsEnabled,
-        string? PayloadFormat);
+        string? PayloadFormat, string? Condition);
 
     public static void MapAlerts(this IEndpointRouteBuilder app)
     {
@@ -29,9 +31,9 @@ public static class AlertEndpoints
             try
             {
                 var created = await store.CreateAsync(
-                    request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount!.Value,
+                    request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount ?? 0,
                     request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true,
-                    request.PayloadFormat ?? "generic", cancellationToken);
+                    request.PayloadFormat ?? "generic", request.Condition ?? "at-least", cancellationToken);
                 return Results.Created($"/api/alerts/{created.Id}", created);
             }
             catch (DuplicateAlertTitleException ex)
@@ -55,9 +57,9 @@ public static class AlertEndpoints
             try
             {
                 var updated = await store.UpdateAsync(
-                    id, request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount!.Value,
+                    id, request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount ?? 0,
                     request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true,
-                    request.PayloadFormat ?? "generic", cancellationToken);
+                    request.PayloadFormat ?? "generic", request.Condition ?? "at-least", cancellationToken);
                 return updated is not null
                     ? Results.Ok(updated)
                     : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert rule not found");
@@ -89,7 +91,12 @@ public static class AlertEndpoints
         {
             errors["signalId"] = ["Signal is required."];
         }
-        if (request.ThresholdCount is not >= 1)
+        var condition = request.Condition ?? "at-least";
+        if (!Conditions.Contains(condition))
+        {
+            errors["condition"] = [$"Must be one of: {string.Join(", ", Conditions)}."];
+        }
+        if (condition == "at-least" && request.ThresholdCount is not >= 1)
         {
             errors["thresholdCount"] = ["Must be at least 1."];
         }

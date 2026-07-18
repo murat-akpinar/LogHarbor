@@ -70,4 +70,46 @@ public sealed class AlertEndpointsTests : IDisposable
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("payloadFormat", await response.Content.ReadAsStringAsync());
     }
+
+    [Fact]
+    public async Task OmittedCondition_DefaultsToAtLeast()
+    {
+        var response = await CreateAlertAsync(await CreateSignalAsync(), new { });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var created = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("at-least", created.GetProperty("condition").GetString());
+    }
+
+    [Fact]
+    public async Task SilenceCondition_WithZeroThreshold_RoundTrips()
+    {
+        var response = await CreateAlertAsync(
+            await CreateSignalAsync(), new { condition = "silence", thresholdCount = 0 });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal("silence",
+            (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("condition").GetString());
+
+        var listed = await _client.GetFromJsonAsync<JsonElement>("/api/alerts");
+        Assert.Equal("silence", listed.EnumerateArray().Single().GetProperty("condition").GetString());
+    }
+
+    [Fact]
+    public async Task UnknownCondition_IsRejected()
+    {
+        var response = await CreateAlertAsync(await CreateSignalAsync(), new { condition = "whenever" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("condition", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AtLeastCondition_WithZeroThreshold_IsRejected()
+    {
+        var response = await CreateAlertAsync(await CreateSignalAsync(), new { thresholdCount = 0 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("thresholdCount", await response.Content.ReadAsStringAsync());
+    }
 }

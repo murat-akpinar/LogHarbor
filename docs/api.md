@@ -108,23 +108,30 @@ DELETE /api/signals/{id}         204 | 404 | 400 when an alert rule still refere
 
 --- ALERTS ---
 
-Evaluated once a minute: fires a webhook POST when a signal matches at least
-thresholdCount events within the trailing windowMinutes.
+Evaluated once a minute. An `at-least` rule (the default) fires a webhook POST when a
+signal matches at least thresholdCount events within the trailing windowMinutes. A
+`silence` rule (dead man's switch) fires when the signal matched at least once between
+the rule's creation and the start of the window, but zero events within the window —
+a once-alive heartbeat that stopped.
 
 GET    /api/alerts        200: [ { id, title, signalId, thresholdCount, windowMinutes, webhookUrl,
-                                    isEnabled, createdAt, lastTriggeredAt, lastError, payloadFormat } ]
+                                    isEnabled, createdAt, lastTriggeredAt, lastError, payloadFormat,
+                                    condition } ]
 POST   /api/alerts        body { title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled,
-                                 payloadFormat? }
+                                 payloadFormat?, condition? }
                           201: AlertRule | 400 validation | 400 duplicate title | 400 unknown signal
 PUT    /api/alerts/{id}   same body  200: AlertRule | 404 | 400 (as above)
 DELETE /api/alerts/{id}   204 | 404
 
-webhookUrl must be an absolute http(s) URL (never a file path or other local scheme).
-After firing (successfully or not) a rule cools down for one full windowMinutes before
-it can retrigger, so a dead webhook is not hammered every evaluation pass.
+condition is 'at-least' (default; thresholdCount must be >= 1) or 'silence' (thresholdCount
+is ignored and may be 0). webhookUrl must be an absolute http(s) URL (never a file path or
+other local scheme). After firing (successfully or not) a rule cools down for one full
+windowMinutes before it can retrigger, so a dead webhook is not hammered every evaluation
+pass; a silence rule therefore re-fires once per window while the signal stays quiet.
 payloadFormat picks the webhook body shape (default generic):
-  generic  { rule, signal, filter, count, threshold, windowMinutes, from, to }
-  slack    { "text": "LogHarbor alert '<rule>': <count> events matched ..." }
+  generic (at-least)  { rule, signal, filter, count, threshold, windowMinutes, from, to }
+  generic (silence)   { rule, signal, filter, condition: "silence", count: 0, windowMinutes, from, to }
+  slack    { "text": "LogHarbor alert '<rule>': ..." }
   discord  { "content": same message }   (paste a Slack/Discord incoming-webhook
                                           URL as webhookUrl and pick its format)
 
