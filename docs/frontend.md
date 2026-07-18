@@ -71,6 +71,13 @@ Row click: expands EventDetail with a syntax-highlighted property tree (nested
   log content is untrusted) + raw JSON
 When the event carries a trace id, EventDetail shows it with a "View trace" button
   that replaces the search filter with @TraceId = '<id>' (all events of that request).
+Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
+  applies), a waterfall panel renders above the list: one row per span_id, bounds
+  inferred from the span's earliest/latest event timestamps (a lower bound on real
+  span duration), one dot per event colored by level, bars tinted red when the span
+  carries an Error/Fatal event. Spanless events collect into a trailing "(no span)"
+  row. Clicking a dot opens that event's detail. Pure frontend over GET /api/events
+  (count=1000, newest first; a note appears when the trace has more).
 Live tail: toggle connects to /hubs/tail with current filter; new events prepend with highlight
 Time range: picker sets from/to; live tail forces "now"
 Archived range: banner "N days in this range are archived" with Extract button;

@@ -98,3 +98,21 @@ it('keeps the normal empty state when a filter is active', async () => {
   expect(await screen.findByText('No events match this filter.')).toBeDefined()
   expect(screen.queryByText('Send your first log')).toBeNull()
 })
+
+const TRACE = '0af7651916cd43dd8448eb211c80319c'
+
+it('shows the trace timeline panel when the filter is exactly a trace filter', async () => {
+  const traced = { ...SAMPLE_EVENT, id: 2, traceId: TRACE, spanId: 'b7ad6b7169203331' }
+  vi.mocked(getEvents).mockResolvedValue({ events: [traced], hasMore: false, archivedDays: [] })
+  renderPage('/?filter=' + encodeURIComponent(`@TraceId = '${TRACE}'`))
+
+  expect(await screen.findByText('Trace timeline')).toBeDefined()
+})
+
+it('keeps the trace panel hidden for non-trace filters', async () => {
+  vi.mocked(getEvents).mockResolvedValue({ events: [SAMPLE_EVENT], hasMore: false, archivedDays: [] })
+  renderPage('/?filter=' + encodeURIComponent("@Level = 'Error'"))
+
+  expect(await screen.findByText('hello there')).toBeDefined()
+  expect(screen.queryByText('Trace timeline')).toBeNull()
+})

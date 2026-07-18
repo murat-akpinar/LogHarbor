@@ -9,6 +9,7 @@ import { useSignals } from '../hooks/useSignals'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { extractHighlightTerms } from '../lib/highlight'
 import { combineFilter, quote } from '../lib/filter'
+import { matchTraceFilter } from '../lib/trace'
 import { useI18n } from '../i18n'
 import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
@@ -22,6 +23,7 @@ import { VirtualizedEventList } from '../components/VirtualizedEventList'
 import type { EventListHandle } from '../components/VirtualizedEventList'
 import { EventDetail } from '../components/EventDetail'
 import { OnboardingPanel } from '../components/OnboardingPanel'
+import { TracePanel } from '../components/TracePanel'
 
 // shortcuts must not fire while the user is typing into a field
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -78,6 +80,7 @@ export function EventsPage() {
     [searchText, activeLevels, activeSignalFilters],
   )
   const highlightTerms = useMemo(() => extractHighlightTerms(searchText), [searchText])
+  const traceId = useMemo(() => matchTraceFilter(filter), [filter])
 
   // no filter, no chips/signals (folded into `filter`), no range: an empty result can
   // only mean the server has no events at all -> first-run onboarding (see the spec)
@@ -235,6 +238,8 @@ export function EventsPage() {
           {t.events.newEvents(tail.pendingCount)}
         </button>
       )}
+
+      {traceId && <TracePanel traceId={traceId} onSelectEvent={setSelectedEvent} />}
 
       <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1">
