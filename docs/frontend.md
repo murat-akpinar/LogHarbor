@@ -147,6 +147,9 @@ Row click (errors and slow operations): navigates to Events with
 List, create, edit, delete alert rules: title, signal, threshold count, window
 (minutes), webhook URL, payload format (generic / Slack / Discord), enabled toggle.
 Shows last-fired time and last error inline.
+Condition selector: "at least N events" (threshold) or "silent for N minutes" (dead
+man's switch). Choosing silence hides the threshold field (sent as 0) and relabels the
+window as the silence period; the rule row summary reads "fires when silent for Nmin".
 Read-only for viewers (list only; the create form and edit/delete buttons are admin-only).
 
 --- NOT FOUND ---

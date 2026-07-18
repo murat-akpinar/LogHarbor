@@ -23,6 +23,7 @@ const DEFAULTS: AlertRequest = {
   webhookUrl: '',
   isEnabled: true,
   payloadFormat: 'generic',
+  condition: 'at-least',
 }
 
 export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFormProps) {
@@ -62,6 +63,22 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           disabled={isSubmitting}
         />
         <Select
+          value={form.condition}
+          onChange={(event) => {
+            const condition = event.target.value as AlertRequest['condition']
+            setForm((current) => ({
+              ...current,
+              condition,
+              thresholdCount: condition === 'silence' ? 0 : current.thresholdCount || 1,
+            }))
+          }}
+          title={t.alerts.conditionTitle}
+          disabled={isSubmitting}
+        >
+          <option value="at-least">{t.alerts.conditionAtLeast}</option>
+          <option value="silence">{t.alerts.conditionSilence}</option>
+        </Select>
+        <Select
           value={form.signalId || ''}
           onChange={(event) => setForm((current) => ({ ...current, signalId: Number(event.target.value) }))}
           disabled={isSubmitting}
@@ -75,23 +92,25 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
             </option>
           ))}
         </Select>
-        <Input
-          type="number"
-          min={1}
-          value={form.thresholdCount}
-          onChange={(event) => setForm((current) => ({ ...current, thresholdCount: Number(event.target.value) }))}
-          placeholder={t.alerts.countPlaceholder}
-          title={t.alerts.thresholdTitle}
-          className="w-20"
-          disabled={isSubmitting}
-        />
+        {form.condition === 'at-least' && (
+          <Input
+            type="number"
+            min={1}
+            value={form.thresholdCount}
+            onChange={(event) => setForm((current) => ({ ...current, thresholdCount: Number(event.target.value) }))}
+            placeholder={t.alerts.countPlaceholder}
+            title={t.alerts.thresholdTitle}
+            className="w-20"
+            disabled={isSubmitting}
+          />
+        )}
         <Input
           type="number"
           min={1}
           value={form.windowMinutes}
           onChange={(event) => setForm((current) => ({ ...current, windowMinutes: Number(event.target.value) }))}
           placeholder={t.alerts.minutesPlaceholder}
-          title={t.alerts.windowTitle}
+          title={form.condition === 'silence' ? t.alerts.silenceWindowTitle : t.alerts.windowTitle}
           className="w-24"
           disabled={isSubmitting}
         />

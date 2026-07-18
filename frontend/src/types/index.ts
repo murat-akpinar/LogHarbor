@@ -120,6 +120,8 @@ export interface User {
 
 export type AlertPayloadFormat = 'generic' | 'slack' | 'discord'
 
+export type AlertCondition = 'at-least' | 'silence'
+
 export interface AlertRule {
   id: number
   title: string
@@ -132,6 +134,7 @@ export interface AlertRule {
   lastTriggeredAt: string | null
   lastError: string | null
   payloadFormat: AlertPayloadFormat
+  condition: AlertCondition
 }
 
 export interface Health {

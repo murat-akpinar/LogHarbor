@@ -27,6 +27,7 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
             webhookUrl: alert.webhookUrl,
             payloadFormat: alert.payloadFormat,
             isEnabled: alert.isEnabled,
+            condition: alert.condition,
           }}
           submitLabel={t.common.save}
           onCancel={() => setIsEditing(false)}
@@ -48,7 +49,9 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
             {alert.isEnabled ? t.alerts.enabled : t.alerts.disabled}
           </span>
           <div className="mt-0.5 truncate text-xs text-fg-muted">
-            {t.alerts.summary(signalTitle, alert.thresholdCount, alert.windowMinutes)}{' '}
+            {alert.condition === 'silence'
+              ? t.alerts.summarySilence(signalTitle, alert.windowMinutes)
+              : t.alerts.summary(signalTitle, alert.thresholdCount, alert.windowMinutes)}{' '}
             <span className="font-mono">{alert.webhookUrl}</span>
           </div>
           {alert.lastTriggeredAt && (

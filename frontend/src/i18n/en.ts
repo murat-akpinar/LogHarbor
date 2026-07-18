@@ -186,11 +186,17 @@ export const en = {
   alerts: {
     title: 'Alerts',
     description:
-      'Fires a webhook POST when a signal matches at least the threshold count of events within the time window.',
+      'Fires a webhook POST when a signal matches at least the threshold count of events in the window (at-least), or when a once-active signal goes silent for the whole window (dead man’s switch).',
     enabled: 'enabled',
     disabled: 'disabled',
     summary: (signalTitle: string, threshold: number, windowMinutes: number) =>
       `${signalTitle} — fires at ≥${threshold} events / ${windowMinutes}min →`,
+    summarySilence: (signalTitle: string, windowMinutes: number) =>
+      `${signalTitle} — fires when silent for ${windowMinutes}min →`,
+    conditionTitle: 'Alert condition',
+    conditionAtLeast: 'At least N events',
+    conditionSilence: 'Silent for N minutes',
+    silenceWindowTitle: 'Silence period (minutes)',
     lastFired: (time: string) => `Last fired ${time}`,
     noAlerts: 'No alert rules yet.',
     selectSignal: 'Select a signal…',

@@ -188,11 +188,17 @@ export const tr: Messages = {
   alerts: {
     title: 'Uyarılar',
     description:
-      'Bir sinyal, zaman penceresi içinde en az eşik sayısı kadar olayla eşleştiğinde bir webhook POST isteği gönderir.',
+      'Bir sinyal, pencere içinde en az eşik sayısı kadar olayla eşleştiğinde (en-az) ya da bir zamanlar etkin olan bir sinyal tüm pencere boyunca sustuğunda (dead man’s switch) bir webhook POST isteği gönderir.',
     enabled: 'etkin',
     disabled: 'devre dışı',
     summary: (signalTitle: string, threshold: number, windowMinutes: number) =>
       `${signalTitle} — ${windowMinutes} dk içinde ≥${threshold} olayda tetiklenir →`,
+    summarySilence: (signalTitle: string, windowMinutes: number) =>
+      `${signalTitle} — ${windowMinutes} dk sessiz kalınca tetiklenir →`,
+    conditionTitle: 'Uyarı koşulu',
+    conditionAtLeast: 'En az N olay',
+    conditionSilence: 'N dakika sessiz',
+    silenceWindowTitle: 'Sessizlik süresi (dakika)',
     lastFired: (time: string) => `Son tetiklenme: ${time}`,
     noAlerts: 'Henüz uyarı kuralı yok.',
     selectSignal: 'Bir sinyal seç…',
