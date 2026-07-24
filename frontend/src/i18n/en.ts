@@ -218,6 +218,8 @@ export const en = {
   },
   requests: {
     title: 'Requests',
+    statusCodes: 'Status codes',
+    noStatus: 'No events carry a StatusCode property in the selected range.',
   },
   exceptions: {
     title: 'Exceptions',

@@ -100,12 +100,14 @@ def build_event(service, level, timestamp):
             event["Path"] = random.choice(PATHS)
             event["@x"] = random.choice(EXCEPTIONS)
             event["UserId"] = _user()
+            event["StatusCode"] = random.choice([500, 502, 503])
             # nested value exercises EventDetail's collapsible property tree
             event["Cart"] = {"Total": round(random.uniform(5, 500), 2), "Items": ["sku-1", "sku-7"]}
         elif level == "Warning":
             event["@mt"] = "Slow request {Path} took {Elapsed} ms"
             event["Path"] = random.choice(PATHS)
             event["Elapsed"] = random.randrange(800, 5000)
+            event["StatusCode"] = 200
         elif level == "Debug":
             event["@mt"] = "Cache {Outcome} for {Path}"
             event["Outcome"] = random.choice(["hit", "miss"])
@@ -124,6 +126,9 @@ def build_event(service, level, timestamp):
             event["Path"] = random.choice(PATHS)
             event["Elapsed"] = random.randrange(3, 400)
             event["UserId"] = _user()
+            event["StatusCode"] = random.choices(
+                [200, 201, 204, 301, 404, 429], weights=[76, 8, 5, 3, 6, 2]
+            )[0]
     elif service == "worker":
         job = f"job-{random.randrange(10000, 99999)}"
         if level == "Error":

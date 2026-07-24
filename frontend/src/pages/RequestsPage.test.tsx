@@ -6,6 +6,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
 import { RequestsPage } from './RequestsPage'
 
+const EMPTY_COUNTS = { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 }
+
+function bucketOf(count: number) {
+  return { start: '2026-07-25T10:00:00.000Z', counts: { ...EMPTY_COUNTS, Information: count } }
+}
+
 vi.mock('../api/stats', () => ({
   getOperations: vi.fn(async () => ({
     operations: [
@@ -13,7 +19,12 @@ vi.mock('../api/stats', () => ({
       { template: 'POST /api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300 },
     ],
   })),
-  getHistogram: vi.fn(async () => ({ buckets: [] })),
+  getHistogram: vi.fn(async ({ filter }: { filter?: string }) => {
+    if (filter?.includes('StatusCode >= 500')) return { buckets: [bucketOf(4)] }
+    if (filter?.includes('StatusCode >= 400')) return { buckets: [bucketOf(6)] }
+    if (filter?.includes('StatusCode <')) return { buckets: [bucketOf(90)] }
+    return { buckets: [] } // row sparklines
+  }),
 }))
 
 afterEach(() => {
@@ -48,6 +59,27 @@ it('lists operations with their RED numbers, busiest first', async () => {
   // error % = 5 / 10 = 50.0%
   expect(screen.getByText('50.0%')).toBeDefined()
   expect(bodyRowTexts()[0]).toContain('GET /api/orders/{id}')
+})
+
+it('stacks status-class series with their totals in the legend', async () => {
+  renderPage()
+  expect(await screen.findByText('1/2/3xx')).toBeDefined()
+  expect(screen.getByText('4xx')).toBeDefined()
+  expect(screen.getByText('5xx')).toBeDefined()
+  // legend totals per class
+  expect(await screen.findByText('90')).toBeDefined()
+  expect(screen.getByText('6')).toBeDefined()
+  expect(screen.getByText('4')).toBeDefined()
+})
+
+it('starts live and pauses into a static range picker', async () => {
+  renderPage()
+  const toggle = await screen.findByRole('button', { name: /Live/ })
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(screen.queryByTitle('Time range')).toBeNull()
+
+  toggle.click()
+  expect(await screen.findByTitle('Time range')).toBeDefined()
 })
 
 it('re-sorts by error % when that header is clicked', async () => {

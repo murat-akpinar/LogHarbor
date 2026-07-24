@@ -179,6 +179,13 @@ the deep link and sparkline match how the value is stored.
 
 --- REQUESTS PAGE ---
 
+Status-codes chart (top): stacked per-bucket histogram of events carrying a
+StatusCode property, split into 1/2/3xx / 4xx / 5xx classes (three filtered
+/api/stats/histogram calls; Information/Warning/Error level colors) with
+legend totals; a hint replaces it when no event carries StatusCode.
+Live toggle: the page follows the dashboard's rolling last-hour auto-refresh
+(pausing shows the TimeRangePicker) — same as Exceptions and Queries.
+
 Operations RED table as its own lens (Nightwatch's "Requests" view):
 /api/stats/operations (limit 50), per-operation RED grouped by message
 template — events/min, error % (tinted red when non-zero), p95 Elapsed

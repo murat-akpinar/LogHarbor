@@ -220,6 +220,8 @@ export const tr: Messages = {
   },
   requests: {
     title: 'İstekler',
+    statusCodes: 'Durum kodları',
+    noStatus: 'Seçilen aralıkta StatusCode property\'si taşıyan olay yok.',
   },
   exceptions: {
     title: 'İstisnalar',
