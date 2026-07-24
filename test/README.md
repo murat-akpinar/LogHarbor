@@ -9,6 +9,7 @@ pick by what you want to find out — none of them is a replacement for the unit
 | [`scripts/seed-demo.ps1`](scripts/seed-demo.ps1) | "What does a populated UI look like, right now?" | one-shot backfill: ~3000 events spread over the last 7 days |
 | [`traffic-sim/`](traffic-sim/README.md) | "What does LogHarbor feel like against a real stream?" | continuous daemon: ~10k events/day, four services, day/night rhythm, runs for days |
 | [`anomaly-test/`](anomaly-test/README.md) | "Does LogHarbor actually notice a slowdown?" | ramped `Elapsed` (60 → 600 ms) until slow-operations and an alert webhook fire |
+| [`db-query-sim/`](db-query-sim/README.md) | "What does a populated Queries page look like, right now?" | one-shot backfill: EF-shaped `Executed DbCommand` events with latency profiles + timeout errors |
 | [`load-char/`](load-char/README.md) | "Does the write path keep up under sustained load?" | two-phase burst: 300 then 1000 ev/s for ~20 min, CLEF + OTLP mixed, latency percentiles recorded — README carries the results |
 
 ## Which one do I want?

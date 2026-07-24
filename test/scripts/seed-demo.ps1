@@ -29,11 +29,23 @@ $key = Invoke-RestMethod -Method Post "$BaseUrl/api/apikeys" -ContentType 'appli
 # weighted so the mix looks like a real service: mostly Information, few Error, rare Fatal
 $levels = @('Information') * 60 + @('Debug') * 15 + @('Warning') * 15 + @('Error') * 9 + @('Fatal')
 $paths = '/api/orders', '/api/orders/{id}', '/api/users', '/healthz', '/api/reports/daily'
+# file:line frames feed the Exceptions page's Source column
 $exceptions = @(
-    "System.InvalidOperationException: Order is already shipped`n   at Api.Orders.Ship()",
-    "System.TimeoutException: The operation timed out`n   at Api.Db.Query()",
-    "Npgsql.PostgresException: 23505: duplicate key value`n   at Api.Db.Insert()"
+    "System.InvalidOperationException: Order is already shipped`n   at Api.Orders.Ship() in /src/Api/Orders/OrderService.cs:line 88",
+    "System.TimeoutException: The operation timed out`n   at Api.Db.Query() in /src/Api/Db/Database.cs:line 41",
+    "Npgsql.PostgresException: 23505: duplicate key value`n   at Api.Db.Insert() in /src/Api/Db/Database.cs:line 129"
 )
+# EF Core-shaped query logs feed the Queries page
+$sqlQueries = @(
+    'SELECT * FROM orders WHERE id = @p0',
+    'SELECT * FROM users WHERE email = @p0',
+    'UPDATE orders SET status = @p0 WHERE id = @p1',
+    'INSERT INTO audit_log (user_id, action) VALUES (@p0, @p1)',
+    'SELECT o.*, u.name FROM orders o JOIN users u ON u.id = o.user_id WHERE o.created_at > @p0',
+    'DELETE FROM sessions WHERE expires_at < @p0'
+)
+# weighted status codes feed the Requests page's 1/2/3xx / 4xx / 5xx chart
+$okStatuses = @(200) * 76 + @(201) * 8 + @(204) * 5 + @(301) * 3 + @(404) * 6 + @(429) * 2
 
 $now = [DateTimeOffset]::UtcNow
 $lines = [System.Collections.Generic.List[string]]::new()
@@ -57,6 +69,7 @@ for ($i = 0; $i -lt $Count; $i++) {
             $event['@x'] = $exceptions | Get-Random
             $event['OrderId'] = Get-Random -Minimum 1000 -Maximum 1100
             $event['UserId'] = "user-$(Get-Random -Maximum 50)"
+            $event['StatusCode'] = 500, 502, 503 | Get-Random
             # nested value: exercises the collapsible property tree in EventDetail
             $event['Cart'] = @{ Total = [math]::Round((Get-Random -Minimum 5.0 -Maximum 500.0), 2); Items = @('sku-1', 'sku-7') }
         }
@@ -64,12 +77,23 @@ for ($i = 0; $i -lt $Count; $i++) {
             $event['@mt'] = 'Slow request {Path} took {DurationMs} ms'
             $event['Path'] = $paths | Get-Random
             $event['DurationMs'] = Get-Random -Minimum 800 -Maximum 5000
+            $event['StatusCode'] = 200
         }
         default {
-            $event['@mt'] = 'Handled {Path} in {DurationMs} ms'
-            $event['Path'] = $paths | Get-Random
-            $event['DurationMs'] = Get-Random -Minimum 3 -Maximum 400
-            $event['UserId'] = "user-$(Get-Random -Maximum 50)"
+            if ((Get-Random -Maximum 100) -lt 35) {
+                # EF Core-shaped DB query log
+                $event['@mt'] = 'Executed DbCommand ({elapsed}ms) {commandText}'
+                $event['commandText'] = $sqlQueries | Get-Random
+                $event['elapsed'] = if ((Get-Random -Maximum 100) -lt 5) { Get-Random -Minimum 500 -Maximum 2000 } else { Get-Random -Minimum 2 -Maximum 180 }
+                $event['connection'] = 'main', 'replica' | Get-Random
+            }
+            else {
+                $event['@mt'] = 'Handled {Path} in {DurationMs} ms'
+                $event['Path'] = $paths | Get-Random
+                $event['DurationMs'] = Get-Random -Minimum 3 -Maximum 400
+                $event['UserId'] = "user-$(Get-Random -Maximum 50)"
+                $event['StatusCode'] = $okStatuses | Get-Random
+            }
         }
     }
     $lines.Add(($event | ConvertTo-Json -Compress -Depth 5))
