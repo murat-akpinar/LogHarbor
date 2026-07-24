@@ -13,6 +13,7 @@ export const en = {
     switchLanguage: 'Switch language to Turkish',
     overview: 'Overview',
     requests: 'Requests',
+    exceptions: 'Exceptions',
     groupActivity: 'Activity',
     groupAnalysis: 'Analysis',
     groupSystem: 'System',
@@ -221,6 +222,10 @@ export const en = {
   },
   requests: {
     title: 'Requests',
+  },
+  exceptions: {
+    title: 'Exceptions',
+    headline: (count: number) => `${count} exception${count === 1 ? '' : 's'} in this range.`,
   },
   signals: {
     title: 'Signals',

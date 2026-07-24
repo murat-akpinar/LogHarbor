@@ -26,3 +26,12 @@ export function combineFilter(
 export function quote(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
 }
+
+/**
+ * Matches events whose exception text starts with a top-exceptions group type.
+ * `%`/`_` inside the type would act as LIKE wildcards; exception type names
+ * don't contain them in practice.
+ */
+export function exceptionStartsWith(type: string): string {
+  return `@Exception like ${quote(`${type}%`)}`
+}

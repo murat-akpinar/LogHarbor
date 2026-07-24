@@ -15,6 +15,7 @@ export const tr: Messages = {
     switchLanguage: 'Dili İngilizce olarak değiştir',
     overview: 'Genel Bakış',
     requests: 'İstekler',
+    exceptions: 'İstisnalar',
     groupActivity: 'Etkinlik',
     groupAnalysis: 'Analiz',
     groupSystem: 'Sistem',
@@ -223,6 +224,10 @@ export const tr: Messages = {
   },
   requests: {
     title: 'İstekler',
+  },
+  exceptions: {
+    title: 'İstisnalar',
+    headline: (count: number) => `Bu aralıkta ${count} istisna.`,
   },
   signals: {
     title: 'Sinyaller',

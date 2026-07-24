@@ -38,6 +38,7 @@ export function Sidebar({ theme, onToggleTheme }: SidebarProps) {
       items: [
         { to: '/events', label: t.nav.events },
         { to: '/requests', label: t.nav.requests },
+        { to: '/exceptions', label: t.nav.exceptions },
       ],
     },
     {
