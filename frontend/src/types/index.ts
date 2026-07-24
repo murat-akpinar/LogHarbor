@@ -72,6 +72,18 @@ export interface TopException {
   lastSeen: string
 }
 
+/** One DB-query group: events sharing a query-text property value. */
+export interface QueryOverview {
+  value: string
+  connection: string | null
+  calls: number
+  errorCount: number
+  totalMs: number | null
+  avgMs: number | null
+  p95Ms: number | null
+  lastSeen: string
+}
+
 /** One operation group whose current-window p95 latency regressed past its own baseline p95. */
 export interface SlowOperation {
   template: string

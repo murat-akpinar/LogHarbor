@@ -15,6 +15,7 @@ export const tr: Messages = {
     switchLanguage: 'Dili İngilizce olarak değiştir',
     requests: 'İstekler',
     exceptions: 'İstisnalar',
+    queries: 'Sorgular',
   },
   common: {
     loading: 'Yükleniyor…',
@@ -227,6 +228,24 @@ export const tr: Messages = {
     sameTrace: 'Aynı izdeki olaylar',
     viewFullTrace: 'İzin tamamını görüntüle',
     noTraceContext: 'Son oluşumda iz kimliği yok; çevresindeki bağlam gösterilemiyor.',
+  },
+  queries: {
+    title: 'Sorgular',
+    query: 'Sorgu',
+    connection: 'Bağlantı',
+    calls: 'Çağrı',
+    total: 'Toplam',
+    avg: 'Ort',
+    p95: 'P95',
+    lastSeen: 'Son görülme',
+    errors: 'Hatalar',
+    openInEvents: 'Olaylarda aç',
+    recentOccurrences: 'Son çağrılar',
+    queryProperty: 'Sorgu property\'si',
+    durationProperty: 'Süre property\'si',
+    noQueries: 'Seçilen aralıkta sorgu olayı yok.',
+    noQueriesHint:
+      'Bu sayfa SQL metni taşıyan bir property (varsayılan "commandText") ile süre property\'si (varsayılan "elapsed") olan olayları gruplar — EF Core\'un "Executed DbCommand" logu ikisini de taşır. Etkinleştirmek için docs/ingestion-app.md\'ye bakın.',
   },
   signals: {
     title: 'Sinyaller',

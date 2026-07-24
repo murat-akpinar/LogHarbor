@@ -13,6 +13,7 @@ export const en = {
     switchLanguage: 'Switch language to Turkish',
     requests: 'Requests',
     exceptions: 'Exceptions',
+    queries: 'Queries',
   },
   common: {
     loading: 'Loading…',
@@ -225,6 +226,24 @@ export const en = {
     sameTrace: 'Same-trace events',
     viewFullTrace: 'View full trace',
     noTraceContext: 'The latest occurrence carries no trace id, so there is no surrounding context to show.',
+  },
+  queries: {
+    title: 'Queries',
+    query: 'Query',
+    connection: 'Connection',
+    calls: 'Calls',
+    total: 'Total',
+    avg: 'AVG',
+    p95: 'P95',
+    lastSeen: 'Last seen',
+    errors: 'Errors',
+    openInEvents: 'Open in Events',
+    recentOccurrences: 'Recent occurrences',
+    queryProperty: 'Query property',
+    durationProperty: 'Duration property',
+    noQueries: 'No query events in the selected range.',
+    noQueriesHint:
+      'This page groups events that carry a SQL-text property (default "commandText") and a duration property (default "elapsed") — EF Core\'s "Executed DbCommand" log has both. See docs/ingestion-app.md for enabling it.',
   },
   signals: {
     title: 'Signals',

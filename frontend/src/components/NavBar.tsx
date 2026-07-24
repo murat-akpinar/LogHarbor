@@ -18,6 +18,7 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
     { to: '/events', label: t.nav.events, end: false, icon: 'events' },
     { to: '/requests', label: t.nav.requests, end: false, icon: 'requests' },
     { to: '/exceptions', label: t.nav.exceptions, end: false, icon: 'exceptions' },
+    { to: '/queries', label: t.nav.queries, end: false, icon: 'queries' },
     { to: '/services', label: t.nav.services, end: false, icon: 'services' },
     { to: '/users', label: t.nav.users, end: false, icon: 'users' },
     { to: '/analysis', label: t.nav.analysis, end: false, icon: 'analysis' },
