@@ -139,6 +139,13 @@ export const tr: Messages = {
   },
   dashboard: {
     title: 'Panel',
+    live: 'Canlı',
+    throughput: 'Olay hızı',
+    eventsPerMin: 'olay/dk',
+    errorRate: 'Hata oranı',
+    serviceHealth: 'Servis sağlığı',
+    slowestOps: 'En yavaş işlemler',
+    viewAll: 'Tümünü gör',
     totalEvents: 'Toplam olay',
     errors: 'Hatalar',
     warnings: 'Uyarılar',

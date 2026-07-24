@@ -111,13 +111,25 @@ levels worth calling out.
 
 --- DASHBOARD PAGE ---
 
-Histogram: stacked bar chart of counts per level over time (/api/stats/histogram)
-Summary cards: total events, errors, warnings for the selected range, plus a
-"Top error" card (most frequent error template) linking to the Analysis page
-Clicking a histogram bar navigates to Events page with that time slice as from/to
-Dragging across two or more bars zooms the dashboard range into that slice
+A live "pulse": a bento overview composed entirely from the existing /api/stats/*
+endpoints (no dedicated endpoint), Nightwatch-inspired.
+Live toggle: a heartbeat control in the header. Live (default) polls every 10s
+over a rolling last-hour window (React Query refetch as the window's end ticks;
+keepPreviousData avoids skeleton flashes; pauses when the tab is backgrounded).
+Pausing (or brushing the histogram) freezes on the current window and reveals the
+TimeRangePicker for a static range; going live again resumes the rolling window.
+KPI row: throughput (events/min = total / window minutes), error rate
+((Error+Fatal)/total, tinted red when non-zero), Error and Warning counts —
+large tabular figures from /api/stats/summary.
+Histogram: stacked bar chart of counts per level over time (/api/stats/histogram);
+clicking a bar opens Events at that slice, dragging across bars freezes+zooms.
+Compact top-5 panels (each links to its full table): Top errors and Slowest
+operations and Top exceptions -> Analysis; Service health (per-service error %)
+-> Services. Error and slow-op rows deep-link to filtered Events; exception rows
+don't (no @ExceptionType builtin). No per-row sparklines here — the panels stay
+light so live polling is ~6 queries; the sparklines live on the full pages.
 Heatmap: hour-of-day x day-of-week density grid (/api/stats/heatmap, UTC),
-single-hue cells scaled by count, per-cell native title tooltip
+single-hue cells scaled by count, per-cell native title tooltip.
 
 --- SERVICES PAGE ---
 

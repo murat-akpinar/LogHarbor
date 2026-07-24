@@ -137,6 +137,13 @@ export const en = {
   },
   dashboard: {
     title: 'Dashboard',
+    live: 'Live',
+    throughput: 'Throughput',
+    eventsPerMin: 'events/min',
+    errorRate: 'Error rate',
+    serviceHealth: 'Service health',
+    slowestOps: 'Slowest operations',
+    viewAll: 'View all',
     totalEvents: 'Total events',
     errors: 'Errors',
     warnings: 'Warnings',
