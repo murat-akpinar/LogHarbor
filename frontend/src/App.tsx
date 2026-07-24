@@ -28,8 +28,9 @@ function App() {
               <NavBar theme={theme} onToggleTheme={toggleTheme} />
               <main className="min-h-0 flex-1">
                 <Routes>
-                  <Route path="/" element={<EventsPage />} />
+                  <Route path="/" element={<DashboardPage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/events" element={<EventsPage />} />
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/analysis" element={<AnalysisPage />} />

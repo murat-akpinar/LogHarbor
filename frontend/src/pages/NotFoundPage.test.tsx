@@ -22,5 +22,5 @@ it('names the missing page and links back to Events', () => {
 
   expect(screen.getByText('Page not found')).toBeDefined()
   const link = screen.getByRole('link', { name: 'Back to Events' })
-  expect(link.getAttribute('href')).toBe('/')
+  expect(link.getAttribute('href')).toBe('/events')
 })

@@ -138,6 +138,13 @@ export const en = {
   },
   dashboard: {
     title: 'Dashboard',
+    activity: 'Activity',
+    servicesUsers: 'Services & users',
+    info: 'Info',
+    warn: 'Warn',
+    rate: 'Rate',
+    fatal: 'Fatal',
+    noEventsYet: 'No events yet.',
     live: 'Live',
     throughput: 'Throughput',
     eventsPerMin: 'events/min',

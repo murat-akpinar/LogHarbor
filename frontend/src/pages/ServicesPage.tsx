@@ -36,7 +36,7 @@ export function ServicesPage() {
 
   function openEvents(service: string) {
     const params = new URLSearchParams({ from: range.from, to: range.to, filter: serviceFilter(service) })
-    navigate(`/?${params.toString()}`)
+    navigate(`/events?${params.toString()}`)
   }
 
   return (

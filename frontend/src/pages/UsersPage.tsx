@@ -40,7 +40,7 @@ export function UsersPage() {
 
   function openEvents(value: string) {
     const params = new URLSearchParams({ from: range.from, to: range.to, filter: propertyEquals(property, value) })
-    navigate(`/?${params.toString()}`)
+    navigate(`/events?${params.toString()}`)
   }
 
   function applyProperty(event: FormEvent<HTMLFormElement>) {

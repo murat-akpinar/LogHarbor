@@ -17,7 +17,7 @@ export function TopErrorsPanel({ errors, from, to }: TopErrorsPanelProps) {
 
   function openEvents(template: string) {
     const params = new URLSearchParams({ from, to, filter: `@MessageTemplate = ${quote(template)}` })
-    navigate(`/?${params.toString()}`)
+    navigate(`/events?${params.toString()}`)
   }
 
   return (

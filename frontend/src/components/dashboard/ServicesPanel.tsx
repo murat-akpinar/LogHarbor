@@ -21,7 +21,7 @@ export function ServicesPanel({ services, from, to }: ServicesPanelProps) {
 
   function openEvents(service: string) {
     const params = new URLSearchParams({ from, to, filter: serviceFilter(service) })
-    navigate(`/?${params.toString()}`)
+    navigate(`/events?${params.toString()}`)
   }
 
   return (

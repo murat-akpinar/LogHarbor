@@ -4,10 +4,13 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 
 --- PAGES ---
 
-/            Events page: search bar (with autocomplete), level filter chips, event
+/            Dashboard (home): a sectioned monitoring overview — Activity (Events +
+             Errors metric cards, each a big figure + breakdown + stacked histogram),
+             Analysis (top errors, exceptions, slowest ops), Services & users, and an
+             hour-of-day heatmap; a Live toggle auto-refreshes a rolling last-hour
+             window. (/dashboard is an alias of /.)
+/events      Events page: search bar (with autocomplete), level filter chips, event
              list, live tail toggle, export (JSON/CSV)
-/dashboard   Live "pulse": KPI row, histogram + heatmap, and compact top-5 panels
-             (errors, exceptions, service health, slowest ops), auto-refreshing
 /services    Per-service RED table (event rate, error %, p95 Elapsed)
 /users       Per-user activity (events, error %, last seen) for a chosen property
 /analysis    Operations RED table, top errors (grouped by message template + level),
@@ -17,6 +20,9 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 /alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
 /settings    API key management, archive/retention settings, backup download
              (admin only), user management (admin only), health status, sign out
+
+Nav order: Dashboard (home, /), Services, Users, Analysis, Signals, Alerts, Events
+(/events), Settings. The Dashboard is the landing page; Events sits on the right.
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
 seeds the first admin on startup). While enabled, a login screen (username + password)
@@ -114,25 +120,28 @@ levels worth calling out.
 
 --- DASHBOARD PAGE ---
 
-A live "pulse": a bento overview composed entirely from the existing /api/stats/*
-endpoints (no dedicated endpoint), Nightwatch-inspired.
-Live toggle: a heartbeat control in the header. Live (default) polls every 10s
-over a rolling last-hour window (React Query refetch as the window's end ticks;
+The home page (route /): a Nightwatch-style monitoring overview composed entirely
+from the existing /api/stats/* endpoints (no dedicated endpoint), grouped into
+labelled sections, each with a "view all" link to its full page.
+Live toggle: a heartbeat control in the header. Live (default) polls every 10s over
+a rolling last-hour window (React Query refetch as the window's end ticks;
 keepPreviousData avoids skeleton flashes; pauses when the tab is backgrounded).
-Pausing (or brushing the histogram) freezes on the current window and reveals the
+Pausing (or brushing a histogram) freezes on the current window and reveals the
 TimeRangePicker for a static range; going live again resumes the rolling window.
-KPI row: throughput (events/min = total / window minutes), error rate
-((Error+Fatal)/total, tinted red when non-zero), Error and Warning counts —
-large tabular figures from /api/stats/summary.
-Histogram: stacked bar chart of counts per level over time (/api/stats/histogram);
-clicking a bar opens Events at that slice, dragging across bars freezes+zooms.
-Compact top-5 panels (each links to its full table): Top errors and Slowest
-operations and Top exceptions -> Analysis; Service health (per-service error %)
--> Services. Error and slow-op rows deep-link to filtered Events; exception rows
-don't (no @ExceptionType builtin). No per-row sparklines here — the panels stay
-light so live polling is ~6 queries; the sparklines live on the full pages.
+Section "Activity" (-> Events): two MetricCards — an eyebrow label, one big figure,
+a right-aligned breakdown that doubles as the chart's colour key, and a stacked
+histogram below. EVENTS shows the total + Info/Warn/Error breakdown over all levels;
+ERRORS shows the Error+Fatal count + error rate, its histogram filtered to
+Error/Fatal (Histogram's showLegend=false; the breakdown is the key). Clicking a bar
+opens Events at that slice; dragging across bars freezes+zooms.
+Section "Analysis" (-> Analysis): compact top-5 panels — top errors, top exceptions,
+slowest operations. Error and slow-op rows deep-link to filtered Events; exception
+rows don't (no @ExceptionType builtin).
+Section "Services & users": Service health (per-service error %, -> Services) and
+Users (top UserId values by event count, -> Users); rows deep-link to filtered Events.
 Heatmap: hour-of-day x day-of-week density grid (/api/stats/heatmap, UTC),
 single-hue cells scaled by count, per-cell native title tooltip.
+Empty state: with zero events in range, a card links to the Events onboarding.
 
 --- SERVICES PAGE ---
 

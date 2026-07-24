@@ -48,9 +48,11 @@ interface HistogramProps {
   onBucketClick: (start: string, end: string) => void
   /** Dragging across two or more bars zooms into that range; a plain click stays onBucketClick. */
   onBrush: (start: string, end: string) => void
+  /** The per-level legend below the bars; hide it when a caller supplies its own colour key. */
+  showLegend?: boolean
 }
 
-export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: HistogramProps) {
+export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegend = true }: HistogramProps) {
   const { t, lang } = useI18n()
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const [drag, setDrag] = useState<{ anchor: number; head: number } | null>(null)
@@ -143,17 +145,19 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush }: Histogr
         ))}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-        {LEVELS.map((level) => (
-          <div key={level} className="flex items-center gap-1.5 text-xs text-fg-muted">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_HEX[level] }} />
-            <span>{level}</span>
-            <span className="tabular">
-              ({buckets.reduce((total, bucket) => total + bucket.counts[level], 0).toLocaleString(lang)})
-            </span>
-          </div>
-        ))}
-      </div>
+      {showLegend && (
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+          {LEVELS.map((level) => (
+            <div key={level} className="flex items-center gap-1.5 text-xs text-fg-muted">
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_HEX[level] }} />
+              <span>{level}</span>
+              <span className="tabular">
+                ({buckets.reduce((total, bucket) => total + bucket.counts[level], 0).toLocaleString(lang)})
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

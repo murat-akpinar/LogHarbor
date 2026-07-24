@@ -57,7 +57,7 @@ export function AnalysisPage() {
       to: range.to,
       filter: `@MessageTemplate = ${quote(row.template)}`,
     })
-    navigate(`/?${params.toString()}`)
+    navigate(`/events?${params.toString()}`)
   }
 
   const queryError = operations.error ?? errors.error ?? exceptions.error ?? slow.error
@@ -99,7 +99,7 @@ export function AnalysisPage() {
                     key={op.template}
                     onClick={() =>
                       navigate(
-                        `/?${new URLSearchParams({ from: range.from, to: range.to, filter: `@MessageTemplate = ${quote(op.template)}` }).toString()}`,
+                        `/events?${new URLSearchParams({ from: range.from, to: range.to, filter: `@MessageTemplate = ${quote(op.template)}` }).toString()}`,
                       )
                     }
                     className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
@@ -235,7 +235,7 @@ export function AnalysisPage() {
                   key={op.template}
                   onClick={() =>
                     navigate(
-                      `/?${new URLSearchParams({ from: range.from, to: range.to, filter: `@MessageTemplate = ${quote(op.template)}` }).toString()}`,
+                      `/events?${new URLSearchParams({ from: range.from, to: range.to, filter: `@MessageTemplate = ${quote(op.template)}` }).toString()}`,
                     )
                   }
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"

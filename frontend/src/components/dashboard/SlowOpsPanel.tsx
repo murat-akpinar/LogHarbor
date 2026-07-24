@@ -36,7 +36,7 @@ export function SlowOpsPanel({ result, from, to }: SlowOpsPanelProps) {
 
   function openEvents(template: string) {
     const params = new URLSearchParams({ from, to, filter: `@MessageTemplate = ${quote(template)}` })
-    navigate(`/?${params.toString()}`)
+    navigate(`/events?${params.toString()}`)
   }
 
   return (

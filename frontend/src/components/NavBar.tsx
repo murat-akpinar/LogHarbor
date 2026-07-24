@@ -12,13 +12,13 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
   const { t, lang, setLang } = useI18n()
 
   const links = [
-    { to: '/', label: t.nav.events, end: true },
-    { to: '/dashboard', label: t.nav.dashboard, end: false },
+    { to: '/', label: t.nav.dashboard, end: true },
     { to: '/services', label: t.nav.services, end: false },
     { to: '/users', label: t.nav.users, end: false },
     { to: '/analysis', label: t.nav.analysis, end: false },
     { to: '/signals', label: t.nav.signals, end: false },
     { to: '/alerts', label: t.nav.alerts, end: false },
+    { to: '/events', label: t.nav.events, end: false },
     { to: '/settings', label: t.nav.settings, end: false },
   ]
 

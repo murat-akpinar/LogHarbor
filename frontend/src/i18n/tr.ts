@@ -140,6 +140,13 @@ export const tr: Messages = {
   },
   dashboard: {
     title: 'Panel',
+    activity: 'Etkinlik',
+    servicesUsers: 'Servisler ve kullanıcılar',
+    info: 'Bilgi',
+    warn: 'Uyarı',
+    rate: 'Oran',
+    fatal: 'Kritik',
+    noEventsYet: 'Henüz olay yok.',
     live: 'Canlı',
     throughput: 'Olay hızı',
     eventsPerMin: 'olay/dk',
