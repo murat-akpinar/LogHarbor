@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
+import { getOperations } from '../api/stats'
 import { RequestsPage } from './RequestsPage'
 
 const EMPTY_COUNTS = { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 }
@@ -80,6 +81,22 @@ it('starts live and pauses into a static range picker', async () => {
 
   toggle.click()
   expect(await screen.findByTitle('Time range')).toBeDefined()
+})
+
+it('isolates a status class and narrows the table to it', async () => {
+  renderPage()
+  await screen.findByText('GET /api/orders/{id}')
+
+  const only5xx = screen.getByRole('button', { name: /5xx/ })
+  only5xx.click()
+  await waitFor(() => {
+    expect(vi.mocked(getOperations).mock.calls.some(([params]) => params.filter === 'StatusCode >= 500')).toBe(true)
+  })
+  await waitFor(() => expect(only5xx.getAttribute('aria-pressed')).toBe('true'))
+
+  // clicking again returns to every class
+  only5xx.click()
+  await waitFor(() => expect(only5xx.getAttribute('aria-pressed')).toBe('false'))
 })
 
 it('re-sorts by error % when that header is clicked', async () => {

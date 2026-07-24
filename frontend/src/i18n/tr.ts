@@ -226,6 +226,8 @@ export const tr: Messages = {
     title: 'İstekler',
     statusCodes: 'Durum kodları',
     noStatus: 'Seçilen aralıkta StatusCode property\'si taşıyan olay yok.',
+    onlyThis: (label: string) => `Sadece ${label} göster`,
+    showAll: 'Tüm durum sınıflarını göster',
   },
   exceptions: {
     title: 'İstisnalar',

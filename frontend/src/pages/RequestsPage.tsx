@@ -4,7 +4,8 @@ import type { OperationOverview } from '../types'
 import { useOperations } from '../hooks/useStats'
 import { LiveToggle } from '../components/dashboard/LiveToggle'
 import { Sparkline } from '../components/Sparkline'
-import { StatusChart } from '../components/requests/StatusChart'
+import { StatusChart, STATUS_FILTERS } from '../components/requests/StatusChart'
+import type { StatusClass } from '../components/requests/StatusChart'
 import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { quote } from '../lib/filter'
@@ -41,6 +42,8 @@ export function RequestsPage() {
   const [now, setNow] = useState(flooredNow)
   const [frozen, setFrozen] = useState<{ from: string; to: string } | null>(null)
   const [sortKey, setSortKey] = useState<SortKey>('total')
+  const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
+  const statusFilter = statusClass ? STATUS_FILTERS[statusClass] : undefined
 
   const liveRange = useMemo(
     () => ({ from: new Date(now - LIVE_WINDOW_MS).toISOString(), to: new Date(now).toISOString() }),
@@ -65,7 +68,7 @@ export function RequestsPage() {
     }
   }
 
-  const operations = useOperations({ ...range, limit: ROW_LIMIT })
+  const operations = useOperations({ ...range, filter: statusFilter, limit: ROW_LIMIT })
   const rangeMinutes = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 60_000)
 
   const rows = [...(operations.data?.operations ?? [])].sort((a, b) => {
@@ -75,12 +78,14 @@ export function RequestsPage() {
     return b.total - a.total
   })
 
+  // the status class, when one is isolated, travels with every deep link and sparkline
+  function templateFilter(template: string): string {
+    const clause = `@MessageTemplate = ${quote(template)}`
+    return statusFilter ? `${clause} and ${statusFilter}` : clause
+  }
+
   function openEvents(template: string) {
-    const params = new URLSearchParams({
-      from: range.from,
-      to: range.to,
-      filter: `@MessageTemplate = ${quote(template)}`,
-    })
+    const params = new URLSearchParams({ from: range.from, to: range.to, filter: templateFilter(template) })
     navigate(`/events?${params.toString()}`)
   }
 
@@ -121,7 +126,7 @@ export function RequestsPage() {
         <p className="bg-level-error/10 p-2 text-sm text-level-error">{operations.error.message}</p>
       )}
 
-      <StatusChart from={range.from} to={range.to} />
+      <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} />
 
       <Card className="overflow-x-auto">
         <table className="w-full">
@@ -158,7 +163,7 @@ export function RequestsPage() {
                   </td>
                   <td className={TD_CLASS}>
                     <Sparkline
-                      filter={`@MessageTemplate = ${quote(op.template)}`}
+                      filter={templateFilter(op.template)}
                       color={errorPct > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
                       from={range.from}
                       to={range.to}

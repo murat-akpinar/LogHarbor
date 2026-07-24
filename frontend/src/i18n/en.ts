@@ -224,6 +224,8 @@ export const en = {
     title: 'Requests',
     statusCodes: 'Status codes',
     noStatus: 'No events carry a StatusCode property in the selected range.',
+    onlyThis: (label: string) => `Show only ${label}`,
+    showAll: 'Show all status classes',
   },
   exceptions: {
     title: 'Exceptions',

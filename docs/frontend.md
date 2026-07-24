@@ -190,8 +190,12 @@ minutes, and the raw JSON collapsed behind a disclosure.
 
 Status-codes chart (top): stacked per-bucket histogram of events carrying a
 StatusCode property, split into 1/2/3xx / 4xx / 5xx classes (three filtered
-/api/stats/histogram calls; Information/Warning/Error level colors) with
-legend totals; a hint replaces it when no event carries StatusCode.
+/api/stats/histogram calls; Information/Warning/Error level colors) with a
+value axis, hour labels and a per-bucket hover tooltip; a hint replaces it
+when no event carries StatusCode. The legend chips are toggles: pressing one
+isolates that class — the chart drops the other series and the operations
+table, its sparklines and its Events deep links all inherit the class filter
+(StatusCode < 400 / >= 400 and < 500 / >= 500). Pressing it again restores all.
 Live toggle: the page follows the dashboard's rolling last-hour auto-refresh
 (pausing shows the TimeRangePicker) — same as Exceptions and Queries.
 
