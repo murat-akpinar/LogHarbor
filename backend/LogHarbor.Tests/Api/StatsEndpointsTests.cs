@@ -366,9 +366,31 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.Equal(2, exceptions[0].GetProperty("count").GetInt64());
         Assert.Equal("2026-07-14T10:05:00.0000000Z", exceptions[0].GetProperty("firstSeen").GetString());
         Assert.Equal("2026-07-14T10:15:00.0000000Z", exceptions[0].GetProperty("lastSeen").GetString());
+        // no file reference in the seeded traces -> null location
+        Assert.Equal(JsonValueKind.Null, exceptions[0].GetProperty("location").ValueKind);
         // no colon anywhere: the whole first line is the type
         Assert.Equal("CustomFailure", exceptions[1].GetProperty("type").GetString());
         Assert.Equal(1, exceptions[1].GetProperty("count").GetInt64());
+    }
+
+    [Fact]
+    public async Task TopExceptions_LocationComesFromLatestOccurrence()
+    {
+        // 2026-07-20: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            SeedAnalysis("2026-07-20T10:00:00.0000000Z", "Error", "x",
+                "System.NullReferenceException: a\n   at A.F() in /src/Old.cs:line 1", null),
+            SeedAnalysis("2026-07-20T10:05:00.0000000Z", "Error", "x",
+                "System.NullReferenceException: b\n   at B.G() in /src/New.cs:line 9", null),
+        ]);
+
+        var body = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/top-exceptions?from=2026-07-20T10:00:00Z&to=2026-07-20T11:00:00Z");
+
+        var row = body.GetProperty("exceptions").EnumerateArray().Single();
+        Assert.Equal("/src/New.cs:9", row.GetProperty("location").GetString());
     }
 
     [Fact]

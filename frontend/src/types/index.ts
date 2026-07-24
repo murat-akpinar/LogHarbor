@@ -70,6 +70,8 @@ export interface TopException {
   count: number
   firstSeen: string
   lastSeen: string
+  /** "path:line" parsed from the latest occurrence's stack trace; null when no frame carries a file. */
+  location: string | null
 }
 
 /** One DB-query group: events sharing a query-text property value. */

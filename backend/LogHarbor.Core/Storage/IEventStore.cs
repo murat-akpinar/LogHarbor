@@ -17,7 +17,9 @@ public sealed record StatsSummary(long Total, IReadOnlyDictionary<string, long> 
 public sealed record TopError(string Template, string Level, long Count, string FirstSeen, string LastSeen);
 
 /// <summary>One exception group, keyed by the first line of the exception text up to ':'.</summary>
-public sealed record TopException(string Type, long Count, string FirstSeen, string LastSeen);
+/// <summary>Location is "path:line" parsed from the latest occurrence's stack trace; null when no frame carries a file.</summary>
+public sealed record TopException(
+    string Type, long Count, string FirstSeen, string LastSeen, string? Location = null);
 
 public sealed record PropertyValueCount(string Value, long Count);
 

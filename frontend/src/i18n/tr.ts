@@ -223,6 +223,7 @@ export const tr: Messages = {
   },
   exceptions: {
     title: 'İstisnalar',
+    source: 'Kaynak',
     headline: (count: number) => `Bu aralıkta ${count} istisna.`,
     latestOccurrence: 'Son oluşum',
     sameTrace: 'Aynı izdeki olaylar',

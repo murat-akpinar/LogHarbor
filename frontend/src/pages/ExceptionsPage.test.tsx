@@ -50,12 +50,14 @@ vi.mock('../api/stats', () => ({
         count: 88,
         firstSeen: '2026-07-25T08:00:00.000Z',
         lastSeen: '2026-07-25T09:30:00.000Z',
+        location: 'src/Services/OrderService.cs:42',
       },
       {
         type: 'System.TimeoutException',
         count: 64,
         firstSeen: '2026-07-25T07:00:00.000Z',
         lastSeen: '2026-07-25T09:00:00.000Z',
+        location: null,
       },
     ],
   })),
@@ -86,6 +88,8 @@ it('lists exception groups under a narrative headline', async () => {
   expect(await screen.findByText('System.NullReferenceException')).toBeDefined()
   // headline totals the groups: 88 + 64
   expect(screen.getByText('152 exceptions in this range.')).toBeDefined()
+  // source location from the latest occurrence, Nightwatch-style
+  expect(screen.getByText('src/Services/OrderService.cs:42')).toBeDefined()
 })
 
 it('expands a row into the latest occurrence with its same-trace events', async () => {

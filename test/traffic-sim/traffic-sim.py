@@ -58,9 +58,9 @@ SQL_QUERIES = [
     "DELETE FROM sessions WHERE expires_at < @p0",
 ]
 EXCEPTIONS = [
-    "System.InvalidOperationException: Order is already shipped\n   at Api.Orders.Ship()",
-    "System.TimeoutException: The operation timed out\n   at Api.Db.Query()",
-    "Npgsql.PostgresException: 23505: duplicate key value\n   at Api.Db.Insert()",
+    "System.InvalidOperationException: Order is already shipped\n   at Api.Orders.Ship() in /src/Api/Orders/OrderService.cs:line 88",
+    "System.TimeoutException: The operation timed out\n   at Api.Db.Query() in /src/Api/Db/Database.cs:line 41",
+    "Npgsql.PostgresException: 23505: duplicate key value\n   at Api.Db.Insert() in /src/Api/Db/Database.cs:line 129",
 ]
 
 

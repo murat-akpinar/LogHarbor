@@ -221,6 +221,7 @@ export const en = {
   },
   exceptions: {
     title: 'Exceptions',
+    source: 'Source',
     headline: (count: number) => `${count} exception${count === 1 ? '' : 's'} in this range.`,
     latestOccurrence: 'Latest occurrence',
     sameTrace: 'Same-trace events',

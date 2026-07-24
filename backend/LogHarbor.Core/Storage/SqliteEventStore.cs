@@ -630,14 +630,22 @@ public sealed class SqliteEventStore : IEventStore
         var source = await BuildStatsSourceAsync(
             connection, command, filter, "exception, timestamp", fromUtc, toUtc, cancellationToken);
 
-        // exception type = first line up to ':' (whole first line when no colon); rtrim drops the \r of CRLF text
+        // exception type = first line up to ':' (whole first line when no colon); rtrim drops the \r of CRLF text.
+        // The latest occurrence's full text rides along so the caller can surface its source location.
         command.CommandText =
+            "WITH t AS (" +
             "SELECT CASE WHEN instr(first_line, ':') > 0 THEN substr(first_line, 1, instr(first_line, ':') - 1) " +
-            "ELSE first_line END AS ex_type, COUNT(*) AS cnt, MIN(timestamp), MAX(timestamp) FROM (" +
+            "ELSE first_line END AS ex_type, timestamp, exception FROM (" +
             "SELECT rtrim(CASE WHEN instr(exception, char(10)) > 0 " +
             "THEN substr(exception, 1, instr(exception, char(10)) - 1) ELSE exception END, char(13)) AS first_line, " +
-            $"timestamp FROM {source} WHERE exception IS NOT NULL) " +
-            "GROUP BY ex_type ORDER BY cnt DESC, ex_type LIMIT @limit;";
+            $"timestamp, exception FROM {source} WHERE exception IS NOT NULL)), " +
+            "g AS (SELECT ex_type, COUNT(*) AS cnt, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen " +
+            "FROM t GROUP BY ex_type), " +
+            "s AS (SELECT ex_type, exception, " +
+            "ROW_NUMBER() OVER (PARTITION BY ex_type ORDER BY timestamp DESC) AS rn FROM t) " +
+            "SELECT g.ex_type, g.cnt, g.first_seen, g.last_seen, s.exception " +
+            "FROM g JOIN s ON s.ex_type = g.ex_type AND s.rn = 1 " +
+            "ORDER BY g.cnt DESC, g.ex_type LIMIT @limit;";
         command.Parameters.AddWithValue("@limit", limit);
 
         var rows = new List<TopException>();
@@ -645,7 +653,8 @@ public sealed class SqliteEventStore : IEventStore
         while (await reader.ReadAsync(cancellationToken))
         {
             rows.Add(new TopException(
-                reader.GetString(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3)));
+                reader.GetString(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3),
+                ExceptionLocation.FromText(reader.GetString(4))));
         }
         return rows;
     }

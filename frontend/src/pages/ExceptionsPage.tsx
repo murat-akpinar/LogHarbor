@@ -85,6 +85,7 @@ export function ExceptionsPage() {
           <thead className="border-b border-border">
             <tr>
               <th className={TH_CLASS}>{t.analysis.exceptionType}</th>
+              <th className={TH_CLASS}>{t.exceptions.source}</th>
               <th className={`${TH_CLASS} text-right`}>{t.analysis.count}</th>
               <th className={TH_CLASS}>{t.analysis.trend}</th>
               <th className={TH_CLASS}>{t.analysis.firstSeen}</th>
@@ -99,6 +100,9 @@ export function ExceptionsPage() {
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
                 >
                   <td className={`${TD_CLASS} font-mono`}>{row.type}</td>
+                  <td className={`${TD_CLASS} max-w-48 truncate font-mono text-xs text-fg-muted`} title={row.location ?? undefined}>
+                    {row.location ?? '—'}
+                  </td>
                   <td className={`${TD_CLASS} tabular text-right`}>{row.count.toLocaleString(lang)}</td>
                   <td className={TD_CLASS}>
                     <Sparkline
@@ -113,7 +117,7 @@ export function ExceptionsPage() {
                 </tr>
                 {expandedType === row.type && (
                   <tr className="border-b border-border last:border-b-0">
-                    <td colSpan={5} className="p-0">
+                    <td colSpan={6} className="p-0">
                       <ExceptionContextPanel type={row.type} from={range.from} to={range.to} />
                     </td>
                   </tr>
