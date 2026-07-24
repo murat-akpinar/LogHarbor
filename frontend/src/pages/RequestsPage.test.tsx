@@ -1,0 +1,60 @@
+// @vitest-environment jsdom
+import { afterEach, expect, it, vi } from 'vitest'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { LanguageProvider } from '../i18n'
+import { RequestsPage } from './RequestsPage'
+
+vi.mock('../api/stats', () => ({
+  getOperations: vi.fn(async () => ({
+    operations: [
+      { template: 'GET /api/orders/{id}', total: 90, errorCount: 0, p95ElapsedMs: 120 },
+      { template: 'POST /api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300 },
+    ],
+  })),
+  getHistogram: vi.fn(async () => ({ buckets: [] })),
+}))
+
+afterEach(() => {
+  cleanup()
+  localStorage.clear()
+})
+
+function renderPage() {
+  localStorage.setItem('logharbor-lang', 'en')
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <MemoryRouter>
+          <RequestsPage />
+        </MemoryRouter>
+      </LanguageProvider>
+    </QueryClientProvider>,
+  )
+}
+
+function bodyRowTexts(): string[] {
+  return screen
+    .getAllByRole('row')
+    .slice(1) // skip the header row
+    .map((row) => row.textContent ?? '')
+}
+
+it('lists operations with their RED numbers, busiest first', async () => {
+  renderPage()
+  expect(await screen.findByText('GET /api/orders/{id}')).toBeDefined()
+  // error % = 5 / 10 = 50.0%
+  expect(screen.getByText('50.0%')).toBeDefined()
+  expect(bodyRowTexts()[0]).toContain('GET /api/orders/{id}')
+})
+
+it('re-sorts by error % when that header is clicked', async () => {
+  renderPage()
+  await screen.findByText('GET /api/orders/{id}')
+  screen.getByRole('button', { name: 'Error %' }).click()
+  await waitFor(() => {
+    expect(bodyRowTexts()[0]).toContain('POST /api/orders')
+  })
+})

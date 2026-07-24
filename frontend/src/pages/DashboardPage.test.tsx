@@ -78,6 +78,8 @@ describe('DashboardPage', () => {
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
     expect(hrefs).toContain('/events')
     expect(hrefs).toContain('/analysis')
+    // the Routes card deep-links to the /requests lens page
+    expect(hrefs).toContain('/requests')
   })
 
   it('renders the analysis, service and user panels', async () => {

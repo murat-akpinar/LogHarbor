@@ -33,7 +33,13 @@ export function Sidebar({ theme, onToggleTheme }: SidebarProps) {
 
   const groups: NavGroup[] = [
     { header: null, items: [{ to: '/', label: t.nav.overview, end: true }] },
-    { header: t.nav.groupActivity, items: [{ to: '/events', label: t.nav.events }] },
+    {
+      header: t.nav.groupActivity,
+      items: [
+        { to: '/events', label: t.nav.events },
+        { to: '/requests', label: t.nav.requests },
+      ],
+    },
     {
       header: t.nav.groupAnalysis,
       items: [

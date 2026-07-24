@@ -12,6 +12,7 @@ export const en = {
     switchToDark: 'Switch to dark mode',
     switchLanguage: 'Switch language to Turkish',
     overview: 'Overview',
+    requests: 'Requests',
     groupActivity: 'Activity',
     groupAnalysis: 'Analysis',
     groupSystem: 'System',
@@ -217,6 +218,9 @@ export const en = {
     noTimedOpsAfter: ' duration in this range.',
     noBaselineToCompare: 'No operation has enough history before the selected range to compare against. Try a narrower range.',
     noSlowOps: 'No operations are slower than usual.',
+  },
+  requests: {
+    title: 'Requests',
   },
   signals: {
     title: 'Signals',

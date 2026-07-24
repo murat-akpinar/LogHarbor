@@ -14,6 +14,7 @@ export const tr: Messages = {
     switchToDark: 'Koyu temaya geç',
     switchLanguage: 'Dili İngilizce olarak değiştir',
     overview: 'Genel Bakış',
+    requests: 'İstekler',
     groupActivity: 'Etkinlik',
     groupAnalysis: 'Analiz',
     groupSystem: 'Sistem',
@@ -219,6 +220,9 @@ export const tr: Messages = {
     noTimedOpsAfter: ' süresi bildirmiyor.',
     noBaselineToCompare: 'Seçilen aralıktan önce karşılaştırılacak yeterli geçmişi olan işlem yok. Daha dar bir aralık deneyin.',
     noSlowOps: 'Normalden yavaş işlem yok.',
+  },
+  requests: {
+    title: 'İstekler',
   },
   signals: {
     title: 'Sinyaller',
