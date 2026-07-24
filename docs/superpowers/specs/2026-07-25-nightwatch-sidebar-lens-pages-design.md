@@ -94,6 +94,23 @@ last-1h window refreshed every 10 s, `LiveToggle` to pause into a static
 Empty states: no exceptions in range; exception with no trace shows the event
 context only.
 
+## Visual language (reference screenshot)
+
+The user shared Nightwatch's dashboard screenshot
+(https://laravel-blog-assets.s3.amazonaws.com/rBcVtv41rcu9jWqWd6nErKxEpZPCzTtAlwIl8Ff2.png)
+as the aesthetic reference — "not one-to-one, but design-wise". Cues to adopt,
+using LogHarbor's existing Tailwind tokens (no new palette, both themes):
+
+- Sidebar: dark surface, uppercase muted group headers, quiet rows with a
+  raised active state (matches the current NavLink treatment). Icons omitted
+  for now — the grouping carries the look.
+- Section headers: the "view all" link styled as a small bordered chip with a
+  trailing ↗ (Nightwatch's "Requests ↗" button).
+- Cards: uppercase muted eyebrow, big number, right-aligned legend with
+  colored dots (the existing `MetricCard` breakdown pattern — keep it).
+- Exceptions page: a narrative headline above the table
+  ("152 exceptions in this range."), Nightwatch's sentence-style stat.
+
 ## Components
 
 Reused: `Card`, `Sparkline`, `LiveToggle`, `TimeRangePicker`, `useStats` hooks,
