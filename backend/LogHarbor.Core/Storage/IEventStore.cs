@@ -17,7 +17,9 @@ public sealed record StatsSummary(long Total, IReadOnlyDictionary<string, long> 
 public sealed record TopError(string Template, string Level, long Count, string FirstSeen, string LastSeen);
 
 /// <summary>One exception group, keyed by the first line of the exception text up to ':'.</summary>
-public sealed record TopException(string Type, long Count, string FirstSeen, string LastSeen);
+/// <summary>Location is "path:line" parsed from the latest occurrence's stack trace; null when no frame carries a file.</summary>
+public sealed record TopException(
+    string Type, long Count, string FirstSeen, string LastSeen, string? Location = null);
 
 public sealed record PropertyValueCount(string Value, long Count);
 
@@ -41,6 +43,11 @@ public sealed record OperationOverview(string Template, long Total, long ErrorCo
 
 /// <summary>Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen timestamp.</summary>
 public sealed record UserActivity(string Value, long Total, long ErrorCount, string LastSeen);
+
+/// <summary>One DB-query group: events sharing a query-text property value.</summary>
+public sealed record QueryOverview(
+    string Value, string? Connection, long Calls, long ErrorCount,
+    double? TotalMs, double? AvgMs, double? P95Ms, string LastSeen);
 
 public interface IEventStore
 {
@@ -120,6 +127,18 @@ public interface IEventStore
     /// </summary>
     Task<IReadOnlyList<UserActivity>> GetUserActivityAsync(
         QuerySql? filter, string fromUtc, string toUtc, string property, int limit,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-query stats grouped by one query-text <paramref name="property"/> (calls, Error+Fatal
+    /// count, total/avg/p95 of <paramref name="durationProperty"/>, connection, last-seen),
+    /// most total time first. Events without the property are excluded. All three property names
+    /// must be bare identifiers ([A-Za-z0-9_.]); the API boundary validates them. Searches hot +
+    /// hydrated data.
+    /// </summary>
+    Task<IReadOnlyList<QueryOverview>> GetQueryOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc,
+        string property, string durationProperty, string connectionProperty, int limit,
         CancellationToken cancellationToken = default);
 
     /// <summary>Distinct property names in recent events, prefix-filtered (search-bar autocomplete).</summary>

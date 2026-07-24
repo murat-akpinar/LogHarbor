@@ -70,6 +70,20 @@ export interface TopException {
   count: number
   firstSeen: string
   lastSeen: string
+  /** "path:line" parsed from the latest occurrence's stack trace; null when no frame carries a file. */
+  location: string | null
+}
+
+/** One DB-query group: events sharing a query-text property value. */
+export interface QueryOverview {
+  value: string
+  connection: string | null
+  calls: number
+  errorCount: number
+  totalMs: number | null
+  avgMs: number | null
+  p95Ms: number | null
+  lastSeen: string
 }
 
 /** One operation group whose current-window p95 latency regressed past its own baseline p95. */

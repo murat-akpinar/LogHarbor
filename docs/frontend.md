@@ -11,18 +11,29 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              window. (/dashboard is an alias of /.)
 /events      Events page: search bar (with autocomplete), level filter chips, event
              list, live tail toggle, export (JSON/CSV)
+/requests    Operations RED table as its own lens (events/min, error %, p95 Elapsed,
+             trend sparkline; sortable columns); rows deep-link to filtered Events
+/exceptions  Live exception feed (type, count, trend, first/last seen) with an
+             inline context panel per row (latest occurrence + same-trace events)
+/queries     DB query lens, split master-detail: left a sortable table (calls,
+             total, avg, p95 per SQL text), right the selected query's detail
+             (full SQL, stat tiles, connection, trend, recent occurrences,
+             Events deep link); property names configurable (commandText/elapsed)
 /services    Per-service RED table (event rate, error %, p95 Elapsed)
 /users       Per-user activity (events, error %, last seen) for a chosen property
-/analysis    Operations RED table, top errors (grouped by message template + level),
-             top exception types, and operations slower than their own baseline;
-             rows deep-link to filtered Events
+/analysis    Top errors (grouped by message template + level), top exception types,
+             and operations slower than their own baseline; rows deep-link to
+             filtered Events
 /signals     List, create, edit, delete signals
 /alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
 /settings    API key management, archive/retention settings, backup download
              (admin only), user management (admin only), health status, sign out
 
-Nav order: Dashboard (home, /), Services, Users, Analysis, Signals, Alerts, Events
-(/events), Settings. The Dashboard is the landing page; Events sits on the right.
+Nav order: Dashboard (home, /), Events, Requests, Exceptions, Queries, Services,
+Users, Analysis, Signals, Alerts, Settings — every link carries a small inline
+line icon (components/icons.tsx). (A grouped left sidebar shipped 2026-07-25 and
+was reverted the same day by user preference — the classic top bar stays; the
+lens pages it introduced remain.)
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
 seeds the first admin on startup). While enabled, a login screen (username + password)
@@ -35,7 +46,8 @@ archive-setting changes) are hidden; the Users section under Settings is admin-o
 frontend/src/
   api/          typed API client (fetch wrappers per resource: events.ts, signals.ts, ...)
   components/   reusable UI (EventRow, EventDetail, LevelBadge, SearchBar, TimeRangePicker)
-  pages/        EventsPage, DashboardPage, AnalysisPage, SignalsPage, AlertsPage, SettingsPage
+  pages/        EventsPage, DashboardPage, RequestsPage, ExceptionsPage, AnalysisPage,
+                SignalsPage, AlertsPage, SettingsPage
   hooks/        useLiveTail (SignalR), useEventSearch (React Query), useTheme (dark mode)
   i18n/         typed TR/EN dictionaries (en.ts source of truth, tr.ts typed as Messages) + LanguageProvider/useI18n
   lib/          formatting helpers (dates, levels, colors, suggestContext)
@@ -165,12 +177,51 @@ Row click: navigates to Events filtered by that user for the range. The filter i
 numeric-aware — `UserId = 42` for numeric ids, `UserId = 'user-42'` for text — so
 the deep link and sparkline match how the value is stored.
 
+Detail panel (right side, on row click): level badge + relative timestamp
+(absolute in the title), identity chips for the well-known properties
+(Service/service.name, StatusCode, Method, Path, UserId, connection) that
+filter the list on click, the message and exception with copy buttons plus the
+exception's parsed source location (path:line), the trace section with "View
+trace", per-property rows with filter/copy actions (nested values keep the
+JSON tree), an "events around this" control that narrows the range to ±2
+minutes, and the raw JSON collapsed behind a disclosure.
+
+--- REQUESTS PAGE ---
+
+Status-codes chart (top): stacked per-bucket histogram of events carrying a
+StatusCode property, split into 1/2/3xx / 4xx / 5xx classes (three filtered
+/api/stats/histogram calls; Information/Warning/Error level colors) with a
+value axis, hour labels and a per-bucket hover tooltip; a hint replaces it
+when no event carries StatusCode. The legend chips are toggles: pressing one
+isolates that class — the chart drops the other series and the operations
+table, its sparklines and its Events deep links all inherit the class filter
+(StatusCode < 400 / >= 400 and < 500 / >= 500). Pressing it again restores all.
+Live toggle: the page follows the dashboard's rolling last-hour auto-refresh
+(pausing shows the TimeRangePicker) — same as Exceptions and Queries.
+
+Operations RED table as its own lens (Nightwatch's "Requests" view):
+/api/stats/operations (limit 50), per-operation RED grouped by message
+template — events/min, error % (tinted red when non-zero), p95 Elapsed
+(em dash when the operation carries no Elapsed) and a template-filtered
+sparkline; events without a message template are excluded. The numeric
+column headers re-sort the table client-side (descending). Row click:
+navigates to Events with @MessageTemplate = '...' and the range as from/to.
+
+--- EXCEPTIONS PAGE ---
+
+Live exception feed: one row per exception group (type, count, trend
+sparkline filtered by @Exception like 'Type%', first/last seen) from
+/api/stats/top-exceptions over a rolling last-hour window refreshed every
+10 s — the dashboard's Live toggle; pausing shows a static TimeRangePicker.
+A narrative headline sums the groups ("152 exceptions in this range.").
+Row click expands an inline context panel: the group's latest occurrence
+(message + exception text, via /api/events with the same like-filter) and,
+when that event carries a trace id, the same-trace events in time order
+with the latest occurrence highlighted and a "View full trace" link to
+Events filtered by @TraceId (which renders the trace waterfall).
+
 --- ANALYSIS PAGE ---
 
-Operations table: /api/stats/operations, per-operation RED grouped by message
-  template (Nightwatch's "Requests" view) — events/min, error % (tinted red when
-  non-zero), p95 Elapsed (em dash when the operation carries no Elapsed) and a
-  template-filtered sparkline; events without a message template are excluded.
 Top errors table: /api/stats/top-errors grouped by (message template, level);
   a "new" badge marks groups that never occurred before the selected range
   (checked against a baseline top-errors query ending at the range start);
@@ -184,7 +235,7 @@ Slower than usual table: /api/stats/slow-operations lists operation groups whose
   empty the card reads timedOperationCount/comparableOperationCount from the response to say
   which case it is: no event carries an Elapsed duration, no group has baseline history
   before the range to compare against (narrow the range), or nothing regressed.
-Row click (operations, errors and slow operations): navigates to Events with
+Row click (errors and slow operations): navigates to Events with
   @MessageTemplate = '...' and the range as from/to; EventsPage reads the ?filter=
   deep link on mount
 

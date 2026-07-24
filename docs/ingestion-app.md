@@ -57,6 +57,21 @@ Node (winston):
 
 The key is a secret: read it from the environment, never commit it (rules.md SECURITY).
 
+--- SENDING DB QUERY LOGS (feeds the Queries page) ---
+
+The /queries page groups events that carry a SQL-text property (default
+commandText) plus a duration property (default elapsed).
+
+EF Core + Serilog: allow the command events through and they arrive already
+shaped like that:
+
+  .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command",
+                         LogEventLevel.Information)
+
+Any other stack works too: log an event with a commandText string property and
+an elapsed (ms) number property; add a connection property to fill the
+Connection column. The property names are configurable on the page itself.
+
 --- ANY OTHER LANGUAGE: RAW HTTP ---
 
   POST /api/events/raw

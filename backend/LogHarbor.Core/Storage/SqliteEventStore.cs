@@ -512,6 +512,54 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IReadOnlyList<QueryOverview>> GetQueryOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc,
+        string property, string durationProperty, string connectionProperty, int limit,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "level, properties, timestamp", fromUtc, toUtc, cancellationToken);
+
+        // safe to embed: all three property names are restricted to [A-Za-z0-9_.] at the API
+        // boundary; the quoted step keeps dots literal. p95 mirrors GetOperationOverviewAsync.
+        command.CommandText =
+            "WITH q AS (" +
+            $"SELECT CAST(json_extract(properties, '$.\"{property}\"') AS TEXT) AS qry, " +
+            $"CAST(json_extract(properties, '$.\"{durationProperty}\"') AS REAL) AS ms, " +
+            $"CAST(json_extract(properties, '$.\"{connectionProperty}\"') AS TEXT) AS conn, " +
+            "level, timestamp " +
+            $"FROM {source}), " +
+            "g AS (SELECT * FROM q WHERE qry IS NOT NULL), " +
+            "s AS (SELECT qry, COUNT(*) AS calls, " +
+            "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors, " +
+            "SUM(ms) AS total_ms, AVG(ms) AS avg_ms, MAX(conn) AS conn, MAX(timestamp) AS last_seen " +
+            "FROM g GROUP BY qry), " +
+            "r AS (SELECT qry, ms, ROW_NUMBER() OVER (PARTITION BY qry ORDER BY ms) AS rn, " +
+            "COUNT(*) OVER (PARTITION BY qry) AS n FROM g WHERE ms IS NOT NULL), " +
+            "p AS (SELECT qry, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY qry) " +
+            "SELECT s.qry, s.conn, s.calls, s.errors, s.total_ms, s.avg_ms, p.p95, s.last_seen " +
+            "FROM s LEFT JOIN p ON p.qry = s.qry " +
+            "ORDER BY (s.total_ms IS NULL), s.total_ms DESC, s.calls DESC, s.qry LIMIT @limit;";
+        command.Parameters.AddWithValue("@limit", limit);
+
+        var rows = new List<QueryOverview>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new QueryOverview(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.GetInt64(2), reader.GetInt64(3),
+                reader.IsDBNull(4) ? null : reader.GetDouble(4),
+                reader.IsDBNull(5) ? null : reader.GetDouble(5),
+                reader.IsDBNull(6) ? null : reader.GetDouble(6),
+                reader.GetString(7)));
+        }
+        return rows;
+    }
+
     public async Task<SlowOperationsResult> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,
@@ -582,14 +630,22 @@ public sealed class SqliteEventStore : IEventStore
         var source = await BuildStatsSourceAsync(
             connection, command, filter, "exception, timestamp", fromUtc, toUtc, cancellationToken);
 
-        // exception type = first line up to ':' (whole first line when no colon); rtrim drops the \r of CRLF text
+        // exception type = first line up to ':' (whole first line when no colon); rtrim drops the \r of CRLF text.
+        // The latest occurrence's full text rides along so the caller can surface its source location.
         command.CommandText =
+            "WITH t AS (" +
             "SELECT CASE WHEN instr(first_line, ':') > 0 THEN substr(first_line, 1, instr(first_line, ':') - 1) " +
-            "ELSE first_line END AS ex_type, COUNT(*) AS cnt, MIN(timestamp), MAX(timestamp) FROM (" +
+            "ELSE first_line END AS ex_type, timestamp, exception FROM (" +
             "SELECT rtrim(CASE WHEN instr(exception, char(10)) > 0 " +
             "THEN substr(exception, 1, instr(exception, char(10)) - 1) ELSE exception END, char(13)) AS first_line, " +
-            $"timestamp FROM {source} WHERE exception IS NOT NULL) " +
-            "GROUP BY ex_type ORDER BY cnt DESC, ex_type LIMIT @limit;";
+            $"timestamp, exception FROM {source} WHERE exception IS NOT NULL)), " +
+            "g AS (SELECT ex_type, COUNT(*) AS cnt, MIN(timestamp) AS first_seen, MAX(timestamp) AS last_seen " +
+            "FROM t GROUP BY ex_type), " +
+            "s AS (SELECT ex_type, exception, " +
+            "ROW_NUMBER() OVER (PARTITION BY ex_type ORDER BY timestamp DESC) AS rn FROM t) " +
+            "SELECT g.ex_type, g.cnt, g.first_seen, g.last_seen, s.exception " +
+            "FROM g JOIN s ON s.ex_type = g.ex_type AND s.rn = 1 " +
+            "ORDER BY g.cnt DESC, g.ex_type LIMIT @limit;";
         command.Parameters.AddWithValue("@limit", limit);
 
         var rows = new List<TopException>();
@@ -597,7 +653,8 @@ public sealed class SqliteEventStore : IEventStore
         while (await reader.ReadAsync(cancellationToken))
         {
             rows.Add(new TopException(
-                reader.GetString(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3)));
+                reader.GetString(0), reader.GetInt64(1), reader.GetString(2), reader.GetString(3),
+                ExceptionLocation.FromText(reader.GetString(4))));
         }
         return rows;
     }

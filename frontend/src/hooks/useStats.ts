@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { getHeatmap, getHistogram, getOperations, getServices, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
+import { getHeatmap, getHistogram, getOperations, getQueries, getServices, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
 import type { StatsRangeParams } from '../api/stats'
 
 // refetch keeps the previous render instead of flashing a skeleton (dataviz interaction rules)
@@ -65,6 +65,14 @@ export function useUserActivity(params: StatsRangeParams & { property?: string; 
   return useQuery({
     queryKey: ['stats', 'user-activity', params],
     queryFn: () => getUserActivity(params),
+    ...KEEP_PREVIOUS,
+  })
+}
+
+export function useQueries(params: StatsRangeParams & { property?: string; durationProperty?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['stats', 'queries', params],
+    queryFn: () => getQueries(params),
     ...KEEP_PREVIOUS,
   })
 }

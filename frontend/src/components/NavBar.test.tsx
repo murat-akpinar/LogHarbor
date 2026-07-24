@@ -10,7 +10,7 @@ afterEach(() => {
   localStorage.clear()
 })
 
-it('switches visible link labels when the language toggle is clicked', async () => {
+function renderNav() {
   localStorage.setItem('logharbor-lang', 'en')
   render(
     <LanguageProvider>
@@ -19,6 +19,23 @@ it('switches visible link labels when the language toggle is clicked', async () 
       </MemoryRouter>
     </LanguageProvider>,
   )
+}
+
+it('puts Events right after Dashboard, then the lens pages', () => {
+  renderNav()
+  const labels = screen.getAllByRole('link').map((link) => link.textContent)
+  expect(labels.slice(0, 4)).toEqual(['Dashboard', 'Events', 'Requests', 'Exceptions'])
+})
+
+it('renders an icon inside every nav link', () => {
+  renderNav()
+  for (const link of screen.getAllByRole('link')) {
+    expect(link.querySelector('svg')).not.toBeNull()
+  }
+})
+
+it('switches visible link labels when the language toggle is clicked', async () => {
+  renderNav()
   expect(screen.getByText('Events')).toBeDefined()
 
   screen.getByText('EN').click()

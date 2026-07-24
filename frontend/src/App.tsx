@@ -3,6 +3,9 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { LoginGate } from './components/LoginGate'
 import { NavBar } from './components/NavBar'
 import { EventsPage } from './pages/EventsPage'
+import { RequestsPage } from './pages/RequestsPage'
+import { ExceptionsPage } from './pages/ExceptionsPage'
+import { QueriesPage } from './pages/QueriesPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ServicesPage } from './pages/ServicesPage'
 import { UsersPage } from './pages/UsersPage'
@@ -31,6 +34,9 @@ function App() {
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />
                   <Route path="/events" element={<EventsPage />} />
+                  <Route path="/requests" element={<RequestsPage />} />
+                  <Route path="/exceptions" element={<ExceptionsPage />} />
+                  <Route path="/queries" element={<QueriesPage />} />
                   <Route path="/services" element={<ServicesPage />} />
                   <Route path="/users" element={<UsersPage />} />
                   <Route path="/analysis" element={<AnalysisPage />} />

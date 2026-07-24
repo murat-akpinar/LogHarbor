@@ -22,7 +22,7 @@ export function RoutesPanel({ operations, from, to }: RoutesPanelProps) {
   }
 
   return (
-    <PulsePanel title={t.dashboard.routes} to="/analysis" isEmpty={operations.length === 0} emptyText={t.analysis.noOperations}>
+    <PulsePanel title={t.dashboard.routes} to="/requests" isEmpty={operations.length === 0} emptyText={t.analysis.noOperations}>
       {operations.map((op) => (
         <PulseRow
           key={op.template}

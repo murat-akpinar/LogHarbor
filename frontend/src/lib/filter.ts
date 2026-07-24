@@ -26,3 +26,20 @@ export function combineFilter(
 export function quote(value: string): string {
   return `'${value.replaceAll("'", "''")}'`
 }
+
+/**
+ * Equality clause for a property value. Numeric ids compare as numbers in SQLite; strings need a
+ * quoted literal, so emit the matching form whether the property holds "user-42" or 42.
+ */
+export function propertyEquals(property: string, value: string): string {
+  return /^-?\d+(\.\d+)?$/.test(value) ? `${property} = ${value}` : `${property} = ${quote(value)}`
+}
+
+/**
+ * Matches events whose exception text starts with a top-exceptions group type.
+ * `%`/`_` inside the type would act as LIKE wildcards; exception type names
+ * don't contain them in practice.
+ */
+export function exceptionStartsWith(type: string): string {
+  return `@Exception like ${quote(`${type}%`)}`
+}

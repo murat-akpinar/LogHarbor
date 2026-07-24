@@ -49,10 +49,18 @@ PATHS = ["/api/orders", "/api/orders/{id}", "/api/users", "/healthz", "/api/repo
 METHODS = ["GET", "POST", "PUT", "DELETE"]
 JOB_TYPES = ["invoice-export", "email-digest", "image-resize", "nightly-rollup"]
 QUERIES = ["orders_by_status", "user_by_email", "daily_revenue", "cart_items"]
+SQL_QUERIES = [
+    "SELECT * FROM orders WHERE id = @p0",
+    "SELECT * FROM users WHERE email = @p0",
+    "UPDATE orders SET status = @p0 WHERE id = @p1",
+    "INSERT INTO audit_log (user_id, action) VALUES (@p0, @p1)",
+    "SELECT o.*, u.name FROM orders o JOIN users u ON u.id = o.user_id WHERE o.created_at > @p0",
+    "DELETE FROM sessions WHERE expires_at < @p0",
+]
 EXCEPTIONS = [
-    "System.InvalidOperationException: Order is already shipped\n   at Api.Orders.Ship()",
-    "System.TimeoutException: The operation timed out\n   at Api.Db.Query()",
-    "Npgsql.PostgresException: 23505: duplicate key value\n   at Api.Db.Insert()",
+    "System.InvalidOperationException: Order is already shipped\n   at Api.Orders.Ship() in /src/Api/Orders/OrderService.cs:line 88",
+    "System.TimeoutException: The operation timed out\n   at Api.Db.Query() in /src/Api/Db/Database.cs:line 41",
+    "Npgsql.PostgresException: 23505: duplicate key value\n   at Api.Db.Insert() in /src/Api/Db/Database.cs:line 129",
 ]
 
 
@@ -92,22 +100,35 @@ def build_event(service, level, timestamp):
             event["Path"] = random.choice(PATHS)
             event["@x"] = random.choice(EXCEPTIONS)
             event["UserId"] = _user()
+            event["StatusCode"] = random.choice([500, 502, 503])
             # nested value exercises EventDetail's collapsible property tree
             event["Cart"] = {"Total": round(random.uniform(5, 500), 2), "Items": ["sku-1", "sku-7"]}
         elif level == "Warning":
             event["@mt"] = "Slow request {Path} took {Elapsed} ms"
             event["Path"] = random.choice(PATHS)
             event["Elapsed"] = random.randrange(800, 5000)
+            event["StatusCode"] = 200
         elif level == "Debug":
             event["@mt"] = "Cache {Outcome} for {Path}"
             event["Outcome"] = random.choice(["hit", "miss"])
             event["Path"] = random.choice(PATHS)
+        elif random.random() < 0.35:
+            # EF Core-shaped DB query log: feeds the /queries lens page
+            event["@mt"] = "Executed DbCommand ({elapsed}ms) {commandText}"
+            event["commandText"] = random.choice(SQL_QUERIES)
+            event["elapsed"] = (
+                random.randrange(500, 2000) if random.random() < 0.05 else random.randrange(2, 180)
+            )
+            event["connection"] = random.choice(["main", "replica"])
         else:
             event["@mt"] = "Handled {Method} {Path} in {Elapsed} ms"
             event["Method"] = random.choice(METHODS)
             event["Path"] = random.choice(PATHS)
             event["Elapsed"] = random.randrange(3, 400)
             event["UserId"] = _user()
+            event["StatusCode"] = random.choices(
+                [200, 201, 204, 301, 404, 429], weights=[76, 8, 5, 3, 6, 2]
+            )[0]
     elif service == "worker":
         job = f"job-{random.randrange(10000, 99999)}"
         if level == "Error":
