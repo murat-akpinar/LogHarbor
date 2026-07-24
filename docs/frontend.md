@@ -25,11 +25,10 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 /settings    API key management, archive/retention settings, backup download
              (admin only), user management (admin only), health status, sign out
 
-Nav: grouped left sidebar (slide-over drawer behind a hamburger on small
-screens) — Overview (home, /); Activity: Events, Requests, Exceptions;
-Analysis: Analysis, Services, Users; System: Signals, Alerts, Settings.
-Group captions are visual separators, not links. The TR/EN and theme toggles
-sit at the sidebar's bottom.
+Nav order: Dashboard (home, /), Events, Requests, Exceptions, Services, Users,
+Analysis, Signals, Alerts, Settings. (A grouped left sidebar shipped 2026-07-25
+and was reverted the same day by user preference — the classic top bar stays;
+the lens pages it introduced remain.)
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
 seeds the first admin on startup). While enabled, a login screen (username + password)
@@ -53,7 +52,7 @@ frontend/src/
 
 The UI ships in English and Turkish. Language is detected from the browser on
 first load (navigator.language startswith 'tr' -> Turkish), and an explicit
-choice via the sidebar TR/EN toggle is persisted to localStorage
+choice via the NavBar TR/EN toggle is persisted to localStorage
 ('logharbor-lang') and wins thereafter. Dates and numbers format with the
 active language (Intl APIs). Not translated: log event data, level names,
 query-language syntax and operator labels, and backend API messages.
@@ -244,7 +243,7 @@ chart fills that can't read a CSS variable back.
 
 --- THEME ---
 
-Light/dark toggle at the sidebar's bottom; useTheme persists the choice to localStorage
+Light/dark toggle in the nav bar; useTheme persists the choice to localStorage
 (falls back to the OS prefers-color-scheme on first visit) and toggles a `dark`
 class on <html>. index.css defines every token twice, once under :root and once
 under :root.dark (see DESIGN TOKENS above), so switching themes is just the
