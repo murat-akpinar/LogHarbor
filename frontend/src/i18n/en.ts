@@ -123,6 +123,10 @@ export const en = {
     rawJson: 'Raw JSON',
     trace: 'Trace',
     viewTrace: 'View trace',
+    copy: 'Copy',
+    copied: 'Copied',
+    filterBy: (name: string) => `Filter by ${name}`,
+    lookAround: 'Events around this',
   },
   notFound: {
     title: 'Page not found',

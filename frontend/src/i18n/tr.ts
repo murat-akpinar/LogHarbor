@@ -125,6 +125,10 @@ export const tr: Messages = {
     rawJson: 'Ham JSON',
     trace: 'İz',
     viewTrace: 'İzi görüntüle',
+    copy: 'Kopyala',
+    copied: 'Kopyalandı',
+    filterBy: (name: string) => `${name} ile filtrele`,
+    lookAround: 'Bu olayın çevresi',
   },
   notFound: {
     title: 'Sayfa bulunamadı',

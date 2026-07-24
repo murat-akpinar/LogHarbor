@@ -275,6 +275,8 @@ export function EventsPage() {
             highlightTerms={highlightTerms}
             onClose={() => setSelectedEvent(undefined)}
             onViewTrace={(traceId) => applyFilter(`@TraceId = ${quote(traceId)}`)}
+            onFilter={applyFilter}
+            onLookAround={(from, to) => setRange({ from, to })}
           />
         )}
       </div>

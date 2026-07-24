@@ -177,6 +177,15 @@ Row click: navigates to Events filtered by that user for the range. The filter i
 numeric-aware — `UserId = 42` for numeric ids, `UserId = 'user-42'` for text — so
 the deep link and sparkline match how the value is stored.
 
+Detail panel (right side, on row click): level badge + relative timestamp
+(absolute in the title), identity chips for the well-known properties
+(Service/service.name, StatusCode, Method, Path, UserId, connection) that
+filter the list on click, the message and exception with copy buttons plus the
+exception's parsed source location (path:line), the trace section with "View
+trace", per-property rows with filter/copy actions (nested values keep the
+JSON tree), an "events around this" control that narrows the range to ±2
+minutes, and the raw JSON collapsed behind a disclosure.
+
 --- REQUESTS PAGE ---
 
 Status-codes chart (top): stacked per-bucket histogram of events carrying a
