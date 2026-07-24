@@ -99,6 +99,63 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Queries_GroupsBySqlText_WithDurations()
+    {
+        // 2026-07-19: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-19T10:00:00.0000000Z", "Information", "q", null,
+                """{"commandText":"SELECT * FROM orders WHERE id = @p0","elapsed":10,"connection":"main"}""",
+                null, "2026-07-19T10:00:00.0000000Z"),
+            new Event(0, "2026-07-19T10:01:00.0000000Z", "Error", "q", null,
+                """{"commandText":"SELECT * FROM orders WHERE id = @p0","elapsed":100,"connection":"main"}""",
+                null, "2026-07-19T10:01:00.0000000Z"),
+            new Event(0, "2026-07-19T10:02:00.0000000Z", "Information", "q", null,
+                """{"commandText":"SELECT * FROM orders WHERE id = @p0","elapsed":20,"connection":"main"}""",
+                null, "2026-07-19T10:02:00.0000000Z"),
+            // a query that never reports a duration or connection
+            new Event(0, "2026-07-19T10:03:00.0000000Z", "Information", "q", null,
+                """{"commandText":"PRAGMA user_version"}""", null, "2026-07-19T10:03:00.0000000Z"),
+            // no commandText -> excluded entirely
+            new Event(0, "2026-07-19T10:04:00.0000000Z", "Information", "q", null,
+                """{"elapsed":999}""", null, "2026-07-19T10:04:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/queries?from=2026-07-19T10:00:00Z&to=2026-07-19T11:00:00Z");
+
+        var rows = page.GetProperty("queries").EnumerateArray().ToList();
+        Assert.Equal(2, rows.Count);
+
+        // timed group first (ordered by total time)
+        var timed = rows[0];
+        Assert.Equal("SELECT * FROM orders WHERE id = @p0", timed.GetProperty("value").GetString());
+        Assert.Equal("main", timed.GetProperty("connection").GetString());
+        Assert.Equal(3, timed.GetProperty("calls").GetInt64());
+        Assert.Equal(1, timed.GetProperty("errorCount").GetInt64());
+        Assert.Equal(130, timed.GetProperty("totalMs").GetDouble());
+        Assert.Equal(130.0 / 3, timed.GetProperty("avgMs").GetDouble(), precision: 5);
+        Assert.Equal(100, timed.GetProperty("p95Ms").GetDouble());
+        Assert.Equal("2026-07-19T10:02:00.0000000Z", timed.GetProperty("lastSeen").GetString());
+
+        var untimed = rows[1];
+        Assert.Equal("PRAGMA user_version", untimed.GetProperty("value").GetString());
+        Assert.Equal(JsonValueKind.Null, untimed.GetProperty("connection").ValueKind);
+        Assert.Equal(1, untimed.GetProperty("calls").GetInt64());
+        Assert.Equal(JsonValueKind.Null, untimed.GetProperty("totalMs").ValueKind);
+        Assert.Equal(JsonValueKind.Null, untimed.GetProperty("p95Ms").ValueKind);
+    }
+
+    [Fact]
+    public async Task Queries_RejectsInvalidPropertyName()
+    {
+        var response = await _client.GetAsync(
+            "/api/stats/queries?from=2026-07-19T10:00:00Z&to=2026-07-19T11:00:00Z&property=bad;name");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task UserActivity_GroupsByUserProperty()
     {
         // 2026-07-18: a day the shared seeds never touch

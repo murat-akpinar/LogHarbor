@@ -512,6 +512,54 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IReadOnlyList<QueryOverview>> GetQueryOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc,
+        string property, string durationProperty, string connectionProperty, int limit,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "level, properties, timestamp", fromUtc, toUtc, cancellationToken);
+
+        // safe to embed: all three property names are restricted to [A-Za-z0-9_.] at the API
+        // boundary; the quoted step keeps dots literal. p95 mirrors GetOperationOverviewAsync.
+        command.CommandText =
+            "WITH q AS (" +
+            $"SELECT CAST(json_extract(properties, '$.\"{property}\"') AS TEXT) AS qry, " +
+            $"CAST(json_extract(properties, '$.\"{durationProperty}\"') AS REAL) AS ms, " +
+            $"CAST(json_extract(properties, '$.\"{connectionProperty}\"') AS TEXT) AS conn, " +
+            "level, timestamp " +
+            $"FROM {source}), " +
+            "g AS (SELECT * FROM q WHERE qry IS NOT NULL), " +
+            "s AS (SELECT qry, COUNT(*) AS calls, " +
+            "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors, " +
+            "SUM(ms) AS total_ms, AVG(ms) AS avg_ms, MAX(conn) AS conn, MAX(timestamp) AS last_seen " +
+            "FROM g GROUP BY qry), " +
+            "r AS (SELECT qry, ms, ROW_NUMBER() OVER (PARTITION BY qry ORDER BY ms) AS rn, " +
+            "COUNT(*) OVER (PARTITION BY qry) AS n FROM g WHERE ms IS NOT NULL), " +
+            "p AS (SELECT qry, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY qry) " +
+            "SELECT s.qry, s.conn, s.calls, s.errors, s.total_ms, s.avg_ms, p.p95, s.last_seen " +
+            "FROM s LEFT JOIN p ON p.qry = s.qry " +
+            "ORDER BY (s.total_ms IS NULL), s.total_ms DESC, s.calls DESC, s.qry LIMIT @limit;";
+        command.Parameters.AddWithValue("@limit", limit);
+
+        var rows = new List<QueryOverview>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new QueryOverview(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.GetInt64(2), reader.GetInt64(3),
+                reader.IsDBNull(4) ? null : reader.GetDouble(4),
+                reader.IsDBNull(5) ? null : reader.GetDouble(5),
+                reader.IsDBNull(6) ? null : reader.GetDouble(6),
+                reader.GetString(7)));
+        }
+        return rows;
+    }
+
     public async Task<SlowOperationsResult> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,
