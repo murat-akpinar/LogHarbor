@@ -105,6 +105,16 @@ it('lets the user change the query property', async () => {
   expect(input.value).toBe('commandText')
 })
 
+it('starts live and pauses into a static range picker', async () => {
+  renderPage()
+  const toggle = await screen.findByRole('button', { name: /Live/ })
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(screen.queryByTitle('Time range')).toBeNull()
+
+  toggle.click()
+  expect(await screen.findByTitle('Time range')).toBeDefined()
+})
+
 it('clicking another row swaps the detail pane', async () => {
   renderPage()
   ;(await screen.findByText('UPDATE users SET seen = @p0')).click()
