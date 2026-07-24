@@ -1,30 +1,41 @@
-# Fills a running LogHarbor with demo events: logs in, creates its own API key, then
-# posts CLEF spread over the last N days so the dashboard/analysis views have shape.
+# Fills a running LogHarbor with demo events: logs in and creates its own API key (or reuses
+# one via -ApiKey), then posts CLEF spread over the last N days so the dashboard/analysis
+# views have shape. Events carry StatusCode, EF-style query logs and file:line stack frames,
+# so the Requests / Queries / Exceptions lenses fill up too.
 #   .\scripts\seed-demo.ps1 -Password logharbor-test-1234
+#   .\scripts\seed-demo.ps1 -BaseUrl http://192.168.1.131:5000 -ApiKey logharbor_... -Count 20000
 param(
     [string]$BaseUrl = 'http://localhost:5000',
     [string]$Username = 'admin',
-    [Parameter(Mandatory = $true)][string]$Password,
+    # either sign in and mint a key, or bring your own with -ApiKey
+    [string]$Password,
+    [string]$ApiKey,
     [int]$Days = 7,
     [int]$Count = 3000
 )
 
 $ErrorActionPreference = 'Stop'
 
-# -SessionVariable on the first call is what creates the cookie jar we reuse below
-$status = Invoke-RestMethod "$BaseUrl/api/auth/status" -SessionVariable session
-if ($status.authRequired) {
-    $login = Invoke-WebRequest -UseBasicParsing -Method Post "$BaseUrl/api/auth/login" `
-        -ContentType 'application/json' `
-        -Body (@{ username = $Username; password = $Password } | ConvertTo-Json)
-    # the session cookie is Secure (production default), so .NET's cookie jar refuses to
-    # replay it over plain http; browsers exempt localhost and we mirror that exemption here
-    $pair = (@($login.Headers['Set-Cookie'])[0] -split ';')[0]
-    $name, $value = $pair -split '=', 2
-    $session.Cookies.Add([System.Net.Cookie]::new($name, $value, '/', ([uri]$BaseUrl).Host))
+if ($ApiKey) {
+    $token = $ApiKey
 }
-$key = Invoke-RestMethod -Method Post "$BaseUrl/api/apikeys" -ContentType 'application/json' `
-    -Body (@{ title = "demo-seed $(Get-Date -Format s)" } | ConvertTo-Json) -WebSession $session
+else {
+    if (-not $Password) { throw 'Pass -Password (to mint a key) or -ApiKey (to reuse one).' }
+    # -SessionVariable on the first call is what creates the cookie jar we reuse below
+    $status = Invoke-RestMethod "$BaseUrl/api/auth/status" -SessionVariable session
+    if ($status.authRequired) {
+        $login = Invoke-WebRequest -UseBasicParsing -Method Post "$BaseUrl/api/auth/login" `
+            -ContentType 'application/json' `
+            -Body (@{ username = $Username; password = $Password } | ConvertTo-Json)
+        # the session cookie is Secure (production default), so .NET's cookie jar refuses to
+        # replay it over plain http; browsers exempt localhost and we mirror that exemption here
+        $pair = (@($login.Headers['Set-Cookie'])[0] -split ';')[0]
+        $name, $value = $pair -split '=', 2
+        $session.Cookies.Add([System.Net.Cookie]::new($name, $value, '/', ([uri]$BaseUrl).Host))
+    }
+    $token = (Invoke-RestMethod -Method Post "$BaseUrl/api/apikeys" -ContentType 'application/json' `
+        -Body (@{ title = "demo-seed $(Get-Date -Format s)" } | ConvertTo-Json) -WebSession $session).token
+}
 
 # weighted so the mix looks like a real service: mostly Information, few Error, rare Fatal
 $levels = @('Information') * 60 + @('Debug') * 15 + @('Warning') * 15 + @('Error') * 9 + @('Fatal')
@@ -47,7 +58,9 @@ $sqlQueries = @(
 # weighted status codes feed the Requests page's 1/2/3xx / 4xx / 5xx chart
 $okStatuses = @(200) * 76 + @(201) * 8 + @(204) * 5 + @(301) * 3 + @(404) * 6 + @(429) * 2
 
-$now = [DateTimeOffset]::UtcNow
+# DateTime (not DateTimeOffset) throughout: .Date below drops the offset, and PowerShell
+# cannot compare the two types
+$now = [DateTime]::UtcNow
 $lines = [System.Collections.Generic.List[string]]::new()
 for ($i = 0; $i -lt $Count; $i++) {
     # business hours get ~4x the traffic, so the heatmap shows a diurnal band
@@ -104,7 +117,7 @@ $batchSize = 500
 for ($offset = 0; $offset -lt $lines.Count; $offset += $batchSize) {
     $batch = $lines[$offset..([Math]::Min($offset + $batchSize, $lines.Count) - 1)] -join "`n"
     Invoke-RestMethod -Method Post "$BaseUrl/api/events/raw" `
-        -Headers @{ 'X-LogHarbor-ApiKey' = $key.token } `
+        -Headers @{ 'X-LogHarbor-ApiKey' = $token } `
         -ContentType 'application/vnd.serilog.clef' -Body $batch | Out-Null
     Write-Host "sent $([Math]::Min($offset + $batchSize, $lines.Count)) / $($lines.Count)"
 }
