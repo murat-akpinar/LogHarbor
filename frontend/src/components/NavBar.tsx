@@ -1,6 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import type { Theme } from '../hooks/useTheme'
 import { useI18n } from '../i18n'
+import { PageIcon } from './icons'
+import type { PageIconName } from './icons'
 import { Button } from './ui/Button'
 
 interface NavBarProps {
@@ -11,17 +13,17 @@ interface NavBarProps {
 export function NavBar({ theme, onToggleTheme }: NavBarProps) {
   const { t, lang, setLang } = useI18n()
 
-  const links = [
-    { to: '/', label: t.nav.dashboard, end: true },
-    { to: '/events', label: t.nav.events, end: false },
-    { to: '/requests', label: t.nav.requests, end: false },
-    { to: '/exceptions', label: t.nav.exceptions, end: false },
-    { to: '/services', label: t.nav.services, end: false },
-    { to: '/users', label: t.nav.users, end: false },
-    { to: '/analysis', label: t.nav.analysis, end: false },
-    { to: '/signals', label: t.nav.signals, end: false },
-    { to: '/alerts', label: t.nav.alerts, end: false },
-    { to: '/settings', label: t.nav.settings, end: false },
+  const links: { to: string; label: string; end: boolean; icon: PageIconName }[] = [
+    { to: '/', label: t.nav.dashboard, end: true, icon: 'dashboard' },
+    { to: '/events', label: t.nav.events, end: false, icon: 'events' },
+    { to: '/requests', label: t.nav.requests, end: false, icon: 'requests' },
+    { to: '/exceptions', label: t.nav.exceptions, end: false, icon: 'exceptions' },
+    { to: '/services', label: t.nav.services, end: false, icon: 'services' },
+    { to: '/users', label: t.nav.users, end: false, icon: 'users' },
+    { to: '/analysis', label: t.nav.analysis, end: false, icon: 'analysis' },
+    { to: '/signals', label: t.nav.signals, end: false, icon: 'signals' },
+    { to: '/alerts', label: t.nav.alerts, end: false, icon: 'alerts' },
+    { to: '/settings', label: t.nav.settings, end: false, icon: 'settings' },
   ]
 
   return (
@@ -30,19 +32,20 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
         <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
         LogHarbor
       </span>
-      {links.map(({ to, label, end }) => (
+      {links.map(({ to, label, end, icon }) => (
         <NavLink
           key={to}
           to={to}
           end={end}
           className={({ isActive }) =>
-            `rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+            `flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
               isActive
                 ? 'bg-surface-raised text-fg'
                 : 'text-fg-muted hover:bg-surface-hover hover:text-fg'
             }`
           }
         >
+          <PageIcon name={icon} />
           {label}
         </NavLink>
       ))}
