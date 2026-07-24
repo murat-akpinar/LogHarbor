@@ -16,6 +16,9 @@ vi.mock('../api/stats', () => ({
   getTopErrors: vi.fn(async () => ({ errors: [] })),
   getTopExceptions: vi.fn(async () => ({ exceptions: [] })),
   getHistogram: vi.fn(async () => ({ buckets: [] })),
+  getOperations: vi.fn(async () => ({
+    operations: [{ template: 'GET /orders', total: 120, errorCount: 6, p95ElapsedMs: 250 }],
+  })),
   getSlowOperations: vi.fn(async ({ from }: { from: string }) =>
     Date.now() - new Date(from).getTime() <= ONE_HOUR_MS
       ? { operations: [SLOW_OP], timedOperationCount: 1, comparableOperationCount: 1 }
@@ -40,6 +43,14 @@ function renderPage() {
     </QueryClientProvider>,
   )
 }
+
+it('lists operations with their RED numbers', async () => {
+  localStorage.setItem('logharbor-lang', 'en')
+  renderPage()
+  expect(await screen.findByText('GET /orders')).toBeDefined()
+  // error % = 6 / 120 = 5.0%
+  expect(screen.getByText('5.0%')).toBeDefined()
+})
 
 it('lists a regression hidden by the default range once the 15-minute preset is picked', async () => {
   localStorage.setItem('logharbor-lang', 'en')

@@ -167,6 +167,11 @@ export const en = {
   },
   analysis: {
     title: 'Analysis',
+    operationsTitle: 'Operations',
+    eventsPerMin: 'Events/min',
+    errorPct: 'Error %',
+    p95: 'p95',
+    noOperations: 'No operations with a message template in the selected range.',
     topErrors: 'Top errors',
     topExceptions: 'Top exceptions',
     slowerThanUsual: 'Slower than usual',

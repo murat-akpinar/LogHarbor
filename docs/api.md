@@ -208,6 +208,14 @@ GET /api/stats/services
   Ordered by total descending.
   200: { "services": [ { service, total, errorCount, p95ElapsedMs } ] }
 
+GET /api/stats/operations
+  Query: limit? default 50
+  Per-operation RED numbers, grouped by the CLEF message_template (events without one
+  are excluded). errorCount counts Error + Fatal levels; p95ElapsedMs is the p95 of
+  the numeric Elapsed property, null when no event of the operation carried Elapsed.
+  Ordered by total descending.
+  200: { "operations": [ { template, total, errorCount, p95ElapsedMs } ] }
+
 --- TRACES ---
 
 GET /api/traces/{traceId}

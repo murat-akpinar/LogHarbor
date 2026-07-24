@@ -169,6 +169,11 @@ export const tr: Messages = {
   },
   analysis: {
     title: 'Analiz',
+    operationsTitle: 'İşlemler',
+    eventsPerMin: 'Olay/dk',
+    errorPct: 'Hata %',
+    p95: 'p95',
+    noOperations: 'Seçilen aralıkta mesaj şablonu olan işlem yok.',
     topErrors: 'En sık hatalar',
     topExceptions: 'En sık istisnalar',
     slowerThanUsual: 'Normalden yavaş',

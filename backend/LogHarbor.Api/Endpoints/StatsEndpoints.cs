@@ -18,6 +18,7 @@ public static class StatsEndpoints
         group.MapGet("/slow-operations", SlowOperationsAsync);
         group.MapGet("/property-values", PropertyValuesAsync);
         group.MapGet("/services", ServicesAsync);
+        group.MapGet("/operations", OperationsAsync);
     }
 
     private static readonly string[] DefaultErrorLevels = ["Error", "Fatal"];
@@ -118,6 +119,25 @@ public static class StatsEndpoints
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
             limit, cancellationToken);
         return Results.Ok(new { services });
+    }
+
+    private static async Task<IResult> OperationsAsync(
+        IEventStore eventStore,
+        CancellationToken cancellationToken,
+        string from,
+        string to,
+        string? filter = null,
+        int limit = 50)
+    {
+        if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
+        {
+            return error!;
+        }
+
+        var operations = await eventStore.GetOperationOverviewAsync(
+            filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
+            limit, cancellationToken);
+        return Results.Ok(new { operations });
     }
 
     private static async Task<IResult> PropertyValuesAsync(

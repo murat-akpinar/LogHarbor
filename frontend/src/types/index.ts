@@ -95,6 +95,14 @@ export interface ServiceOverview {
   p95ElapsedMs: number | null
 }
 
+/** RED numbers for one operation (CLEF message template); p95ElapsedMs is null when no event carried Elapsed. */
+export interface OperationOverview {
+  template: string
+  total: number
+  errorCount: number
+  p95ElapsedMs: number | null
+}
+
 /** One OTLP span from GET /api/traces/{id}; parentSpanId null for a root span. */
 export interface SpanRecord {
   traceId: string

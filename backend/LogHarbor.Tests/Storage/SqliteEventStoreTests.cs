@@ -76,6 +76,33 @@ public sealed class SqliteEventStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task OperationOverview_GroupsByTemplate_CountsErrors_ComputesP95()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"Elapsed":10}""") with { MessageTemplate = "GET /orders" },
+            MakeEvent("b", """{"Elapsed":100}""") with { MessageTemplate = "GET /orders", Level = "Error" },
+            MakeEvent("c", """{"Elapsed":50}""") with { MessageTemplate = "GET /orders" },
+            MakeEvent("d", """{"Elapsed":30}""") with { MessageTemplate = "POST /pay", Level = "Fatal" },
+            // no message template -> no operation identity, stays off the page
+            MakeEvent("e", """{"Elapsed":5}"""),
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", 50);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("GET /orders", rows[0].Template);
+        Assert.Equal(3, rows[0].Total);
+        Assert.Equal(1, rows[0].ErrorCount);
+        Assert.Equal(100, rows[0].P95ElapsedMs);
+        Assert.Equal("POST /pay", rows[1].Template);
+        Assert.Equal(1, rows[1].Total);
+        Assert.Equal(1, rows[1].ErrorCount);
+        Assert.Equal(30, rows[1].P95ElapsedMs);
+    }
+
+    [Fact]
     public async Task WriteBatch_PersistsAllFields()
     {
         var written = MakeEvent(properties: """{"UserId":7}""") with

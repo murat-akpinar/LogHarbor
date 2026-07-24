@@ -144,6 +144,10 @@ and the range as from/to — the filter matches both spellings.
 
 --- ANALYSIS PAGE ---
 
+Operations table: /api/stats/operations, per-operation RED grouped by message
+  template (Nightwatch's "Requests" view) — events/min, error % (tinted red when
+  non-zero), p95 Elapsed (em dash when the operation carries no Elapsed) and a
+  template-filtered sparkline; events without a message template are excluded.
 Top errors table: /api/stats/top-errors grouped by (message template, level);
   a "new" badge marks groups that never occurred before the selected range
   (checked against a baseline top-errors query ending at the range start);
@@ -157,7 +161,7 @@ Slower than usual table: /api/stats/slow-operations lists operation groups whose
   empty the card reads timedOperationCount/comparableOperationCount from the response to say
   which case it is: no event carries an Elapsed duration, no group has baseline history
   before the range to compare against (narrow the range), or nothing regressed.
-Row click (errors and slow operations): navigates to Events with
+Row click (operations, errors and slow operations): navigates to Events with
   @MessageTemplate = '...' and the range as from/to; EventsPage reads the ?filter=
   deep link on mount
 

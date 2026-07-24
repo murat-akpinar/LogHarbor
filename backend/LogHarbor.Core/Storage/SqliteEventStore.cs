@@ -444,6 +444,43 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "message_template, level, properties", fromUtc, toUtc, cancellationToken);
+
+        // operation identity is the CLEF message template; the p95 mirrors GetServiceOverviewAsync
+        // (ROW_NUMBER so a burst of equal durations doesn't collapse to rank 0)
+        command.CommandText =
+            "WITH v AS (" +
+            "SELECT message_template AS tmpl, level, " +
+            "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms " +
+            $"FROM {source} WHERE message_template IS NOT NULL), " +
+            "s AS (SELECT tmpl, COUNT(*) AS total, " +
+            "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors " +
+            "FROM v GROUP BY tmpl), " +
+            "r AS (SELECT tmpl, ms, ROW_NUMBER() OVER (PARTITION BY tmpl ORDER BY ms) AS rn, " +
+            "COUNT(*) OVER (PARTITION BY tmpl) AS n FROM v WHERE ms IS NOT NULL), " +
+            "p AS (SELECT tmpl, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY tmpl) " +
+            "SELECT s.tmpl, s.total, s.errors, p.p95 " +
+            "FROM s LEFT JOIN p ON p.tmpl = s.tmpl " +
+            "ORDER BY s.total DESC, s.tmpl LIMIT @limit;";
+        command.Parameters.AddWithValue("@limit", limit);
+
+        var rows = new List<OperationOverview>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new OperationOverview(
+                reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2),
+                reader.IsDBNull(3) ? null : reader.GetDouble(3)));
+        }
+        return rows;
+    }
+
     public async Task<SlowOperationsResult> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,

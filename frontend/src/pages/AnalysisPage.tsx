@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { TopError } from '../types'
-import { useSlowOperations, useTopErrors, useTopExceptions } from '../hooks/useStats'
+import { useOperations, useSlowOperations, useTopErrors, useTopExceptions } from '../hooks/useStats'
 import { LevelBadge } from '../components/LevelBadge'
 import { Sparkline } from '../components/Sparkline'
 import { TimeRangePicker } from '../components/TimeRangePicker'
@@ -37,9 +37,11 @@ export function AnalysisPage() {
   const [range, setRange] = useState(defaultRange)
   const navigate = useNavigate()
 
+  const operations = useOperations({ ...range, limit: ROW_LIMIT })
   const errors = useTopErrors({ ...range, limit: ROW_LIMIT })
   const exceptions = useTopExceptions({ ...range, limit: ROW_LIMIT })
   const slow = useSlowOperations({ ...range, limit: ROW_LIMIT })
+  const rangeMinutes = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 60_000)
   // an error group is "new" when it never occurred before the selected range
   // ponytail: baseline is capped at the top 100 groups; rare templates beyond it flag as new
   const baseline = useTopErrors({ from: BASELINE_START, to: range.from, limit: 100 })
@@ -58,7 +60,7 @@ export function AnalysisPage() {
     navigate(`/?${params.toString()}`)
   }
 
-  const queryError = errors.error ?? exceptions.error ?? slow.error
+  const queryError = operations.error ?? errors.error ?? exceptions.error ?? slow.error
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
@@ -75,6 +77,61 @@ export function AnalysisPage() {
       </div>
 
       {queryError && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queryError.message}</p>}
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.operationsTitle}</h2>
+        <Card className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="border-b border-border">
+              <tr>
+                <th className={TH_CLASS}>{t.analysis.operation}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.eventsPerMin}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.errorPct}</th>
+                <th className={`${TH_CLASS} text-right`}>{t.analysis.p95}</th>
+                <th className={TH_CLASS}>{t.analysis.trend}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(operations.data?.operations ?? []).map((op) => {
+                const errorPct = op.total > 0 ? (op.errorCount / op.total) * 100 : 0
+                return (
+                  <tr
+                    key={op.template}
+                    onClick={() =>
+                      navigate(
+                        `/?${new URLSearchParams({ from: range.from, to: range.to, filter: `@MessageTemplate = ${quote(op.template)}` }).toString()}`,
+                      )
+                    }
+                    className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
+                  >
+                    <td className={`${TD_CLASS} font-mono`}>{op.template}</td>
+                    <td className={`${TD_CLASS} tabular text-right`}>
+                      {(op.total / rangeMinutes).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                    </td>
+                    <td className={`${TD_CLASS} tabular text-right ${errorPct > 0 ? 'text-level-error' : ''}`}>
+                      {errorPct.toFixed(1)}%
+                    </td>
+                    <td className={`${TD_CLASS} tabular text-right`}>
+                      {op.p95ElapsedMs === null ? '—' : formatMs(op.p95ElapsedMs, lang)}
+                    </td>
+                    <td className={TD_CLASS}>
+                      <Sparkline
+                        filter={`@MessageTemplate = ${quote(op.template)}`}
+                        color={errorPct > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
+                        from={range.from}
+                        to={range.to}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {operations.data?.operations.length === 0 && (
+            <p className="p-3 text-sm text-fg-muted">{t.analysis.noOperations}</p>
+          )}
+        </Card>
+      </section>
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.topErrors}</h2>

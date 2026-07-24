@@ -36,6 +36,9 @@ public sealed record HeatmapCell(int DayOfWeek, int Hour, long Count);
 /// <summary>RED numbers for one service; P95ElapsedMs is null when no event carried Elapsed.</summary>
 public sealed record ServiceOverview(string Service, long Total, long ErrorCount, double? P95ElapsedMs);
 
+/// <summary>RED numbers for one operation (CLEF message template); P95ElapsedMs is null when no event carried Elapsed.</summary>
+public sealed record OperationOverview(string Template, long Total, long ErrorCount, double? P95ElapsedMs);
+
 public interface IEventStore
 {
     /// <summary>Writes all events in a single transaction; all or nothing. Returns the ids assigned, in insertion order.</summary>
@@ -98,6 +101,13 @@ public interface IEventStore
     /// events carrying neither are excluded. Searches hot + hydrated data.
     /// </summary>
     Task<IReadOnlyList<ServiceOverview>> GetServiceOverviewAsync(
+        QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-operation totals, Error+Fatal counts and p95 of Elapsed, largest first. Operation identity
+    /// is the CLEF message_template; events without one are excluded. Searches hot + hydrated data.
+    /// </summary>
+    Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>Distinct property names in recent events, prefix-filtered (search-bar autocomplete).</summary>
