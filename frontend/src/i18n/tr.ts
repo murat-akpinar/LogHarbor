@@ -228,6 +228,10 @@ export const tr: Messages = {
   exceptions: {
     title: 'İstisnalar',
     headline: (count: number) => `Bu aralıkta ${count} istisna.`,
+    latestOccurrence: 'Son oluşum',
+    sameTrace: 'Aynı izdeki olaylar',
+    viewFullTrace: 'İzin tamamını görüntüle',
+    noTraceContext: 'Son oluşumda iz kimliği yok; çevresindeki bağlam gösterilemiyor.',
   },
   signals: {
     title: 'Sinyaller',

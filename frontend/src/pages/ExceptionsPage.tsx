@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTopExceptions } from '../hooks/useStats'
 import { LiveToggle } from '../components/dashboard/LiveToggle'
+import { ExceptionContextPanel } from '../components/exceptions/ExceptionContextPanel'
 import { Sparkline } from '../components/Sparkline'
 import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
@@ -26,6 +27,7 @@ export function ExceptionsPage() {
   const [live, setLive] = useState(true)
   const [now, setNow] = useState(flooredNow)
   const [frozen, setFrozen] = useState<{ from: string; to: string } | null>(null)
+  const [expandedType, setExpandedType] = useState<string | null>(null)
 
   const liveRange = useMemo(
     () => ({ from: new Date(now - LIVE_WINDOW_MS).toISOString(), to: new Date(now).toISOString() }),
@@ -91,20 +93,32 @@ export function ExceptionsPage() {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.type} className="border-b border-border last:border-b-0">
-                <td className={`${TD_CLASS} font-mono`}>{row.type}</td>
-                <td className={`${TD_CLASS} tabular text-right`}>{row.count.toLocaleString(lang)}</td>
-                <td className={TD_CLASS}>
-                  <Sparkline
-                    filter={exceptionStartsWith(row.type)}
-                    color={LEVEL_HEX.Error}
-                    from={range.from}
-                    to={range.to}
-                  />
-                </td>
-                <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.firstSeen, lang)}</td>
-                <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen, lang)}</td>
-              </tr>
+              <Fragment key={row.type}>
+                <tr
+                  onClick={() => setExpandedType(expandedType === row.type ? null : row.type)}
+                  className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
+                >
+                  <td className={`${TD_CLASS} font-mono`}>{row.type}</td>
+                  <td className={`${TD_CLASS} tabular text-right`}>{row.count.toLocaleString(lang)}</td>
+                  <td className={TD_CLASS}>
+                    <Sparkline
+                      filter={exceptionStartsWith(row.type)}
+                      color={LEVEL_HEX.Error}
+                      from={range.from}
+                      to={range.to}
+                    />
+                  </td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.firstSeen, lang)}</td>
+                  <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen, lang)}</td>
+                </tr>
+                {expandedType === row.type && (
+                  <tr className="border-b border-border last:border-b-0">
+                    <td colSpan={5} className="p-0">
+                      <ExceptionContextPanel type={row.type} from={range.from} to={range.to} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>

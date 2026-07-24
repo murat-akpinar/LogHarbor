@@ -226,6 +226,10 @@ export const en = {
   exceptions: {
     title: 'Exceptions',
     headline: (count: number) => `${count} exception${count === 1 ? '' : 's'} in this range.`,
+    latestOccurrence: 'Latest occurrence',
+    sameTrace: 'Same-trace events',
+    viewFullTrace: 'View full trace',
+    noTraceContext: 'The latest occurrence carries no trace id, so there is no surrounding context to show.',
   },
   signals: {
     title: 'Signals',
