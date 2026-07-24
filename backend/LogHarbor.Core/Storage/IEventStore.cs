@@ -39,6 +39,9 @@ public sealed record ServiceOverview(string Service, long Total, long ErrorCount
 /// <summary>RED numbers for one operation (CLEF message template); P95ElapsedMs is null when no event carried Elapsed.</summary>
 public sealed record OperationOverview(string Template, long Total, long ErrorCount, double? P95ElapsedMs);
 
+/// <summary>Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen timestamp.</summary>
+public sealed record UserActivity(string Value, long Total, long ErrorCount, string LastSeen);
+
 public interface IEventStore
 {
     /// <summary>Writes all events in a single transaction; all or nothing. Returns the ids assigned, in insertion order.</summary>
@@ -109,6 +112,15 @@ public interface IEventStore
     /// </summary>
     Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-value activity for one user-identifying <paramref name="property"/> (totals, Error+Fatal
+    /// count, last-seen), largest first. Events without the property are excluded. <paramref name="property"/>
+    /// must be a bare identifier ([A-Za-z0-9_.]); the API boundary validates it. Searches hot + hydrated data.
+    /// </summary>
+    Task<IReadOnlyList<UserActivity>> GetUserActivityAsync(
+        QuerySql? filter, string fromUtc, string toUtc, string property, int limit,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Distinct property names in recent events, prefix-filtered (search-bar autocomplete).</summary>
     Task<IReadOnlyList<string>> SuggestPropertyNamesAsync(

@@ -103,6 +103,31 @@ public sealed class SqliteEventStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task UserActivity_GroupsByProperty_CountsErrors_TracksLastSeen()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"UserId":"u1"}"""),
+            MakeEvent("b", """{"UserId":"u1"}""") with { Level = "Error", Timestamp = "2026-07-13T10:30:00.0000000Z" },
+            MakeEvent("c", """{"UserId":"u2"}""") with { Timestamp = "2026-07-13T10:05:00.0000000Z" },
+            // no UserId property -> no user identity, excluded
+            MakeEvent("d", """{"OrderId":9}"""),
+        ]);
+
+        var rows = await _store.GetUserActivityAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "UserId", 50);
+
+        Assert.Equal(2, rows.Count);
+        Assert.Equal("u1", rows[0].Value);
+        Assert.Equal(2, rows[0].Total);
+        Assert.Equal(1, rows[0].ErrorCount);
+        Assert.Equal("2026-07-13T10:30:00.0000000Z", rows[0].LastSeen);
+        Assert.Equal("u2", rows[1].Value);
+        Assert.Equal(1, rows[1].Total);
+        Assert.Equal(0, rows[1].ErrorCount);
+    }
+
+    [Fact]
     public async Task WriteBatch_PersistsAllFields()
     {
         var written = MakeEvent(properties: """{"UserId":7}""") with

@@ -6,10 +6,13 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 
 /            Events page: search bar (with autocomplete), level filter chips, event
              list, live tail toggle, export (JSON/CSV)
-/dashboard   Histogram chart + level summary cards for a time range
-/analysis    Top errors (grouped by message template + level), top exception
-             types, and operations slower than their own baseline, for a time
-             range; rows deep-link to filtered Events
+/dashboard   Live "pulse": KPI row, histogram + heatmap, and compact top-5 panels
+             (errors, exceptions, service health, slowest ops), auto-refreshing
+/services    Per-service RED table (event rate, error %, p95 Elapsed)
+/users       Per-user activity (events, error %, last seen) for a chosen property
+/analysis    Operations RED table, top errors (grouped by message template + level),
+             top exception types, and operations slower than their own baseline;
+             rows deep-link to filtered Events
 /signals     List, create, edit, delete signals
 /alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
 /settings    API key management, archive/retention settings, backup download
@@ -141,6 +144,16 @@ the service has errors). Service identity is service.name (OTLP) falling back
 to Service (CLEF/Seq); events with neither stay off the page.
 Row click: navigates to Events with (service.name = 'x' or Service = 'x')
 and the range as from/to — the filter matches both spellings.
+
+--- USERS PAGE ---
+
+Per-user activity table (/api/stats/user-activity): groups events by one
+user-identifying property (a text input picks it, default UserId) — total events,
+error % (Error+Fatal share, tinted red when non-zero), last seen, and a
+value-filtered sparkline. Events without the property stay off the page.
+Row click: navigates to Events filtered by that user for the range. The filter is
+numeric-aware — `UserId = 42` for numeric ids, `UserId = 'user-42'` for text — so
+the deep link and sparkline match how the value is stored.
 
 --- ANALYSIS PAGE ---
 

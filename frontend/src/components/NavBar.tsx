@@ -15,6 +15,7 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
     { to: '/', label: t.nav.events, end: true },
     { to: '/dashboard', label: t.nav.dashboard, end: false },
     { to: '/services', label: t.nav.services, end: false },
+    { to: '/users', label: t.nav.users, end: false },
     { to: '/analysis', label: t.nav.analysis, end: false },
     { to: '/signals', label: t.nav.signals, end: false },
     { to: '/alerts', label: t.nav.alerts, end: false },

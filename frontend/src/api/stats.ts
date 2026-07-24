@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { HeatmapCell, Histogram, OperationOverview, ServiceOverview, SlowOperationsResult, StatsSummary, TopError, TopException } from '../types'
+import type { HeatmapCell, Histogram, OperationOverview, ServiceOverview, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
 
 export interface StatsRangeParams {
   from: string
@@ -41,6 +41,12 @@ export function getServices(params: StatsRangeParams & { limit?: number }): Prom
 
 export function getOperations(params: StatsRangeParams & { limit?: number }): Promise<{ operations: OperationOverview[] }> {
   return api.get<{ operations: OperationOverview[] }>(`/api/stats/operations${buildQuery(params)}`)
+}
+
+export function getUserActivity(
+  params: StatsRangeParams & { property?: string; limit?: number },
+): Promise<{ users: UserActivity[] }> {
+  return api.get<{ users: UserActivity[] }>(`/api/stats/user-activity${buildQuery(params)}`)
 }
 
 export function getSlowOperations(

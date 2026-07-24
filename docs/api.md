@@ -216,6 +216,13 @@ GET /api/stats/operations
   Ordered by total descending.
   200: { "operations": [ { template, total, errorCount, p95ElapsedMs } ] }
 
+GET /api/stats/user-activity
+  Query: property? default UserId ([A-Za-z0-9_.] only), limit? default 50
+  Per-value activity for one user-identifying property: total events, Error + Fatal
+  count and last-seen timestamp, grouped by the property (events without it excluded),
+  ordered by total descending.
+  200: { "users": [ { value, total, errorCount, lastSeen } ] }
+
 --- TRACES ---
 
 GET /api/traces/{traceId}

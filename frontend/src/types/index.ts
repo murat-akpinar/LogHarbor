@@ -103,6 +103,14 @@ export interface OperationOverview {
   p95ElapsedMs: number | null
 }
 
+/** Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen. */
+export interface UserActivity {
+  value: string
+  total: number
+  errorCount: number
+  lastSeen: string
+}
+
 /** One OTLP span from GET /api/traces/{id}; parentSpanId null for a root span. */
 export interface SpanRecord {
   traceId: string

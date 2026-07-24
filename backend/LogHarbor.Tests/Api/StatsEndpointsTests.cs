@@ -99,6 +99,28 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task UserActivity_GroupsByUserProperty()
+    {
+        // 2026-07-18: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-18T10:00:00.0000000Z", "Information", "in", "User {UserId} signed in",
+                """{"UserId":"alice"}""", null, "2026-07-18T10:00:00.0000000Z"),
+            new Event(0, "2026-07-18T10:01:00.0000000Z", "Error", "boom", "Failed login for {UserId}",
+                """{"UserId":"alice"}""", null, "2026-07-18T10:01:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/user-activity?from=2026-07-18T10:00:00Z&to=2026-07-18T11:00:00Z");
+
+        var row = page.GetProperty("users").EnumerateArray().Single();
+        Assert.Equal("alice", row.GetProperty("value").GetString());
+        Assert.Equal(2, row.GetProperty("total").GetInt64());
+        Assert.Equal(1, row.GetProperty("errorCount").GetInt64());
+    }
+
+    [Fact]
     public async Task Histogram_BucketsCountsByLevel()
     {
         var response = await _client.GetAsync(

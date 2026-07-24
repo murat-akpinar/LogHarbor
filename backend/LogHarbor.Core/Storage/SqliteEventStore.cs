@@ -481,6 +481,37 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IReadOnlyList<UserActivity>> GetUserActivityAsync(
+        QuerySql? filter, string fromUtc, string toUtc, string property, int limit,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "level, properties, timestamp", fromUtc, toUtc, cancellationToken);
+
+        // safe to embed: property is restricted to [A-Za-z0-9_.] at the API boundary; the quoted
+        // step keeps dots literal. CAST AS TEXT so numeric ids group and display uniformly.
+        command.CommandText =
+            "WITH v AS (" +
+            $"SELECT CAST(json_extract(properties, '$.\"{property}\"') AS TEXT) AS usr, level, timestamp " +
+            $"FROM {source}) " +
+            "SELECT usr, COUNT(*) AS total, " +
+            "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors, " +
+            "MAX(timestamp) AS last_seen " +
+            "FROM v WHERE usr IS NOT NULL GROUP BY usr ORDER BY total DESC, usr LIMIT @limit;";
+        command.Parameters.AddWithValue("@limit", limit);
+
+        var rows = new List<UserActivity>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new UserActivity(
+                reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetString(3)));
+        }
+        return rows;
+    }
+
     public async Task<SlowOperationsResult> GetSlowOperationsAsync(
         QuerySql? filter, string baselineFromUtc, string splitUtc, string toUtc,
         string property, int minSamples, double floorMs, double factor, int limit,

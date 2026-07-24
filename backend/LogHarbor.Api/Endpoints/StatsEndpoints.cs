@@ -19,6 +19,7 @@ public static class StatsEndpoints
         group.MapGet("/property-values", PropertyValuesAsync);
         group.MapGet("/services", ServicesAsync);
         group.MapGet("/operations", OperationsAsync);
+        group.MapGet("/user-activity", UserActivityAsync);
     }
 
     private static readonly string[] DefaultErrorLevels = ["Error", "Fatal"];
@@ -138,6 +139,31 @@ public static class StatsEndpoints
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
             limit, cancellationToken);
         return Results.Ok(new { operations });
+    }
+
+    private static async Task<IResult> UserActivityAsync(
+        IEventStore eventStore,
+        CancellationToken cancellationToken,
+        string from,
+        string to,
+        string? filter = null,
+        string property = "UserId",
+        int limit = 50)
+    {
+        // same alphabet as query-language identifiers; anything else could escape the JSON path
+        if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
+        {
+            return BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
+        }
+        if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
+        {
+            return error!;
+        }
+
+        var users = await eventStore.GetUserActivityAsync(
+            filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
+            property, limit, cancellationToken);
+        return Results.Ok(new { users });
     }
 
     private static async Task<IResult> PropertyValuesAsync(
