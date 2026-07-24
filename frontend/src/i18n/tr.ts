@@ -13,6 +13,11 @@ export const tr: Messages = {
     switchToLight: 'Açık temaya geç',
     switchToDark: 'Koyu temaya geç',
     switchLanguage: 'Dili İngilizce olarak değiştir',
+    overview: 'Genel Bakış',
+    groupActivity: 'Etkinlik',
+    groupAnalysis: 'Analiz',
+    groupSystem: 'Sistem',
+    openMenu: 'Menüyü aç',
   },
   common: {
     loading: 'Yükleniyor…',

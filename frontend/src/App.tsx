@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { LoginGate } from './components/LoginGate'
-import { NavBar } from './components/NavBar'
+import { Sidebar } from './components/Sidebar'
 import { EventsPage } from './pages/EventsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ServicesPage } from './pages/ServicesPage'
@@ -24,9 +24,9 @@ function App() {
       <LanguageProvider>
         <BrowserRouter>
           <LoginGate>
-            <div className="flex h-screen flex-col bg-bg text-fg">
-              <NavBar theme={theme} onToggleTheme={toggleTheme} />
-              <main className="min-h-0 flex-1">
+            <div className="flex h-screen flex-col bg-bg text-fg md:flex-row">
+              <Sidebar theme={theme} onToggleTheme={toggleTheme} />
+              <main className="min-h-0 min-w-0 flex-1">
                 <Routes>
                   <Route path="/" element={<DashboardPage />} />
                   <Route path="/dashboard" element={<DashboardPage />} />

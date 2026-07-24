@@ -11,6 +11,11 @@ export const en = {
     switchToLight: 'Switch to light mode',
     switchToDark: 'Switch to dark mode',
     switchLanguage: 'Switch language to Turkish',
+    overview: 'Overview',
+    groupActivity: 'Activity',
+    groupAnalysis: 'Analysis',
+    groupSystem: 'System',
+    openMenu: 'Open menu',
   },
   common: {
     loading: 'Loading…',
