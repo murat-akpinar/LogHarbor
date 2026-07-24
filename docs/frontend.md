@@ -15,6 +15,10 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              trend sparkline; sortable columns); rows deep-link to filtered Events
 /exceptions  Live exception feed (type, count, trend, first/last seen) with an
              inline context panel per row (latest occurrence + same-trace events)
+/queries     DB query lens, split master-detail: left a sortable table (calls,
+             total, avg, p95 per SQL text), right the selected query's detail
+             (full SQL, stat tiles, connection, trend, recent occurrences,
+             Events deep link); property names configurable (commandText/elapsed)
 /services    Per-service RED table (event rate, error %, p95 Elapsed)
 /users       Per-user activity (events, error %, last seen) for a chosen property
 /analysis    Top errors (grouped by message template + level), top exception types,
@@ -25,10 +29,11 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 /settings    API key management, archive/retention settings, backup download
              (admin only), user management (admin only), health status, sign out
 
-Nav order: Dashboard (home, /), Events, Requests, Exceptions, Services, Users,
-Analysis, Signals, Alerts, Settings. (A grouped left sidebar shipped 2026-07-25
-and was reverted the same day by user preference — the classic top bar stays;
-the lens pages it introduced remain.)
+Nav order: Dashboard (home, /), Events, Requests, Exceptions, Queries, Services,
+Users, Analysis, Signals, Alerts, Settings — every link carries a small inline
+line icon (components/icons.tsx). (A grouped left sidebar shipped 2026-07-25 and
+was reverted the same day by user preference — the classic top bar stays; the
+lens pages it introduced remain.)
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
 seeds the first admin on startup). While enabled, a login screen (username + password)

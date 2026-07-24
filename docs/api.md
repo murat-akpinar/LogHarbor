@@ -223,6 +223,17 @@ GET /api/stats/user-activity
   ordered by total descending.
   200: { "users": [ { value, total, errorCount, lastSeen } ] }
 
+GET /api/stats/queries
+  Query: property? default commandText, durationProperty? default elapsed,
+         connectionProperty? default connection (all [A-Za-z0-9_.] only),
+         limit? default 50
+  Groups events carrying the query-text property (SQL string) and aggregates the
+  duration property per group; connection is the connection property's value when
+  present. Ordered by total duration descending (untimed groups last). 400 when a
+  property name contains other characters.
+  200: { "queries": [ { value, connection, calls, errorCount, totalMs, avgMs,
+                        p95Ms, lastSeen } ] }
+
 --- TRACES ---
 
 GET /api/traces/{traceId}

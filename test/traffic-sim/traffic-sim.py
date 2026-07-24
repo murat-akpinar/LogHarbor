@@ -49,6 +49,14 @@ PATHS = ["/api/orders", "/api/orders/{id}", "/api/users", "/healthz", "/api/repo
 METHODS = ["GET", "POST", "PUT", "DELETE"]
 JOB_TYPES = ["invoice-export", "email-digest", "image-resize", "nightly-rollup"]
 QUERIES = ["orders_by_status", "user_by_email", "daily_revenue", "cart_items"]
+SQL_QUERIES = [
+    "SELECT * FROM orders WHERE id = @p0",
+    "SELECT * FROM users WHERE email = @p0",
+    "UPDATE orders SET status = @p0 WHERE id = @p1",
+    "INSERT INTO audit_log (user_id, action) VALUES (@p0, @p1)",
+    "SELECT o.*, u.name FROM orders o JOIN users u ON u.id = o.user_id WHERE o.created_at > @p0",
+    "DELETE FROM sessions WHERE expires_at < @p0",
+]
 EXCEPTIONS = [
     "System.InvalidOperationException: Order is already shipped\n   at Api.Orders.Ship()",
     "System.TimeoutException: The operation timed out\n   at Api.Db.Query()",
@@ -102,6 +110,14 @@ def build_event(service, level, timestamp):
             event["@mt"] = "Cache {Outcome} for {Path}"
             event["Outcome"] = random.choice(["hit", "miss"])
             event["Path"] = random.choice(PATHS)
+        elif random.random() < 0.35:
+            # EF Core-shaped DB query log: feeds the /queries lens page
+            event["@mt"] = "Executed DbCommand ({elapsed}ms) {commandText}"
+            event["commandText"] = random.choice(SQL_QUERIES)
+            event["elapsed"] = (
+                random.randrange(500, 2000) if random.random() < 0.05 else random.randrange(2, 180)
+            )
+            event["connection"] = random.choice(["main", "replica"])
         else:
             event["@mt"] = "Handled {Method} {Path} in {Elapsed} ms"
             event["Method"] = random.choice(METHODS)
