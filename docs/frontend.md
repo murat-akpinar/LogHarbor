@@ -135,8 +135,9 @@ ERRORS shows the Error+Fatal count + error rate, its histogram filtered to
 Error/Fatal (Histogram's showLegend=false; the breakdown is the key). Clicking a bar
 opens Events at that slice; dragging across bars freezes+zooms.
 Section "Analysis" (-> Analysis): compact top-5 panels — top errors, top exceptions,
-slowest operations. Error and slow-op rows deep-link to filtered Events; exception
-rows don't (no @ExceptionType builtin).
+Routes (busiest operations by /api/stats/operations, message template + p95 latency)
+and slowest operations. Error, route and slow-op rows deep-link to filtered Events;
+exception rows don't (no @ExceptionType builtin).
 Section "Services & users": Service health (per-service error %, -> Services) and
 Users (top UserId values by event count, -> Users); rows deep-link to filtered Events.
 Heatmap: hour-of-day x day-of-week density grid (/api/stats/heatmap, UTC),

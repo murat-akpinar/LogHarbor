@@ -27,6 +27,7 @@ const SLOW = {
   timedOperationCount: 5,
   comparableOperationCount: 5,
 }
+const OPERATIONS = { operations: [{ template: 'GET /articles', total: 90, errorCount: 2, p95ElapsedMs: 512 }] }
 const USERS = { users: [{ value: 'user-7', total: 33, errorCount: 3, lastSeen: ISO }] }
 
 vi.mock('../api/stats', () => ({
@@ -37,6 +38,7 @@ vi.mock('../api/stats', () => ({
   getTopExceptions: vi.fn(async () => TOP_EXCEPTIONS),
   getServices: vi.fn(async () => SERVICES),
   getSlowOperations: vi.fn(async () => SLOW),
+  getOperations: vi.fn(async () => OPERATIONS),
   getUserActivity: vi.fn(async () => USERS),
 }))
 
@@ -86,6 +88,12 @@ describe('DashboardPage', () => {
     const hrefs = screen.getAllByRole('link').map((a) => a.getAttribute('href'))
     expect(hrefs).toContain('/services')
     expect(hrefs).toContain('/users')
+  })
+
+  it('lists routes with their p95 latency', async () => {
+    renderPage()
+    expect(await screen.findByText('GET /articles')).toBeDefined()
+    expect(screen.getByText('512 ms')).toBeDefined()
   })
 
   it('is live by default and hides the range picker until paused', async () => {

@@ -139,6 +139,7 @@ export const en = {
   dashboard: {
     title: 'Dashboard',
     activity: 'Activity',
+    routes: 'Routes',
     servicesUsers: 'Services & users',
     info: 'Info',
     warn: 'Warn',

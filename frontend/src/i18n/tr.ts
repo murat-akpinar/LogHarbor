@@ -141,6 +141,7 @@ export const tr: Messages = {
   dashboard: {
     title: 'Panel',
     activity: 'Etkinlik',
+    routes: 'Rotalar',
     servicesUsers: 'Servisler ve kullanıcılar',
     info: 'Bilgi',
     warn: 'Uyarı',

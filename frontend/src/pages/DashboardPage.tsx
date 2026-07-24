@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   useHeatmap,
   useHistogram,
+  useOperations,
   useServices,
   useSlowOperations,
   useSummary,
@@ -17,6 +18,7 @@ import { TopErrorsPanel } from '../components/dashboard/TopErrorsPanel'
 import { ExceptionsPanel } from '../components/dashboard/ExceptionsPanel'
 import { ServicesPanel } from '../components/dashboard/ServicesPanel'
 import { SlowOpsPanel } from '../components/dashboard/SlowOpsPanel'
+import { RoutesPanel } from '../components/dashboard/RoutesPanel'
 import { UsersPanel } from '../components/dashboard/UsersPanel'
 import { Histogram } from '../components/Histogram'
 import { Heatmap } from '../components/Heatmap'
@@ -78,6 +80,7 @@ export function DashboardPage() {
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
   const services = useServices({ ...range, limit: PANEL_LIMIT })
   const slow = useSlowOperations({ ...range, limit: PANEL_LIMIT })
+  const operations = useOperations({ ...range, limit: PANEL_LIMIT })
   const users = useUserActivity({ ...range, property: 'UserId', limit: PANEL_LIMIT })
 
   const byLevel = summary.data?.byLevel
@@ -174,9 +177,10 @@ export function DashboardPage() {
       {/* Analysis: what is failing and what is slow */}
       <section>
         <SectionHeader title={t.analysis.title} to="/analysis" linkLabel={t.dashboard.viewAll} />
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <TopErrorsPanel errors={topErrors.data?.errors ?? []} from={range.from} to={range.to} />
           <ExceptionsPanel exceptions={topExceptions.data?.exceptions ?? []} />
+          <RoutesPanel operations={operations.data?.operations ?? []} from={range.from} to={range.to} />
           <SlowOpsPanel result={slow.data} from={range.from} to={range.to} />
         </div>
       </section>
