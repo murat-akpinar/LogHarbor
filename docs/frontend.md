@@ -11,18 +11,25 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              window. (/dashboard is an alias of /.)
 /events      Events page: search bar (with autocomplete), level filter chips, event
              list, live tail toggle, export (JSON/CSV)
+/requests    Operations RED table as its own lens (events/min, error %, p95 Elapsed,
+             trend sparkline; sortable columns); rows deep-link to filtered Events
+/exceptions  Live exception feed (type, count, trend, first/last seen) with an
+             inline context panel per row (latest occurrence + same-trace events)
 /services    Per-service RED table (event rate, error %, p95 Elapsed)
 /users       Per-user activity (events, error %, last seen) for a chosen property
-/analysis    Operations RED table, top errors (grouped by message template + level),
-             top exception types, and operations slower than their own baseline;
-             rows deep-link to filtered Events
+/analysis    Top errors (grouped by message template + level), top exception types,
+             and operations slower than their own baseline; rows deep-link to
+             filtered Events
 /signals     List, create, edit, delete signals
 /alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
 /settings    API key management, archive/retention settings, backup download
              (admin only), user management (admin only), health status, sign out
 
-Nav order: Dashboard (home, /), Services, Users, Analysis, Signals, Alerts, Events
-(/events), Settings. The Dashboard is the landing page; Events sits on the right.
+Nav: grouped left sidebar (slide-over drawer behind a hamburger on small
+screens) — Overview (home, /); Activity: Events, Requests, Exceptions;
+Analysis: Analysis, Services, Users; System: Signals, Alerts, Settings.
+Group captions are visual separators, not links. The TR/EN and theme toggles
+sit at the sidebar's bottom.
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
 seeds the first admin on startup). While enabled, a login screen (username + password)
@@ -35,7 +42,8 @@ archive-setting changes) are hidden; the Users section under Settings is admin-o
 frontend/src/
   api/          typed API client (fetch wrappers per resource: events.ts, signals.ts, ...)
   components/   reusable UI (EventRow, EventDetail, LevelBadge, SearchBar, TimeRangePicker)
-  pages/        EventsPage, DashboardPage, AnalysisPage, SignalsPage, AlertsPage, SettingsPage
+  pages/        EventsPage, DashboardPage, RequestsPage, ExceptionsPage, AnalysisPage,
+                SignalsPage, AlertsPage, SettingsPage
   hooks/        useLiveTail (SignalR), useEventSearch (React Query), useTheme (dark mode)
   i18n/         typed TR/EN dictionaries (en.ts source of truth, tr.ts typed as Messages) + LanguageProvider/useI18n
   lib/          formatting helpers (dates, levels, colors, suggestContext)
@@ -45,7 +53,7 @@ frontend/src/
 
 The UI ships in English and Turkish. Language is detected from the browser on
 first load (navigator.language startswith 'tr' -> Turkish), and an explicit
-choice via the NavBar TR/EN toggle is persisted to localStorage
+choice via the sidebar TR/EN toggle is persisted to localStorage
 ('logharbor-lang') and wins thereafter. Dates and numbers format with the
 active language (Intl APIs). Not translated: log event data, level names,
 query-language syntax and operator labels, and backend API messages.
@@ -165,12 +173,31 @@ Row click: navigates to Events filtered by that user for the range. The filter i
 numeric-aware — `UserId = 42` for numeric ids, `UserId = 'user-42'` for text — so
 the deep link and sparkline match how the value is stored.
 
+--- REQUESTS PAGE ---
+
+Operations RED table as its own lens (Nightwatch's "Requests" view):
+/api/stats/operations (limit 50), per-operation RED grouped by message
+template — events/min, error % (tinted red when non-zero), p95 Elapsed
+(em dash when the operation carries no Elapsed) and a template-filtered
+sparkline; events without a message template are excluded. The numeric
+column headers re-sort the table client-side (descending). Row click:
+navigates to Events with @MessageTemplate = '...' and the range as from/to.
+
+--- EXCEPTIONS PAGE ---
+
+Live exception feed: one row per exception group (type, count, trend
+sparkline filtered by @Exception like 'Type%', first/last seen) from
+/api/stats/top-exceptions over a rolling last-hour window refreshed every
+10 s — the dashboard's Live toggle; pausing shows a static TimeRangePicker.
+A narrative headline sums the groups ("152 exceptions in this range.").
+Row click expands an inline context panel: the group's latest occurrence
+(message + exception text, via /api/events with the same like-filter) and,
+when that event carries a trace id, the same-trace events in time order
+with the latest occurrence highlighted and a "View full trace" link to
+Events filtered by @TraceId (which renders the trace waterfall).
+
 --- ANALYSIS PAGE ---
 
-Operations table: /api/stats/operations, per-operation RED grouped by message
-  template (Nightwatch's "Requests" view) — events/min, error % (tinted red when
-  non-zero), p95 Elapsed (em dash when the operation carries no Elapsed) and a
-  template-filtered sparkline; events without a message template are excluded.
 Top errors table: /api/stats/top-errors grouped by (message template, level);
   a "new" badge marks groups that never occurred before the selected range
   (checked against a baseline top-errors query ending at the range start);
@@ -184,7 +211,7 @@ Slower than usual table: /api/stats/slow-operations lists operation groups whose
   empty the card reads timedOperationCount/comparableOperationCount from the response to say
   which case it is: no event carries an Elapsed duration, no group has baseline history
   before the range to compare against (narrow the range), or nothing regressed.
-Row click (operations, errors and slow operations): navigates to Events with
+Row click (errors and slow operations): navigates to Events with
   @MessageTemplate = '...' and the range as from/to; EventsPage reads the ?filter=
   deep link on mount
 
@@ -217,7 +244,7 @@ chart fills that can't read a CSS variable back.
 
 --- THEME ---
 
-Light/dark toggle in the nav bar; useTheme persists the choice to localStorage
+Light/dark toggle at the sidebar's bottom; useTheme persists the choice to localStorage
 (falls back to the OS prefers-color-scheme on first visit) and toggles a `dark`
 class on <html>. index.css defines every token twice, once under :root and once
 under :root.dark (see DESIGN TOKENS above), so switching themes is just the
