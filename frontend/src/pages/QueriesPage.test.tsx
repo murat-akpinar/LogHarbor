@@ -35,7 +35,24 @@ vi.mock('../api/stats', () => ({
 }))
 
 vi.mock('../api/events', () => ({
-  getEvents: vi.fn(async () => ({ events: [], hasMore: false, archivedDays: [] })),
+  getEvents: vi.fn(async () => ({
+    events: [
+      {
+        id: 9,
+        timestamp: '2026-07-25T10:00:00.000Z',
+        level: 'Information',
+        message: 'Executed DbCommand (12ms) SELECT * FROM orders WHERE id = @p0',
+        messageTemplate: null,
+        properties: '{"commandText":"SELECT * FROM orders WHERE id = @p0","elapsed":12}',
+        exception: null,
+        ingestedAt: '2026-07-25T10:00:01.000Z',
+        traceId: null,
+        spanId: null,
+      },
+    ],
+    hasMore: false,
+    archivedDays: [],
+  })),
 }))
 
 afterEach(() => {
@@ -68,6 +85,24 @@ it('lists queries and auto-selects the first row into the detail pane', async ()
   // calls appears in both the row and the detail tile
   expect(screen.getAllByText('320').length).toBeGreaterThanOrEqual(2)
   expect(screen.getByText('main')).toBeDefined() // connection, detail pane only
+})
+
+it('shows recent occurrences with their duration and an Events link', async () => {
+  renderPage()
+  await screen.findAllByText('SELECT * FROM orders WHERE id = @p0')
+  expect(await screen.findByText('Recent occurrences')).toBeDefined()
+  expect(await screen.findByText('12 ms')).toBeDefined()
+
+  const link = screen.getByText('Open in Events →')
+  const href = link.getAttribute('href') ?? ''
+  expect(decodeURIComponent(href.replaceAll('+', ' '))).toContain("commandText = 'SELECT * FROM orders WHERE id = @p0'")
+})
+
+it('lets the user change the query property', async () => {
+  renderPage()
+  await screen.findAllByText('SELECT * FROM orders WHERE id = @p0')
+  const input = screen.getByLabelText('Query property') as HTMLInputElement
+  expect(input.value).toBe('commandText')
 })
 
 it('clicking another row swaps the detail pane', async () => {

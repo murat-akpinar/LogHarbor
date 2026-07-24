@@ -1,10 +1,18 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import type { QueryOverview } from '../types'
+import { getEvents } from '../api/events'
 import { useQueries } from '../hooks/useStats'
 import { PageIcon } from '../components/icons'
+import { LevelBadge } from '../components/LevelBadge'
+import { Sparkline } from '../components/Sparkline'
 import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
+import { Input } from '../components/ui/Input'
 import { formatTimestamp } from '../lib/dates'
+import { quote } from '../lib/filter'
+import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const DEFAULT_RANGE_HOURS = 24
@@ -40,11 +48,20 @@ export function QueriesPage() {
   const [range, setRange] = useState(defaultRange)
   const [sortKey, setSortKey] = useState<SortKey>('total')
   const [selectedValue, setSelectedValue] = useState<string | null>(null)
+  const [property, setProperty] = useState('commandText')
+  const [durationProperty, setDurationProperty] = useState('elapsed')
 
-  const queries = useQueries({ ...range, limit: ROW_LIMIT })
+  const queries = useQueries({ ...range, property, durationProperty, limit: ROW_LIMIT })
   const rows = [...(queries.data?.queries ?? [])].sort((a, b) => sortValue(b, sortKey) - sortValue(a, sortKey))
   // master-detail: something is always selected once rows exist
   const selected = rows.find((row) => row.value === selectedValue) ?? rows[0] ?? null
+
+  const selectedFilter = selected ? `${property} = ${quote(selected.value)}` : ''
+  const occurrences = useQuery({
+    queryKey: ['query-occurrences', property, selected?.value, range],
+    queryFn: () => getEvents({ filter: selectedFilter, from: range.from, to: range.to, count: 5 }),
+    enabled: selected !== null,
+  })
 
   function sortableHeader(key: SortKey, label: string) {
     return (
@@ -68,13 +85,33 @@ export function QueriesPage() {
           <PageIcon name="queries" className="size-5" />
           {t.queries.title}
         </h1>
-        <TimeRangePicker
-          from={range.from}
-          to={range.to}
-          onChange={(next) => {
-            if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-xs text-fg-muted">
+            {t.queries.queryProperty}
+            <Input
+              aria-label={t.queries.queryProperty}
+              value={property}
+              onChange={(event) => setProperty(event.target.value)}
+              className="w-36 font-mono text-xs"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-fg-muted">
+            {t.queries.durationProperty}
+            <Input
+              aria-label={t.queries.durationProperty}
+              value={durationProperty}
+              onChange={(event) => setDurationProperty(event.target.value)}
+              className="w-28 font-mono text-xs"
+            />
+          </label>
+          <TimeRangePicker
+            from={range.from}
+            to={range.to}
+            onChange={(next) => {
+              if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
+            }}
+          />
+        </div>
       </div>
 
       {queries.error && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queries.error.message}</p>}
@@ -145,6 +182,42 @@ export function QueriesPage() {
                   </>
                 )}
               </dl>
+              <div>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-medium tracking-wider text-fg-muted uppercase">
+                    {t.queries.recentOccurrences}
+                  </p>
+                  <Link
+                    to={`/events?${new URLSearchParams({ from: range.from, to: range.to, filter: selectedFilter }).toString()}`}
+                    className="text-xs text-fg-muted transition-colors hover:text-accent"
+                  >
+                    {t.queries.openInEvents} →
+                  </Link>
+                </div>
+                <div className="mt-2">
+                  <Sparkline filter={selectedFilter} color={LEVEL_HEX.Information} from={range.from} to={range.to} />
+                </div>
+                <ul className="mt-2">
+                  {(occurrences.data?.events ?? []).map((event) => {
+                    const props = event.properties ? (JSON.parse(event.properties) as Record<string, unknown>) : {}
+                    const elapsed = props[durationProperty]
+                    return (
+                      <li
+                        key={event.id}
+                        className="flex items-baseline gap-2 border-b border-border px-1 py-1 text-sm last:border-b-0"
+                      >
+                        <span className="whitespace-nowrap text-xs text-fg-muted">
+                          {formatTimestamp(event.timestamp, lang)}
+                        </span>
+                        <LevelBadge level={event.level} />
+                        <span className="ml-auto tabular text-fg-muted">
+                          {typeof elapsed === 'number' ? `${Math.round(elapsed).toLocaleString(lang)} ms` : '—'}
+                        </span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
             </div>
           )}
         </Card>
