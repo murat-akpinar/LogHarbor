@@ -114,6 +114,17 @@ public interface IEventStore
         QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The newest service-probe reading per (host, service), host then service order: events tagged
+    /// Source = <paramref name="source"/> that carry both a "host" and a "service" property. The
+    /// property names are fixed by the probe schema (docs/service-status.md), so nothing here is
+    /// user-chosen. Deriving up/down from a reading is <see cref="ServiceStatus"/>'s job.
+    /// Searches hot + hydrated data.
+    /// </summary>
+    Task<IReadOnlyList<ServiceStatusReading>> GetServiceStatusAsync(
+        QuerySql? filter, string fromUtc, string toUtc, string source, int limit,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Per-operation totals, Error+Fatal counts and p95 of Elapsed, largest first. Operation identity
     /// is the CLEF message_template; events without one are excluded. Searches hot + hydrated data.
     /// </summary>

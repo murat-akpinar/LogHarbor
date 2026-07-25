@@ -76,6 +76,80 @@ public sealed class SqliteEventStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task ServiceStatus_KeepsOnlyTheNewestReadingPerHostAndService()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("old", """{"Source":"service-probe","host":"web-1","kind":"systemd","service":"nginx","up":1,"state":"active"}""")
+                with { Timestamp = "2026-07-13T10:00:00.0000000Z" },
+            MakeEvent("new", """{"Source":"service-probe","host":"web-1","kind":"systemd","service":"nginx","up":0,"state":"failed"}""")
+                with { Timestamp = "2026-07-13T10:05:00.0000000Z" },
+            // same service name on another host is another row, never a merge
+            MakeEvent("other host", """{"Source":"service-probe","host":"web-2","kind":"systemd","service":"nginx","up":1,"state":"active"}""")
+                with { Timestamp = "2026-07-13T10:04:00.0000000Z" },
+            // ordinary application logs never reach the board
+            MakeEvent("app", """{"Service":"nginx","Elapsed":10}"""),
+        ]);
+
+        var rows = await _store.GetServiceStatusAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "service-probe", 100);
+
+        Assert.Equal(2, rows.Count);
+        var first = Assert.Single(rows, row => row.Host == "web-1");
+        Assert.Equal(0, first.Up);
+        Assert.Equal("failed", first.State);
+        Assert.Equal("systemd", first.Kind);
+        Assert.Equal("2026-07-13T10:05:00.0000000Z", first.LastSeen);
+        Assert.Equal(1, Assert.Single(rows, row => row.Host == "web-2").Up);
+    }
+
+    [Fact]
+    public async Task ServiceStatus_ProbeCouldNotTell_ComesBackWithoutUp()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("failed probe", """{"Source":"service-probe","host":"web-1","kind":"docker","service":"api","error":"daemon unreachable"}"""),
+        ]);
+
+        var rows = await _store.GetServiceStatusAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "service-probe", 100);
+
+        var row = Assert.Single(rows);
+        Assert.Null(row.Up);
+        Assert.Null(row.State);
+        Assert.Equal("api", row.Service);
+    }
+
+    [Fact]
+    public async Task ServiceStatus_CarriesDockerHealth()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("sick", """{"Source":"service-probe","host":"web-1","kind":"docker","service":"api","up":1,"state":"running","health":"unhealthy"}"""),
+        ]);
+
+        var rows = await _store.GetServiceStatusAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "service-probe", 100);
+
+        Assert.Equal("unhealthy", Assert.Single(rows).Health);
+    }
+
+    [Fact]
+    public async Task ServiceStatus_RespectsRangeBounds()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("out", """{"Source":"service-probe","host":"web-1","kind":"systemd","service":"cron","up":1,"state":"active"}""")
+                with { Timestamp = "2026-07-12T10:00:00.0000000Z" },
+        ]);
+
+        var rows = await _store.GetServiceStatusAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "service-probe", 100);
+
+        Assert.Empty(rows);
+    }
+
+    [Fact]
     public async Task OperationOverview_GroupsByTemplate_CountsErrors_ComputesP95()
     {
         await _store.WriteBatchAsync(

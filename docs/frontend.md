@@ -185,6 +185,19 @@ to Service (CLEF/Seq); events with neither stay off the page.
 Row click: navigates to Events with (service.name = 'x' or Service = 'x')
 and the range as from/to — the filter matches both spellings.
 
+Above the table, the host status board (components/ServiceStatusBoard.tsx over
+/api/stats/service-status): the host's own services (systemd units, Docker
+containers) as tools/service-probe last reported them — one section per host,
+one tile per service, worst first, each with a status dot, the raw state word
+and the reading's age. Filled dot = the probe got an answer (up / down /
+unhealthy), hollow = it did not (no heartbeat / unknown); the status word sits
+next to it, so colour never carries the meaning alone. Tile click: Events
+filtered to Source = 'service-probe' and that host + service. The board renders
+nothing at all when no probe reported in the range, so an install without one
+sees the page unchanged. Two service vocabularies share the page on purpose:
+the table is what application services are doing, the board is whether host
+services are alive (docs/service-status.md).
+
 --- USERS PAGE ---
 
 Per-user activity table (/api/stats/user-activity): groups events by one

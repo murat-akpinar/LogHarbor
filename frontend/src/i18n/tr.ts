@@ -176,6 +176,17 @@ export const tr: Messages = {
     p95: 'p95',
     trend: 'Eğilim',
     empty: 'Seçilen aralıkta servis kimliği (service.name veya Service) taşıyan olay yok.',
+    statusTitle: 'Sunucu servisleri',
+    statusHint: 'Sunucu sondasının en son bildirdiği durum, seçilen aralığın sonuna göre.',
+    statusUpCount: (count: number) => `${count} ayakta`,
+    statusNotUpCount: (count: number) => `${count} sorunlu`,
+    status: {
+      up: 'ayakta',
+      down: 'kapalı',
+      stale: 'sinyal yok',
+      unhealthy: 'sağlıksız',
+      unknown: 'bilinmiyor',
+    },
   },
   users: {
     title: 'Kullanıcılar',

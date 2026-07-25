@@ -109,6 +109,25 @@ export interface ServiceOverview {
   p95ElapsedMs: number | null
 }
 
+/** How the host probe last reported one service; the status is derived server-side. */
+export interface ServiceStatusRow {
+  host: string
+  kind: string | null
+  service: string
+  status: 'down' | 'stale' | 'unhealthy' | 'unknown' | 'up'
+  state: string | null
+  health: string | null
+  lastSeen: string
+  secondsSinceLastSeen: number
+}
+
+/** GET /api/stats/service-status response; asOf is the range end the statuses were judged against. */
+export interface ServiceStatusBoard {
+  staleMinutes: number
+  asOf: string
+  services: ServiceStatusRow[]
+}
+
 /** RED numbers for one operation (CLEF message template); p95ElapsedMs is null when no event carried Elapsed. */
 export interface OperationOverview {
   template: string

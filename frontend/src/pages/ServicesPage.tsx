@@ -1,15 +1,18 @@
 import { useNavigate } from 'react-router-dom'
-import { useServices } from '../hooks/useStats'
+import { useServices, useServiceStatus } from '../hooks/useStats'
 import { Sparkline } from '../components/Sparkline'
+import { ServiceStatusBoard } from '../components/ServiceStatusBoard'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
+import type { ServiceStatusRow } from '../types'
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 50
+const STATUS_LIMIT = 100
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -19,6 +22,11 @@ function serviceFilter(service: string): string {
   return `(service.name = ${quote(service)} or Service = ${quote(service)})`
 }
 
+/** The probe's own lowercase schema (docs/service-status.md): one service's whole timeline. */
+function probeFilter(row: ServiceStatusRow): string {
+  return `Source = 'service-probe' and host = ${quote(row.host)} and service = ${quote(row.service)}`
+}
+
 export function ServicesPage() {
   const { t, lang } = useI18n()
   // a 24 h window like before, now pausable/livened from the same control as every other page
@@ -26,11 +34,12 @@ export function ServicesPage() {
   const navigate = useNavigate()
 
   const services = useServices({ ...range, limit: ROW_LIMIT })
+  const status = useServiceStatus({ ...range, limit: STATUS_LIMIT })
   const rangeMinutes = Math.max(
     1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 60_000)
 
-  function openEvents(service: string) {
-    const params = new URLSearchParams({ from: range.from, to: range.to, filter: serviceFilter(service) })
+  function openFilter(filter: string) {
+    const params = new URLSearchParams({ from: range.from, to: range.to, filter })
     navigate(`/events?${params.toString()}`)
   }
 
@@ -51,6 +60,11 @@ export function ServicesPage() {
         <p className="bg-level-error/10 p-2 text-sm text-level-error">{services.error.message}</p>
       )}
 
+      <ServiceStatusBoard
+        services={status.data?.services ?? []}
+        onOpen={(row) => openFilter(probeFilter(row))}
+      />
+
       <Card className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-border">
@@ -66,7 +80,7 @@ export function ServicesPage() {
             {(services.data?.services ?? []).map((row) => (
               <tr
                 key={row.service}
-                onClick={() => openEvents(row.service)}
+                onClick={() => openFilter(serviceFilter(row.service))}
                 className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
               >
                 <td className={`${TD_CLASS} font-mono`}>{row.service}</td>
