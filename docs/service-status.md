@@ -82,10 +82,14 @@ Immediate alerting is possible too, as a normal `at-least` rule over
 instead of waiting out a window, but it cannot see a dead host — nothing sends `up = 0` when the
 whole machine is gone. Running both is reasonable.
 
-Two more useful filters:
+Note what the `up = 1` signal is for: it defines the heartbeat, not a view of the service.
+Toggled on the Events page it shows nothing but `is active` rows — an outage is exactly what
+it filters out. Reading filters are separate, and --setup-alerts saves the first one as
+`<host> service down or unknown`:
 
-  Source = 'service-probe' and up = 0            every service currently reporting down
-  Source = 'service-probe' and health = 'unhealthy'   running but failing its healthcheck
+  Source = 'service-probe' and (up = 0 or not Has(up))  down, plus "probe cannot tell"
+  Source = 'service-probe' and service = 'cron'         one service's whole up/down timeline
+  Source = 'service-probe' and health = 'unhealthy'     running but failing its healthcheck
 
 --- KEEPING STATUS OUT OF THE WAY ---
 

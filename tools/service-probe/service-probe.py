@@ -197,6 +197,18 @@ def api_call(opener, method, path, payload=None):
     return json.loads(body) if body else None
 
 
+def ensure_signal(opener, signals, title, filter_text):
+    """Return the id of the signal with this title, creating it when it does not exist."""
+    signal_id = signals.get(title)
+    if signal_id is not None:
+        print(f"signal exists:  {title}")
+        return signal_id
+    signal_id = api_call(opener, "POST", "/api/signals",
+                         {"title": title, "filter": filter_text})["id"]
+    print(f"signal created: {title}  [{filter_text}]")
+    return signal_id
+
+
 def setup_alerts(targets, webhook, window_minutes, payload_format):
     """One 'up' signal and one silence alert rule per service, reused by title when they exist.
 
@@ -206,20 +218,19 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
     signals = {signal["title"]: signal["id"] for signal in api_call(opener, "GET", "/api/signals")}
     alerts = {alert["title"] for alert in api_call(opener, "GET", "/api/alerts")}
 
+    # The per-service signals below match `up = 1` only, because that is what a dead man's
+    # switch needs — toggling one on the Events page therefore shows healthy heartbeats and
+    # never an outage. This host-wide one is the view for reading trouble instead.
+    ensure_signal(opener, signals, f"{HOST} service down or unknown",
+                  f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
+                  "and (up = 0 or not Has(up))")
+
     for kind, name in targets:
         signal_title = f"{HOST} {name} up"
         alert_title = f"{HOST} {name} down"
         filter_text = (f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
                        f"and service = {quote(name)} and up = 1")
-
-        signal_id = signals.get(signal_title)
-        if signal_id is None:
-            signal = api_call(opener, "POST", "/api/signals",
-                              {"title": signal_title, "filter": filter_text})
-            signal_id = signal["id"]
-            print(f"signal created: {signal_title}  [{filter_text}]")
-        else:
-            print(f"signal exists:  {signal_title}")
+        signal_id = ensure_signal(opener, signals, signal_title, filter_text)
 
         if alert_title in alerts:
             print(f"alert exists:   {alert_title}")

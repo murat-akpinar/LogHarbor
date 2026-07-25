@@ -89,6 +89,11 @@ Per configured service this creates (reusing anything that already exists, by ti
 - signal **`<host> <service> up`** — `Source = 'service-probe' and host = '<host>' and service = '<service>' and up = 1`
 - alert **`<host> <service> down`** — condition `silence`, window `--window` minutes
 
+plus one host-wide signal for reading, **`<host> service down or unknown`** —
+`Source = 'service-probe' and host = '<host>' and (up = 0 or not Has(up))`. The per-service
+signals deliberately match the heartbeat only, so toggling one on the Events page shows
+`is active` rows and never an outage; this is the one to toggle when you want the outages.
+
 The rule fires when that heartbeat produces nothing for a whole window, which covers the service
 dying, the probe dying, and the whole host dying — one mechanism, no new alert logic. It needs
 admin credentials because signals and alert rules are behind the auth gate, and it re-fires once
