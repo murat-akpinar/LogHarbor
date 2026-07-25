@@ -22,9 +22,10 @@ X-Seq-ApiKey header (ApiKeyMiddleware), so existing Seq sinks need only the URL 
 changed. They bring batching, retry and buffering for free, which is why this beats
 hand-rolling an HTTP client.
 
-Each snippet below was run against a live LogHarbor and the resulting event read back, so
-all three produce the same row: level Error, template "Order {OrderId} failed for
-{Customer}", OrderId and Customer as structured properties.
+Each snippet below was run against a live LogHarbor and the resulting event read back, and
+run repeatedly — a sink that delivers once and drops the next four is the failure mode here,
+not a clean error. All three produce the same row: level Error, template "Order {OrderId}
+failed for {Customer}", OrderId and Customer as structured properties.
 
 .NET (Serilog):
 
@@ -58,9 +59,30 @@ Python (seqlog):
   setLoggerClass, so only loggers created after it get seqlog's StructuredLogger; the root
   logger already exists by then and keeps the stock class, which rejects the property
   kwargs with "TypeError: _log() got an unexpected keyword argument 'OrderId'".
-  No explicit flush is needed — interpreter shutdown drains the batch. seqlog also attaches
-  MachineName, ProcessId, ThreadId, ThreadName and LoggerName to every event, which arrive
-  as ordinary filterable properties.
+
+  A long-running service needs nothing else — the batch drains every auto_flush_timeout
+  seconds on seqlog's own thread. A short-lived script does, and the obvious ways are the
+  wrong ones. Measured against a live server, 0 of 3 runs delivered for each of:
+
+    (nothing)                                    lost — process exits first
+    logging.shutdown()                           lost
+    handler.flush() alone                        lost
+
+  logging.shutdown() is the trap: it flushes and then closes, and seqlog's close() tears
+  down the HTTP session without waiting for the batch to go out — its own source carries
+  the "TODO: Implement QueueConsumer.join() so we can wait" comment for exactly this. The
+  flush is asynchronous, so the process simply has to outlive it:
+
+    import time
+    for handler in logging.getLogger().handlers:
+        handler.flush()
+    time.sleep(1)
+
+  5 of 5 delivered. seqlog also fails silently — seqlog.set_callback_on_failure(fn) is the
+  only way to see a rejected batch, and worth wiring up while you are testing.
+
+  seqlog attaches MachineName, ProcessId, ThreadId, ThreadName and LoggerName to every
+  event, which arrive as ordinary filterable properties.
 
 Node (winston):
 
