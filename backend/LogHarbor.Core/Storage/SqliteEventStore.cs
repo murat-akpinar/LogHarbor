@@ -444,6 +444,51 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IReadOnlyList<ServiceStatusReading>> GetServiceStatusAsync(
+        QuerySql? filter, string fromUtc, string toUtc, string source, int limit,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var table = await BuildStatsSourceAsync(
+            connection, command, filter, "properties, timestamp", fromUtc, toUtc, cancellationToken);
+
+        // the probe's property names are lowercase on purpose so a status event never merges into
+        // the RED metrics of an application service (docs/service-status.md); a reading that names
+        // neither a host nor a service cannot be placed on the board and is dropped
+        command.CommandText =
+            "WITH v AS (" +
+            "SELECT CAST(json_extract(properties, '$.\"host\"') AS TEXT) AS host, " +
+            "CAST(json_extract(properties, '$.\"kind\"') AS TEXT) AS kind, " +
+            "CAST(json_extract(properties, '$.\"service\"') AS TEXT) AS svc, " +
+            "CAST(json_extract(properties, '$.\"up\"') AS INTEGER) AS up, " +
+            "CAST(json_extract(properties, '$.\"state\"') AS TEXT) AS state, " +
+            "CAST(json_extract(properties, '$.\"health\"') AS TEXT) AS health, timestamp " +
+            $"FROM {table} WHERE json_extract(properties, '$.\"Source\"') = @source), " +
+            "r AS (SELECT host, kind, svc, up, state, health, timestamp, " +
+            "ROW_NUMBER() OVER (PARTITION BY host, svc ORDER BY timestamp DESC) AS rn " +
+            "FROM v WHERE host IS NOT NULL AND svc IS NOT NULL) " +
+            "SELECT host, kind, svc, up, state, health, timestamp FROM r WHERE rn = 1 " +
+            "ORDER BY host, svc LIMIT @limit;";
+        command.Parameters.AddWithValue("@source", source);
+        command.Parameters.AddWithValue("@limit", limit);
+
+        var rows = new List<ServiceStatusReading>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new ServiceStatusReading(
+                reader.GetString(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetInt64(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.GetString(6)));
+        }
+        return rows;
+    }
+
     public async Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default)
     {

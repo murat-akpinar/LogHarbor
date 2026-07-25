@@ -393,6 +393,65 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.Equal("/src/New.cs:9", row.GetProperty("location").GetString());
     }
 
+    private static Event Probe(string timestamp, string service, string properties) =>
+        new(0, timestamp, "Information", $"Service {service} is up", "Service {service} is {state}",
+            properties, null, timestamp);
+
+    [Fact]
+    public async Task ServiceStatus_DerivesStatusFromTheNewestReading()
+    {
+        // 2026-07-21: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            Probe("2026-07-21T10:58:00.0000000Z", "nginx",
+                """{"Source":"service-probe","host":"web-1","kind":"systemd","service":"nginx","up":1,"state":"active"}"""),
+            Probe("2026-07-21T10:59:00.0000000Z", "api",
+                """{"Source":"service-probe","host":"web-1","kind":"docker","service":"api","up":0,"state":"exited"}"""),
+            // last heartbeat an hour before the range end: the probe or the host went away
+            Probe("2026-07-21T10:00:00.0000000Z", "cron",
+                """{"Source":"service-probe","host":"web-1","kind":"systemd","service":"cron","up":1,"state":"active"}"""),
+        ]);
+
+        var body = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/service-status?from=2026-07-21T10:00:00Z&to=2026-07-21T11:00:00Z");
+
+        Assert.Equal(5, body.GetProperty("staleMinutes").GetInt32());
+        var rows = body.GetProperty("services").EnumerateArray().ToList();
+        Assert.Equal(3, rows.Count);
+        // broken first
+        Assert.Equal("api", rows[0].GetProperty("service").GetString());
+        Assert.Equal("down", rows[0].GetProperty("status").GetString());
+        Assert.Equal("exited", rows[0].GetProperty("state").GetString());
+        Assert.Equal("docker", rows[0].GetProperty("kind").GetString());
+        Assert.Equal("cron", rows[1].GetProperty("service").GetString());
+        Assert.Equal("stale", rows[1].GetProperty("status").GetString());
+        Assert.Equal(3600, rows[1].GetProperty("secondsSinceLastSeen").GetInt64());
+        Assert.Equal("nginx", rows[2].GetProperty("service").GetString());
+        Assert.Equal("up", rows[2].GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task ServiceStatus_NoProbeEvents_ReturnsAnEmptyBoard()
+    {
+        var body = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/service-status?from=2026-07-22T10:00:00Z&to=2026-07-22T11:00:00Z");
+
+        Assert.Empty(body.GetProperty("services").EnumerateArray());
+    }
+
+    [Theory]
+    [InlineData("/api/stats/service-status?from=2026-07-21T10:00:00Z&to=2026-07-21T11:00:00Z&staleMinutes=0")]
+    [InlineData("/api/stats/service-status?from=2026-07-21T10:00:00Z&to=2026-07-21T11:00:00Z&staleMinutes=2000")]
+    [InlineData("/api/stats/service-status?from=not-a-date&to=2026-07-21T11:00:00Z")]
+    [InlineData("/api/stats/service-status?from=2026-07-21T10:00:00Z&to=2026-07-21T11:00:00Z&filter=%40Bogus%20%3D%201")]
+    public async Task ServiceStatus_InvalidInput_Returns400(string url)
+    {
+        var response = await _client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task PropertyValues_ReturnsTopValuesWithCounts()
     {

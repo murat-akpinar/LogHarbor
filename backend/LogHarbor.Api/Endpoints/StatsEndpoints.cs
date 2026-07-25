@@ -18,6 +18,7 @@ public static class StatsEndpoints
         group.MapGet("/slow-operations", SlowOperationsAsync);
         group.MapGet("/property-values", PropertyValuesAsync);
         group.MapGet("/services", ServicesAsync);
+        group.MapGet("/service-status", ServiceStatusAsync);
         group.MapGet("/operations", OperationsAsync);
         group.MapGet("/user-activity", UserActivityAsync);
         group.MapGet("/queries", QueriesAsync);
@@ -121,6 +122,35 @@ public static class StatsEndpoints
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
             limit, cancellationToken);
         return Results.Ok(new { services });
+    }
+
+    private static async Task<IResult> ServiceStatusAsync(
+        IEventStore eventStore,
+        CancellationToken cancellationToken,
+        string from,
+        string to,
+        string? filter = null,
+        string source = "service-probe",
+        int staleMinutes = 5,
+        int limit = 100)
+    {
+        // the probe cycle is a minute, so the default tolerates four missed heartbeats
+        if (staleMinutes is < 1 or > 1440)
+        {
+            return BadRequest("Invalid query", "staleMinutes must be between 1 and 1440.");
+        }
+        if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
+        {
+            return error!;
+        }
+
+        var readings = await eventStore.GetServiceStatusAsync(
+            filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
+            source, limit, cancellationToken);
+        // judged against the end of the range, not wall-clock now, so a historical range reads as
+        // how things stood then (docs/service-status.md)
+        var services = ServiceStatus.Evaluate(readings, toValue, staleMinutes);
+        return Results.Ok(new { staleMinutes, asOf = ClefParser.FormatTimestamp(toValue), services });
     }
 
     private static async Task<IResult> OperationsAsync(

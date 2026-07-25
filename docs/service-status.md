@@ -102,12 +102,30 @@ services. Exclude them from a search with:
 
 There is no delete-events API, so that tag is also the only cleanup handle after a test run.
 
---- WHAT IS NOT BUILT (YET) ---
+--- THE BOARD ---
 
-There is no status board page and no `/api/stats/service-status` endpoint. The board is Phase 2
-of this feature and only earns its place if the log-and-alert path is not enough in practice —
-todo.md keeps it open. Until then the status lives in Events (filter above), the alert webhook,
-and a saved signal per service.
+The filter and the alert answer "show me the outage" and "tell me about it". The board answers
+the third question — "is anything down right now?" — at a glance, at the top of `/services`:
+one section per host, one tile per service, worst first.
+
+It reads the same events, through `GET /api/stats/service-status` (docs/api.md): the newest
+reading per (host, service), turned into a status against the **end of the selected range**, not
+wall-clock now, so a historical range shows how things stood then.
+
+  down       fresh reading with up = 0
+  stale      last reading older than staleMinutes (default 5, four missed cycles)
+  unhealthy  fresh, up = 1, health = "unhealthy" — running but failing its own healthcheck
+  unknown    fresh reading with no `up` at all — the probe could not ask
+  up         fresh, up = 1
+
+Two of those are the schema's own distinctions carried through instead of flattened. `stale`
+outranks whatever the reading said: an `up = 1` from an hour ago is not evidence that anything
+is up — the same reasoning that rejected log recency above. And `unknown` is not `down`, because
+the probe already tells the two apart and collapsing them here would invent a false zero.
+
+A tile links to that service's whole timeline in Events. The board is not rendered at all when no
+probe has reported in the range, so an install without one sees the page it always had. It reads
+only events: still no endpoint that writes, no table, no alert type.
 
 HTTP/TCP endpoint checks ("is the site answering?") are deliberately out of scope: that is an
 uptime product, and this feature exists to describe the host's own services, not the internet.

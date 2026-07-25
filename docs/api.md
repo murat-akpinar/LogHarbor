@@ -208,6 +208,24 @@ GET /api/stats/services
   Ordered by total descending.
   200: { "services": [ { service, total, errorCount, p95ElapsedMs } ] }
 
+GET /api/stats/service-status
+  Query: source? default "service-probe", staleMinutes? default 5 (1..1440),
+         limit? default 100
+  Up/down for the host's own services, from the events tools/service-probe sends
+  (docs/service-status.md). Takes the newest reading per (host, service) — readings
+  without both properties are excluded — and derives a status against `to`, not
+  wall-clock now, so a historical range reads as how things stood then:
+    down       fresh reading with up = 0
+    stale      last reading older than staleMinutes (service, probe or host is gone)
+    unhealthy  fresh, up = 1, health = "unhealthy"
+    unknown    fresh reading with no `up` at all (the probe could not ask)
+    up         fresh, up = 1
+  Ordered worst first in exactly that order, then by host, then service. 400 when
+  staleMinutes is out of range.
+  200: { "staleMinutes": N, "asOf": "<to>",
+         "services": [ { host, kind, service, status, state, health, lastSeen,
+                         secondsSinceLastSeen } ] }
+
 GET /api/stats/operations
   Query: limit? default 50
   Per-operation RED numbers, grouped by the CLEF message_template (events without one
