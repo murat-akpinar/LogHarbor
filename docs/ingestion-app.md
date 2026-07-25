@@ -16,9 +16,15 @@ Both can run at the same time; they are independent sources.
 --- SEQ SINKS WORK AS-IS ---
 
 LogHarbor's ingestion endpoint is wire-compatible with Seq: same path (/api/events/raw),
-same CLEF body. LogHarbor also accepts Seq's X-Seq-ApiKey header (ApiKeyMiddleware), so
-existing Seq sinks need only the URL and key changed. They bring batching, retry and
-buffering for free, which is why this beats hand-rolling an HTTP client.
+both of Seq's body formats (CLEF and the {"Events":[...]} envelope — see RAW HTTP below;
+the endpoint sniffs which one arrived, no header to set). LogHarbor also accepts Seq's
+X-Seq-ApiKey header (ApiKeyMiddleware), so existing Seq sinks need only the URL and key
+changed. They bring batching, retry and buffering for free, which is why this beats
+hand-rolling an HTTP client.
+
+Each snippet below was run against a live LogHarbor and the resulting event read back, so
+all three produce the same row: level Error, template "Order {OrderId} failed for
+{Customer}", OrderId and Customer as structured properties.
 
 .NET (Serilog):
 
@@ -31,29 +37,55 @@ buffering for free, which is why this beats hand-rolling an HTTP client.
 
   Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 
+  Log.CloseAndFlush();   // batching sink: without this a short-lived process sends nothing
+
 .NET (NLog): NLog.Targets.Seq, same serverUrl + apiKey settings.
 
 Python (seqlog):
 
   pip install seqlog
 
+  import logging, os, seqlog
+
   seqlog.log_to_seq(server_url=os.environ["LOGHARBOR_URL"],
                     api_key=os.environ["LOGHARBOR_API_KEY"],
                     level=logging.INFO, batch_size=100, auto_flush_timeout=2)
 
-  logging.error("Order {OrderId} failed for {Customer}", OrderId=123, Customer="acme")
+  logger = logging.getLogger(__name__)
+  logger.error("Order {OrderId} failed for {Customer}", OrderId=123, Customer="acme")
+
+  Use a named logger, not the module-level logging.error(). log_to_seq() calls
+  setLoggerClass, so only loggers created after it get seqlog's StructuredLogger; the root
+  logger already exists by then and keeps the stock class, which rejects the property
+  kwargs with "TypeError: _log() got an unexpected keyword argument 'OrderId'".
+  No explicit flush is needed — interpreter shutdown drains the batch. seqlog also attaches
+  MachineName, ProcessId, ThreadId, ThreadName and LoggerName to every event, which arrive
+  as ordinary filterable properties.
 
 Node (winston):
 
   npm install winston @datalust/winston-seq
 
-  new SeqTransport({
+  The package is ESM only: use import, not require, and mark the project as a module
+  ("type": "module" in package.json, or a .mjs file). require() fails with
+  ERR_REQUIRE_ESM.
+
+  import winston from "winston";
+  import { SeqTransport } from "@datalust/winston-seq";
+
+  const seq = new SeqTransport({
     serverUrl: process.env.LOGHARBOR_URL,
     apiKey: process.env.LOGHARBOR_API_KEY,
     onError: (e) => console.error(e),   // logging must never throw into the app
-  })
+  });
+  const logger = winston.createLogger({ transports: [seq] });
 
-  logger.error("Order {OrderId} failed for {Customer}", { OrderId: 123, Customer: "acme" })
+  logger.error("Order {OrderId} failed for {Customer}", { OrderId: 123, Customer: "acme" });
+
+  await seq.flush();   // as with Serilog, flush before a short-lived process exits
+
+  Keep the transport in a variable: the flush is on the transport, and logger.close() does
+  not drain it — a script that ends without await seq.flush() sends nothing.
 
 The key is a secret: read it from the environment, never commit it (rules.md SECURITY).
 
@@ -74,6 +106,11 @@ Connection column. The property names are configurable on the page itself.
 
 --- ANY OTHER LANGUAGE: RAW HTTP ---
 
+The endpoint accepts both of Seq's wire formats and tells them apart from the body itself,
+so Content-Type only has to be honest, not exact.
+
+CLEF — prefer this for new code:
+
   POST /api/events/raw
     X-LogHarbor-ApiKey: <token>            (or X-Seq-ApiKey)
     Content-Type: application/vnd.serilog.clef
@@ -85,6 +122,25 @@ Connection column. The property names are configurable on the page itself.
 @t is required (ISO-8601). @l defaults to Information. @mt is the template, @m the
 rendered message, @x the exception; every other key becomes a queryable property.
 Full mapping and level aliases: docs/data-model.md.
+
+Seq raw events — one JSON document, properties in their own bag:
+
+  POST /api/events/raw
+    X-Seq-ApiKey: <token>                  (or X-LogHarbor-ApiKey)
+    Content-Type: application/json
+
+  {"Events":[
+    {"Timestamp":"2026-07-14T09:12:03.123Z","Level":"Error",
+     "MessageTemplate":"Order {OrderId} failed","Properties":{"OrderId":123}}
+  ]}
+
+Timestamp is required, Level defaults to Information and goes through the same alias map,
+MessageTemplate/Message/Exception mirror @mt/@m/@x, and everything in Properties becomes a
+queryable property. Renderings and EventType are ignored. This is the format seqlog and
+winston-seq send, which is why it exists; hand-written clients gain nothing from it.
+
+Errors name the offending event in whichever format was sent: "line 2: ..." for CLEF,
+"event 2: ..." for an Events envelope. Either way nothing in the batch is stored.
 
 Smoke test:
 
