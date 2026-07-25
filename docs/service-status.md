@@ -127,5 +127,13 @@ A tile links to that service's whole timeline in Events. The board is not render
 probe has reported in the range, so an install without one sees the page it always had. It reads
 only events: still no endpoint that writes, no table, no alert type.
 
+The board covers whatever the page's range covers, which has one consequence worth knowing: a
+service you removed from `SERVICES` keeps a tile reading `stale` until its last heartbeat falls
+out of the range — over a 24 h window, for a day. That is not a bug to fix in the derivation.
+Silence is silence, and the board cannot tell "you deconfigured it" from "the probe died" — the
+dead man's switch has exactly the same property. Narrow the range to drop it, or leave it: an
+old tile costs a glance, and inventing a rule that hides deconfigured services would also hide
+a probe that quietly stopped covering one.
+
 HTTP/TCP endpoint checks ("is the site answering?") are deliberately out of scope: that is an
 uptime product, and this feature exists to describe the host's own services, not the internet.
