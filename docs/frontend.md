@@ -106,8 +106,8 @@ Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
   a note appears when the log fetch (count=1000, newest first) is truncated.
 Live tail: toggle connects to /hubs/tail with current filter; new events prepend with highlight
 Time range: picker sets from/to; live tail forces "now"
-Archived range: banner "N days in this range are archived" with Extract button;
-  polls hydration status, refreshes results when segments become hydrated
+Archived range: no notice on this page — the archived-day list and its Extract
+  button live on the Settings page (search silently covers hot + hydrated data)
 First-run onboarding: when the server has no events at all (empty result with no
   filter, level chips, signals or time range active), the list area shows a
   "send your first log" panel instead of an empty table — inline API key creation

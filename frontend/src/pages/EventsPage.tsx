@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import type { Event, Level } from '../types'
 import { buildExportUrl } from '../api/events'
 import { useEventSearch } from '../hooks/useEventSearch'
@@ -17,7 +16,6 @@ import { LevelChips } from '../components/LevelChips'
 import { SignalToggles } from '../components/SignalToggles'
 import { TimeRangePicker } from '../components/TimeRangePicker'
 import { LiveTailToggle } from '../components/LiveTailToggle'
-import { ArchivedRangeBanner } from '../components/ArchivedRangeBanner'
 import { ColumnPicker } from '../components/ColumnPicker'
 import { VirtualizedEventList } from '../components/VirtualizedEventList'
 import type { EventListHandle } from '../components/VirtualizedEventList'
@@ -68,7 +66,6 @@ export function EventsPage() {
   }, [relativeTime])
 
   const listRef = useRef<EventListHandle>(null)
-  const queryClient = useQueryClient()
   const { data: signals } = useSignals()
 
   const activeSignalFilters = useMemo(
@@ -89,9 +86,6 @@ export function EventsPage() {
   const tail = useLiveTail({ filter, enabled: isLive, paused: !isAtTop })
 
   const searchEvents = useMemo(() => search.data?.pages.flatMap((page) => page.events) ?? [], [search.data])
-
-  // every page of one search reports the same range, so the first page is enough
-  const archivedDays = search.data?.pages[0]?.archivedDays ?? []
 
   // live events sit on top of the search page; an id can appear in both after a refetch
   const events = useMemo(() => {
@@ -220,14 +214,6 @@ export function EventsPage() {
         <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{search.error.message}</p>
       )}
       {tail.error && <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{tail.error}</p>}
-
-      {archivedDays.length > 0 && (
-        <ArchivedRangeBanner
-          key={archivedDays.join(',')}
-          archivedDays={archivedDays}
-          onHydrated={() => queryClient.invalidateQueries({ queryKey: ['events'] })}
-        />
-      )}
 
       {tail.pendingCount > 0 && (
         <button

@@ -5,8 +5,10 @@ import { getArchiveSegments, getArchiveSettings, saveArchiveSettings } from '../
 import { createApiKey, getApiKeys, getHealth, revokeApiKey } from '../api/settings'
 import { useAuthStatus, useIsAdmin, useLogout } from '../hooks/useAuth'
 import { useCreateUser, useDeleteUser, useUsers } from '../hooks/useUsers'
+import { formatBytes } from '../lib/bytes'
 import { formatTimestamp } from '../lib/dates'
 import type { CreatedApiKey, UserRole } from '../types'
+import { ArchiveSegments } from '../components/ArchiveSegments'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
@@ -19,17 +21,6 @@ const ARCHIVE_SEGMENTS_KEY = ['archive-segments']
 
 const TH_CLASS = 'pb-2 font-medium'
 const TD_CLASS = 'py-2 text-fg'
-
-function formatBytes(bytes: number): string {
-  const units = ['B', 'KB', 'MB', 'GB']
-  let value = bytes
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit++
-  }
-  return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`
-}
 
 function HealthCard() {
   const { t, lang } = useI18n()
@@ -289,6 +280,10 @@ function ArchiveCard() {
           <dd className="tabular text-fg">{ratio ? `${ratio.toFixed(1)}×` : '—'}</dd>
         </div>
       </dl>
+
+      <div className="border-t border-border pt-3">
+        <ArchiveSegments segments={segments ?? []} canExtract={isAdmin} />
+      </div>
     </div>
   )
 }

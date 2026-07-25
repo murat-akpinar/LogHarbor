@@ -43,8 +43,8 @@ crash are returned to cold at startup.
 
 --- HYDRATION ---
 
-Trigger: user requests an archived time range (Events page shows an
-"archived range, extract?" banner) or POST /api/archive/hydrate
+Trigger: user extracts a day from the Settings page archive list, or POST
+/api/archive/hydrate
 1. Decompress requested segments
 2. Bulk insert into events_cache table (same schema as events + segment_day column,
    original ids kept); events_cache has its own FTS table (events_cache_fts) so
@@ -93,8 +93,9 @@ GET  /api/archive/hydrate/status?from&to  200: { segments: [ { day, status } ] }
 --- SEARCH BEHAVIOR ---
 
 Query range fully hot: normal search
-Range touches cold segments: response includes "archivedDays" list; UI shows
-  banner with an Extract button; results cover hot + hydrated data only
+Range touches cold segments: response includes "archivedDays" list; results cover
+  hot + hydrated data only. The UI does not interrupt the search over it — extraction
+  lives on the Settings page, next to the archive stats
 Range touches hydrated segments: seamless, events_cache included via UNION
 
 --- UI (SETTINGS PAGE) ---
@@ -103,6 +104,9 @@ Compress events older than: [90] days   (0 disables)
 Keep extracted data for:    [1] day
 Delete archives older than: [365] days
 Archive stats: segment count, total compressed size, compression ratio
+Archived days: one row per segment (day, events, size, status) with an Extract
+  button on the cold ones (admins only); polls until the day is searchable, then
+  refreshes the segment list and the event queries
 
 --- WHY BROTLI ---
 

@@ -79,11 +79,6 @@ export const en = {
     shortcutNextPrev: 'Next / previous event',
     shortcutCloseDetail: 'Close the detail panel',
     shortcutToggleHelp: 'Toggle this help',
-    archivedDays: (count: number) =>
-      `${count} archived day${count === 1 ? '' : 's'} in this range — results cover live data only.`,
-    extract: 'Extract',
-    extracting: 'Extracting…',
-    extractionFailed: 'Extraction failed; the archive segment was left untouched. Try again.',
   },
   filters: {
     addFilter: '+ Add filter',
@@ -323,6 +318,16 @@ export const en = {
     archivedDays: 'Archived days',
     compressedSize: 'Compressed size',
     compressionRatio: 'Compression ratio',
+    archivedDaysHint:
+      'Archived days are compressed on disk and left out of search results until extracted.',
+    noArchivedDays: 'No archived days yet.',
+    colDay: 'Day',
+    colEvents: 'Events',
+    colSize: 'Size',
+    segmentStatus: { cold: 'Archived', hydrating: 'Extracting…', hydrated: 'Searchable' },
+    extract: 'Extract',
+    extracting: 'Extracting…',
+    extractionFailed: 'Extraction failed; the archive segment was left untouched. Try again.',
     users: 'Users',
     username: 'Username',
     role: 'Role',
