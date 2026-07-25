@@ -86,13 +86,15 @@ python3 service-probe.py --setup-alerts --webhook https://hooks.slack.com/... --
 
 Per configured service this creates (reusing anything that already exists, by title):
 
-- signal **`<host> <service> up`** — `Source = 'service-probe' and host = '<host>' and service = '<service>' and up = 1`
+- signal **`<host> <service>`** — `Source = 'service-probe' and host = '<host>' and service = '<service>'`
+  — every status the service reported, so a stop and the restart after it read as one timeline
+- signal **`<host> <service> heartbeat`** — the same plus `and up = 1`; plumbing for the rule
+  below, since a dead man's switch needs a filter that goes quiet when the service stops
 - alert **`<host> <service> down`** — condition `silence`, window `--window` minutes
 
-plus one host-wide signal for reading, **`<host> service down or unknown`** —
-`Source = 'service-probe' and host = '<host>' and (up = 0 or not Has(up))`. The per-service
-signals deliberately match the heartbeat only, so toggling one on the Events page shows
-`is active` rows and never an outage; this is the one to toggle when you want the outages.
+plus one host-wide signal, **`<host> service down or unknown`** —
+`Source = 'service-probe' and host = '<host>' and (up = 0 or not Has(up))` — everything on the
+host that is not a healthy heartbeat, including the events where the probe could not tell.
 
 The rule fires when that heartbeat produces nothing for a whole window, which covers the service
 dying, the probe dying, and the whole host dying — one mechanism, no new alert logic. It needs

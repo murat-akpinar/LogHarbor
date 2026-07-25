@@ -65,7 +65,7 @@ container that has been removed is a real down (`state: "missing"`, `up: 0`), no
 
 Reuse, do not reinvent: the alert rule is the `silence` condition shipped in Phase 14.
 
-  signal  <host> <service> up
+  signal  <host> <service> heartbeat
           Source = 'service-probe' and host = 'web-1' and service = 'nginx' and up = 1
   alert   <host> <service> down
           condition silence, window 5 min -> webhook
@@ -82,13 +82,14 @@ Immediate alerting is possible too, as a normal `at-least` rule over
 instead of waiting out a window, but it cannot see a dead host — nothing sends `up = 0` when the
 whole machine is gone. Running both is reasonable.
 
-Note what the `up = 1` signal is for: it defines the heartbeat, not a view of the service.
+Note what the heartbeat signal is for: it defines liveness, not a view of the service.
 Toggled on the Events page it shows nothing but `is active` rows — an outage is exactly what
-it filters out. Reading filters are separate, and --setup-alerts saves the first one as
-`<host> service down or unknown`:
+it filters out. So --setup-alerts saves reading signals next to it: `<host> <service>` (one
+service's whole timeline, stops and restarts in order) and `<host> service down or unknown`
+(everything on the host that is not a healthy heartbeat). The filters behind them:
 
-  Source = 'service-probe' and (up = 0 or not Has(up))  down, plus "probe cannot tell"
   Source = 'service-probe' and service = 'cron'         one service's whole up/down timeline
+  Source = 'service-probe' and (up = 0 or not Has(up))  down, plus "probe cannot tell"
   Source = 'service-probe' and health = 'unhealthy'     running but failing its healthcheck
 
 --- KEEPING STATUS OUT OF THE WAY ---

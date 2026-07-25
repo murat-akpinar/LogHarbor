@@ -13,7 +13,12 @@ export function SignalToggles({ activeSignalIds, onToggle }: SignalTogglesProps)
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-2">
+      {/* the level chips to the left are the six fixed levels; everything from here on is
+          the user's own saved filters, and the rule makes that boundary visible */}
+      <span aria-hidden className="select-none text-fg-subtle">
+        |
+      </span>
       {signals.map((signal) => {
         const isActive = activeSignalIds.has(signal.id)
         return (

@@ -210,7 +210,8 @@ def ensure_signal(opener, signals, title, filter_text):
 
 
 def setup_alerts(targets, webhook, window_minutes, payload_format):
-    """One 'up' signal and one silence alert rule per service, reused by title when they exist.
+    """Per service: a signal for reading, a heartbeat signal, and a silence alert rule.
+    Everything is reused by title, so re-running this is safe.
 
     The rule fires when the service's up=1 heartbeat stops for `window_minutes` — which covers
     the service dying, the probe dying and the whole host dying, with no new alert logic."""
@@ -218,19 +219,24 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
     signals = {signal["title"]: signal["id"] for signal in api_call(opener, "GET", "/api/signals")}
     alerts = {alert["title"] for alert in api_call(opener, "GET", "/api/alerts")}
 
-    # The per-service signals below match `up = 1` only, because that is what a dead man's
-    # switch needs — toggling one on the Events page therefore shows healthy heartbeats and
-    # never an outage. This host-wide one is the view for reading trouble instead.
+    # Every service reporting anything but a healthy up=1 — the one to toggle when you want
+    # to know what is wrong across the whole host.
     ensure_signal(opener, signals, f"{HOST} service down or unknown",
                   f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
                   "and (up = 0 or not Has(up))")
 
     for kind, name in targets:
-        signal_title = f"{HOST} {name} up"
+        service_filter = (f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
+                          f"and service = {quote(name)}")
+        # Two signals per service, because they answer different questions. The plain one is
+        # the human view: every status the service reported, so a stop and the restart after
+        # it sit in one timeline. The heartbeat one is plumbing for the alert below — it
+        # matches up=1 only, which is exactly what has to fall silent for the rule to fire.
+        ensure_signal(opener, signals, f"{HOST} {name}", service_filter)
+        signal_id = ensure_signal(opener, signals, f"{HOST} {name} heartbeat",
+                                  f"{service_filter} and up = 1")
+
         alert_title = f"{HOST} {name} down"
-        filter_text = (f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
-                       f"and service = {quote(name)} and up = 1")
-        signal_id = ensure_signal(opener, signals, signal_title, filter_text)
 
         if alert_title in alerts:
             print(f"alert exists:   {alert_title}")

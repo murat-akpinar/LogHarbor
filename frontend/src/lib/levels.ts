@@ -2,8 +2,8 @@ import type { Level } from '../types'
 
 export const LEVELS: Level[] = ['Verbose', 'Debug', 'Information', 'Warning', 'Error', 'Fatal']
 
-// docs/frontend.md LEVEL COLORS. Information is deliberately neutral: most events are
-// Information, and if every level is coloured then none of them is.
+// docs/frontend.md LEVEL COLORS. Every level has its own hue — violet, cyan, blue, amber,
+// red, rose — so a row's severity is readable from colour alone, at a glance, in both themes.
 export const LEVEL_TEXT: Record<Level, string> = {
   Verbose: 'text-level-verbose',
   Debug: 'text-level-debug',

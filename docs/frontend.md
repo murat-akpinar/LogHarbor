@@ -123,12 +123,12 @@ Colors come from theme tokens, not per-component Tailwind classes: --color-level
 via lib/levels.ts (LEVEL_TEXT for text, LEVEL_BAR for bars/badges, LEVEL_HEX for chart fills,
 which can't read a CSS variable back).
 
-Verbose and Debug are muted/desaturated -- low-signal levels should recede.
-Warning is amber, Error is red, Fatal is a deeper red/rose so it still reads as worse than
-Error next to it.
-Information stays neutral, the same muted tone as body text: most events are Information,
-and if every level carries color then none of them draws the eye, so color is reserved for
-levels worth calling out.
+Every level owns a hue, so severity is readable from color alone: Verbose violet, Debug cyan,
+Information blue, Warning amber, Error red, Fatal a deeper rose so it still reads as worse
+than Error next to it.
+The low three are told apart by hue rather than by lightness, because all six have to clear
+4.5:1 as text on white and on surface-raised (the active level chip). They were muted greys
+until 2026-07-25; distinguishing them at a glance beat keeping Information quiet.
 
 --- DASHBOARD PAGE ---
 
