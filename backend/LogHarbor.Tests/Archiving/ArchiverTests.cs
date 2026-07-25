@@ -191,6 +191,58 @@ public sealed class ArchiverTests : IDisposable
         Assert.Equal([new PropertyValueCount("7", 1)], values);
     }
 
+    /// <summary>
+    /// Regression: histogram and summary hardcoded FROM events and so counted only the hot rows,
+    /// while every other aggregate on the same page counted hot + hydrated. On a real instance
+    /// that showed as the dashboard cards reading 57,841 where the heatmap beside them read 97,638.
+    /// </summary>
+    [Fact]
+    public async Task HistogramAndSummary_CountHotAndHydratedTogether()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _archiver.RunArchiveAsync(Now);
+        await HydrateAsync("2026-05-01", "2026-05-02");
+
+        var fromValue = DateTimeOffset.Parse("2026-05-01T00:00:00Z");
+        var toValue = DateTimeOffset.Parse("2026-07-13T00:00:00Z");
+        var from = ClefParser.FormatTimestamp(fromValue);
+        var to = ClefParser.FormatTimestamp(toValue);
+
+        var summary = await _eventStore.GetSummaryAsync(null, from, to);
+        Assert.Equal(6, summary.Total);
+        Assert.Equal(4, summary.ByLevel["Information"]);
+        Assert.Equal(1, summary.ByLevel["Warning"]);
+        Assert.Equal(1, summary.ByLevel["Error"]);
+
+        var buckets = await _eventStore.GetHistogramAsync(null, fromValue, toValue, 24);
+        Assert.Equal(6, buckets.Sum(bucket => bucket.Counts.Values.Sum()));
+
+        // the invariant that was broken: every aggregate over one range agrees on the total
+        var heatmap = await _eventStore.GetHeatmapAsync(null, from, to);
+        Assert.Equal(summary.Total, heatmap.Sum(cell => cell.Count));
+    }
+
+    [Fact]
+    public async Task HistogramAndSummary_HonourFiltersAcrossHydratedData()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _archiver.RunArchiveAsync(Now);
+        await HydrateAsync("2026-05-01", "2026-05-02");
+
+        var fromValue = DateTimeOffset.Parse("2026-05-01T00:00:00Z");
+        var toValue = DateTimeOffset.Parse("2026-07-13T00:00:00Z");
+        var from = ClefParser.FormatTimestamp(fromValue);
+        var to = ClefParser.FormatTimestamp(toValue);
+
+        // free text routes through the per-table FTS placeholder, so it must resolve
+        // to events_cache_fts on the hydrated side of the union
+        var summary = await _eventStore.GetSummaryAsync(Filter("'connection refused'"), from, to);
+        Assert.Equal(1, summary.Total);
+
+        var buckets = await _eventStore.GetHistogramAsync(Filter("OrderId = 9"), fromValue, toValue, 24);
+        Assert.Equal(1, buckets.Sum(bucket => bucket.Counts.Values.Sum()));
+    }
+
     [Fact]
     public async Task Query_KeysetPaging_WalksHotAndHydratedWithoutGapsOrDuplicates()
     {
@@ -305,7 +357,7 @@ public sealed class ArchiverTests : IDisposable
 
         var removed = await _archiver.RunRetentionAsync(Now);
 
-        Assert.Equal(1, removed);
+        Assert.Equal(1, removed.Segments);
         Assert.Null(await _archiveStore.FindAsync("2026-05-01"));
         Assert.False(File.Exists(Path.Combine(_archiveDir, "events-2026-05-01.jsonl.br")));
         Assert.NotNull(await _archiveStore.FindAsync("2026-05-02"));
@@ -321,8 +373,71 @@ public sealed class ArchiverTests : IDisposable
 
         var removed = await _archiver.RunRetentionAsync(Now);
 
-        Assert.Equal(5, removed);
+        Assert.Equal(0, removed.Segments);
+        Assert.Equal(5, removed.Rows);
         Assert.Equal("recent event stays hot", Scalar("SELECT message FROM events;"));
+    }
+
+    /// <summary>
+    /// Regression: an event arriving for a day that already has a segment stays hot forever,
+    /// because that day is never re-archived and retention only deleted hot rows when archiving
+    /// was off. On the test instance one backfill stranded 22,226 rows this way.
+    /// </summary>
+    [Fact]
+    public async Task Retention_DeletesLateArrivalsForAnAlreadyArchivedDay()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _archiver.RunArchiveAsync(Now);
+        // arrives after the day was archived, so the archive pass will never pick it up again
+        await _eventStore.WriteBatchAsync([MakeEvent("2026-05-01T06:00:00.0000000Z", "late arrival")]);
+        Assert.Empty(await _archiver.RunArchiveAsync(Now));
+        Assert.Equal(2L, Scalar("SELECT COUNT(*) FROM events;"));
+
+        await _settingsStore.SaveArchiveSettingsAsync(
+            new ArchiveSettings { CompressAfterDays = 30, HydrationKeepDays = 1, RetentionDays = 72 });
+        var removed = await _archiver.RunRetentionAsync(Now);
+
+        Assert.Equal(1, removed.Segments);
+        Assert.Equal(1, removed.Rows);
+        Assert.Equal("recent event stays hot", Scalar("SELECT message FROM events;"));
+    }
+
+    /// <summary>
+    /// The archivable-day list and the day's rows are read on separate connections, so a
+    /// retention pass or a manual delete in between can empty a day. That used to die on
+    /// events[^1] with a raw IndexOutOfRangeException instead of skipping it.
+    /// </summary>
+    [Fact]
+    public async Task RunArchive_DayEmptiedBetweenListingAndReading_SkipsItInsteadOfThrowing()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        // emptying day one leaves GetArchivableDaysAsync's answer stale for this pass
+        using (var connection = _db.OpenConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "DELETE FROM events WHERE timestamp LIKE '2026-05-01%';";
+            command.ExecuteNonQuery();
+        }
+
+        var created = await _archiver.RunArchiveAsync(Now);
+
+        Assert.Equal(["2026-05-02"], created.Select(segment => segment.Day));
+        Assert.Null(await _archiveStore.FindAsync("2026-05-01"));
+        Assert.False(File.Exists(Path.Combine(_archiveDir, "events-2026-05-01.jsonl.br")));
+    }
+
+    [Fact]
+    public async Task Retention_WithArchivingEnabled_LeavesHotDataInsideTheWindow()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _settingsStore.SaveArchiveSettingsAsync(
+            new ArchiveSettings { CompressAfterDays = 30, HydrationKeepDays = 1, RetentionDays = 365 });
+
+        var removed = await _archiver.RunRetentionAsync(Now);
+
+        Assert.Equal(0, removed.Segments);
+        Assert.Equal(0, removed.Rows);
+        Assert.Equal(6L, Scalar("SELECT COUNT(*) FROM events;"));
     }
 
     public void Dispose()

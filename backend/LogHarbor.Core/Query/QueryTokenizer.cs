@@ -70,8 +70,16 @@ public static class QueryTokenizer
             {
                 tokens.Add(new Token(TokenType.Identifier, ScanIdentifier(input, ref i), start));
             }
-            else if (char.IsAsciiDigit(c))
+            // a sign belongs to the number only where a value is expected; after an operand
+            // '-' would be arithmetic, which the language does not have, so it stays an error
+            else if (char.IsAsciiDigit(c)
+                || ((c == '-' || c == '+') && ExpectsOperand(tokens)
+                    && i + 1 < input.Length && char.IsAsciiDigit(input[i + 1])))
             {
+                if (!char.IsAsciiDigit(c))
+                {
+                    i++;
+                }
                 while (i < input.Length && (char.IsAsciiDigit(input[i]) || input[i] == '.'))
                 {
                     i++;
@@ -86,6 +94,30 @@ public static class QueryTokenizer
         tokens.Add(new Token(TokenType.End, "", input.Length));
         return tokens;
     }
+
+    /// <summary>
+    /// True where the next token would start a value: at the beginning, after an operator or
+    /// '(', or after a logical/text keyword. False after anything that is itself an operand
+    /// (property, @field, string, number, ')'), which keeps `a-b` an error rather than silently
+    /// tokenizing as `a` and `-b`.
+    /// </summary>
+    private static bool ExpectsOperand(List<Token> tokens)
+    {
+        if (tokens.Count == 0)
+        {
+            return true;
+        }
+        var last = tokens[^1];
+        return last.Type switch
+        {
+            TokenType.Op or TokenType.LParen => true,
+            TokenType.Identifier => IsKeyword(last.Text),
+            _ => false,
+        };
+    }
+
+    private static bool IsKeyword(string text) =>
+        text.ToLowerInvariant() is "and" or "or" or "not" or "like" or "contains";
 
     private static string ScanString(string input, ref int i)
     {

@@ -64,6 +64,12 @@ export const tr: Messages = {
     newEvents: (count: number) => `${count} yeni olay — devam etmek için tıkla`,
     noEventsMatch: 'Bu filtreyle eşleşen olay yok.',
     clearFilter: 'Filtreyi temizle',
+    archivedDays: (count: number) =>
+      `Bu aralıktaki ${count} gün arşivlenmiş — o olaylar diskte sıkıştırılmış ve aramaya dahil değil.`,
+    extractArchived: 'Çıkart',
+    extractingArchived: 'Çıkartılıyor…',
+    extractArchivedStarted: 'Çıkartma başladı — her gün tamamlandıkça sonuçlara eklenecek.',
+    extractArchivedFailed: 'Çıkartma başlatılamadı.',
     tailStatus: {
       connected: 'bağlı',
       connecting: 'bağlanıyor',

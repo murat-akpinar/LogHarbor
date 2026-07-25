@@ -127,12 +127,138 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
     [InlineData(-1, 1, 365)]
     [InlineData(90, 0, 365)]
     [InlineData(90, 1, 0)]
+    // retention shorter than the compression delay would compress a day and delete it on the
+    // same pass, while reading as if it keeps data for 30 days
+    [InlineData(90, 1, 30)]
     public async Task ArchiveSettings_InvalidValues_Return400(int compress, int keep, int retention)
     {
         var response = await _client.PutAsJsonAsync("/api/settings/archive",
             new { compressAfterDays = compress, hydrationKeepDays = keep, retentionDays = retention });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Regression: the export loop read page.Events and page.HasMore but dropped
+    /// page.ArchivedDays, so a cold day vanished from the file with no seam — the surrounding
+    /// days were all present. On the test instance that silently omitted 14,535 events.
+    /// </summary>
+    [Fact]
+    public async Task Export_RangeContainingAColdDay_RefusesAndNamesTheDay()
+    {
+        await RunArchiveAsync();
+
+        var response = await _client.GetAsync(
+            "/api/events/export?from=2026-03-01T00:00:00Z&to=2026-07-13T00:00:00Z&format=json");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("2026-03-01", problem.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task Export_RangeOfHotDataOnly_StillWorks()
+    {
+        await RunArchiveAsync();
+
+        var response = await _client.GetAsync(
+            "/api/events/export?from=2026-07-01T00:00:00Z&to=2026-07-13T00:00:00Z&format=json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, events.GetArrayLength());
+    }
+
+    /// <summary>
+    /// The endpoint is open to viewers and took an unbounded range, so one call could
+    /// decompress the whole archive back into SQLite on the single writer, with eviction unable
+    /// to reclaim any of it for at least HydrationKeepDays.
+    /// </summary>
+    [Fact]
+    public async Task Hydrate_RangeWithMoreSegmentsThanTheCap_IsRefused()
+    {
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        // 40 consecutive archivable days, one event each, past the 31-segment cap
+        var start = new DateOnly(2026, 1, 1);
+        var seed = Enumerable.Range(0, 40)
+            .Select(offset => $"{start.AddDays(offset):yyyy-MM-dd}T10:00:00.0000000Z")
+            .Select(ts => new Event(0, ts, "Information", "old", null, null, null, ts))
+            .ToList();
+        await store.WriteBatchAsync(seed);
+        await RunArchiveAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/archive/hydrate",
+            new { from = "2026-01-01T00:00:00Z", to = "2026-02-09T23:59:59Z" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("31", problem.GetProperty("detail").GetString());
+
+        // and nothing was claimed: every one of those segments is still cold
+        var segments = await _client.GetFromJsonAsync<JsonElement>("/api/archive/segments");
+        Assert.All(
+            segments.EnumerateArray().Where(s => s.GetProperty("day").GetString()!.StartsWith("2026-0")),
+            s => Assert.Equal("cold", s.GetProperty("status").GetString()));
+    }
+
+    [Fact]
+    public async Task Hydrate_RangeInsideTheCap_IsAccepted()
+    {
+        await RunArchiveAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/archive/hydrate",
+            new { from = "2026-03-01T00:00:00Z", to = "2026-03-01T23:59:59Z" });
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Export_Csv_StreamsHeaderAndRows()
+    {
+        var response = await _client.GetAsync(
+            "/api/events/export?from=2026-07-01T00:00:00Z&to=2026-07-13T00:00:00Z&format=csv");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var csv = await response.Content.ReadAsStringAsync();
+        var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.StartsWith("id,timestamp,level,message,", lines[0]);
+        Assert.Contains("hot event", Assert.Single(lines[1..]));
+    }
+
+    [Fact]
+    public async Task Export_HonoursTheLimit()
+    {
+        var response = await _client.GetAsync("/api/events/export?format=json&limit=2");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, events.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task Export_AfterHydration_IncludesTheOnceColdDay()
+    {
+        await RunArchiveAsync();
+        await _client.PostAsJsonAsync("/api/archive/hydrate",
+            new { from = "2026-03-01T00:00:00Z", to = "2026-03-01T23:59:59Z" });
+        await WaitForStatusAsync("2026-03-01", "hydrated");
+
+        var response = await _client.GetAsync(
+            "/api/events/export?from=2026-03-01T00:00:00Z&to=2026-07-13T00:00:00Z&format=json");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(3, events.GetArrayLength());
+    }
+
+    [Fact]
+    public async Task ArchiveSettings_ShortRetentionAllowedWhenArchivingIsOff()
+    {
+        // CompressAfterDays = 0 disables archiving, so there is no delay to be shorter than
+        var response = await _client.PutAsJsonAsync("/api/settings/archive",
+            new { compressAfterDays = 0, hydrationKeepDays = 1, retentionDays = 7 });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     private async Task WaitForStatusAsync(string day, string expected)

@@ -8,6 +8,13 @@ using LogHarbor.Core.Telemetry;
 
 namespace LogHarbor.Core.Archiving;
 
+/// <summary>What one retention pass removed. Kept apart because segments and event rows are
+/// different units — summing them produces a number that means nothing.</summary>
+public sealed record RetentionResult(int Segments, long Rows)
+{
+    public bool RemovedAnything => Segments > 0 || Rows > 0;
+}
+
 /// <summary>
 /// Tiered-storage jobs (docs/archiving.md): compress old days to disk, hydrate them back
 /// on demand, evict stale cache rows, and apply retention. File paths are always built
@@ -49,7 +56,12 @@ public sealed class Archiver
             var created = new List<ArchiveSegment>();
             foreach (var day in await _store.GetArchivableDaysAsync(cutoffDay, cancellationToken))
             {
-                created.Add(await ArchiveDayAsync(day, cancellationToken));
+                // the day list and the day's rows are read on separate connections, so a retention
+                // pass or a manual delete in between can empty it; skipping beats dying on events[^1]
+                if (await ArchiveDayAsync(day, cancellationToken) is { } segment)
+                {
+                    created.Add(segment);
+                }
             }
 
             if (created.Count > 0)
@@ -105,10 +117,21 @@ public sealed class Archiver
     }
 
     /// <summary>
-    /// Deletes segments older than RetentionDays (row, cache rows, file). When archiving is
-    /// disabled, deletes hot events past retention directly so growth stays bounded.
+    /// Deletes segments older than RetentionDays (row, cache rows, file) and every hot event
+    /// past the same cutoff, so retention means the same thing whether archiving is on or off.
     /// </summary>
-    public async Task<int> RunRetentionAsync(
+    /// <remarks>
+    /// The hot delete is not optional. A day that already has a segment is never re-archived
+    /// (<see cref="IArchiveStore.GetArchivableDaysAsync"/>), so late arrivals for it stay hot —
+    /// and while the hot delete only ran with archiving disabled, those rows could never be
+    /// archived and never be deleted. On the test instance that had already stranded 22,226
+    /// events, 39% of the table, from a single backfill. It also made retention silently mean
+    /// max(RetentionDays, CompressAfterDays) for everything else.
+    ///
+    /// Runs after <see cref="RunArchiveAsync"/> in the scheduler, so a day about to be archived
+    /// still is; this only removes what is already past the retention cutoff.
+    /// </remarks>
+    public async Task<RetentionResult> RunRetentionAsync(
         DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var settings = await _settings.GetArchiveSettingsAsync(cancellationToken);
@@ -123,23 +146,25 @@ public sealed class Archiver
             File.Delete(SegmentPath(segment.FilePath));
         }
 
-        var removed = expired.Count;
-        if (!settings.ArchivingEnabled)
-        {
-            removed += (int)await _store.DeleteHotEventsBeforeAsync(
-                SqliteArchiveStore.DayStart(cutoffDay), cancellationToken);
-        }
+        var rows = await _store.DeleteHotEventsBeforeAsync(
+            SqliteArchiveStore.DayStart(cutoffDay), cancellationToken);
 
-        if (removed > 0)
+        if (expired.Count > 0 || rows > 0)
         {
             await _store.IncrementalVacuumAsync(cancellationToken);
         }
-        return removed;
+        return new RetentionResult(expired.Count, rows);
     }
 
-    private async Task<ArchiveSegment> ArchiveDayAsync(string day, CancellationToken cancellationToken)
+    /// <summary>Null when the day turned out to hold no events — no segment row, no file.</summary>
+    private async Task<ArchiveSegment?> ArchiveDayAsync(string day, CancellationToken cancellationToken)
     {
         var events = await _store.ReadDayAsync(day, cancellationToken);
+        if (events.Count == 0)
+        {
+            return null;
+        }
+
         var fileName = $"events-{day}.jsonl.br";
         var finalPath = Path.Combine(ArchiveDirectory, fileName);
         var tempPath = finalPath + ".tmp";
@@ -153,7 +178,7 @@ public sealed class Archiver
         {
             uncompressedBytes = WriteSegmentFile(tempPath, events);
 
-            var verifiedCount = CountLines(tempPath);
+            var verifiedCount = CountVerifiedEvents(tempPath);
             if (verifiedCount != events.Count)
             {
                 throw new ArchiveVerificationException(
@@ -199,41 +224,31 @@ public sealed class Archiver
         return uncompressedBytes;
     }
 
-    private static IReadOnlyList<Event> ReadSegmentFile(string path)
+    /// <summary>
+    /// Streams a segment file back into events. One reader for both callers: verification used to
+    /// count lines without parsing them, so a segment whose JSON was corrupt passed the check and
+    /// only failed years later at hydrate time. Now the write path proves the file parses.
+    /// </summary>
+    private static IEnumerable<Event> ReadSegment(string path)
     {
         using var file = File.OpenRead(path);
         using var brotli = new BrotliStream(file, CompressionMode.Decompress);
         using var reader = new StreamReader(brotli, Encoding.UTF8);
 
-        var events = new List<Event>();
         while (reader.ReadLine() is { } line)
         {
             if (line.Length == 0)
             {
                 continue;
             }
-            events.Add(JsonSerializer.Deserialize<Event>(line, LineOptions)
-                ?? throw new ArchiveVerificationException($"{Path.GetFileName(path)}: null event line."));
+            yield return JsonSerializer.Deserialize<Event>(line, LineOptions)
+                ?? throw new ArchiveVerificationException($"{Path.GetFileName(path)}: null event line.");
         }
-        return events;
     }
 
-    private static long CountLines(string path)
-    {
-        using var file = File.OpenRead(path);
-        using var brotli = new BrotliStream(file, CompressionMode.Decompress);
-        using var reader = new StreamReader(brotli, Encoding.UTF8);
+    private static IReadOnlyList<Event> ReadSegmentFile(string path) => ReadSegment(path).ToList();
 
-        long count = 0;
-        while (reader.ReadLine() is { } line)
-        {
-            if (line.Length > 0)
-            {
-                count++;
-            }
-        }
-        return count;
-    }
+    private static long CountVerifiedEvents(string path) => ReadSegment(path).LongCount();
 
     /// <summary>file_path is stored as a bare file name; strip any directories as defense in depth.</summary>
     private string SegmentPath(string filePath) =>

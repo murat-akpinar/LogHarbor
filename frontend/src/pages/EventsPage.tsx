@@ -21,6 +21,7 @@ import type { EventListHandle } from '../components/VirtualizedEventList'
 import { EventDetail } from '../components/EventDetail'
 import { OnboardingPanel } from '../components/OnboardingPanel'
 import { TracePanel } from '../components/TracePanel'
+import { ArchivedDaysBanner } from '../components/ArchivedDaysBanner'
 
 // shortcuts must not fire while the user is typing into a field
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -79,7 +80,8 @@ export function EventsPage() {
   const traceId = useMemo(() => matchTraceFilter(filter), [filter])
 
   // no filter, no chips/signals (folded into `filter`), no range: an empty result can
-  // only mean the server has no events at all -> first-run onboarding (see the spec)
+  // only mean the server has no events at all -> first-run onboarding (see the spec).
+  // Unless everything is archived, which is what the banner below says instead.
   const isUnfiltered = !filter && !range.from && !range.to
   const search = useEventSearch({ filter, from: range.from, to: range.to, pollWhenEmpty: isUnfiltered })
   const tail = useLiveTail({ filter, enabled: isLive, paused: !isAtTop })
@@ -94,6 +96,9 @@ export function EventsPage() {
   }, [tail.events, searchEvents])
 
   const liveEventIds = useMemo(() => new Set(tail.events.map((event) => event.id)), [tail.events])
+
+  // every page of one range reports the same cold days, so the first page is enough
+  const archivedDays = search.data?.pages[0]?.archivedDays ?? []
 
   function applyFilter(next: string) {
     setSearchText(next)
@@ -229,6 +234,8 @@ export function EventsPage() {
       )}
       {tail.error && <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{tail.error}</p>}
 
+      <ArchivedDaysBanner days={archivedDays} />
+
       {tail.pendingCount > 0 && (
         <button
           type="button"
@@ -249,7 +256,7 @@ export function EventsPage() {
                 <div key={index} className="h-7 rounded bg-surface-hover" />
               ))}
             </div>
-          ) : isUnfiltered && !search.error && events.length === 0 ? (
+          ) : isUnfiltered && !search.error && events.length === 0 && archivedDays.length === 0 ? (
             <OnboardingPanel />
           ) : (
             <VirtualizedEventList

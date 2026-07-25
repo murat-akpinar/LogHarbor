@@ -1,4 +1,7 @@
+using System.Net;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
@@ -95,10 +98,11 @@ builder.Services.AddSingleton(ingestionOptions);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // partitioned by API key token: one noisy client cannot starve the others
+    // partitioned by API key token: one noisy client cannot starve the others. Reads the key
+    // exactly as the middleware does, Seq alias included, or Seq sinks would all share one bucket
     options.AddPolicy(IngestionEndpoints.RateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Request.Headers[ApiKeyMiddleware.HeaderName].ToString(),
+            ApiKeyMiddleware.ReadToken(context.Request),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = ingestionOptions.IngestRateLimitPerMinute,
@@ -167,6 +171,30 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 }));
 app.UseStatusCodePages();
 
+// production runs behind a reverse proxy (see the cookie policy above), where every request
+// carries the proxy's address — so the login limiter's per-IP partition would put every user in
+// one 10/min bucket and a few typo'd passwords would lock the whole organisation out. Only
+// trusted proxies may rewrite the client address, hence KnownProxies; with none configured this
+// is inert, which is right for a directly published port.
+var knownProxies = builder.Configuration.GetSection("LogHarbor:KnownProxies").Get<string[]>() ?? [];
+if (knownProxies.Length > 0)
+{
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+    forwardedOptions.KnownProxies.Clear();
+    forwardedOptions.KnownNetworks.Clear();
+    foreach (var proxy in knownProxies)
+    {
+        if (IPAddress.TryParse(proxy, out var address))
+        {
+            forwardedOptions.KnownProxies.Add(address);
+        }
+    }
+    app.UseForwardedHeaders(forwardedOptions);
+}
+
 
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api/events/raw")
@@ -188,6 +216,16 @@ app.UseWhen(
             if (context.User.Identity?.IsAuthenticated != true)
             {
                 await Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Authentication required")
+                    .ExecuteAsync(context);
+                return;
+            }
+            // the cookie carries the role, so a deleted account would otherwise keep its access
+            // for the life of the cookie (7 days, renewed by any open tab)
+            if (!await authService.UserStillExistsAsync(context.User, context.RequestAborted))
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await Results.Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Authentication required", detail: "This account no longer exists.")
                     .ExecuteAsync(context);
                 return;
             }

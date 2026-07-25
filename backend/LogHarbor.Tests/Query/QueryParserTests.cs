@@ -18,6 +18,50 @@ public sealed class QueryParserTests
         Assert.Equal(new ComparisonNode(new PropertyOperand("Elapsed"), op, new LiteralOperand(500L)), node);
     }
 
+    // regression: the tokenizer had no '-' branch, so every negative value was a parse error —
+    // including the exact string the UI emits when you click a negative property value
+    [Theory]
+    [InlineData("Delta = -42", -42L)]
+    [InlineData("Delta = +42", 42L)]
+    [InlineData("Delta <> -1", -1L)]
+    public void Parses_SignedIntegerLiterals(string filter, long expected)
+    {
+        var node = (ComparisonNode)QueryParser.Parse(filter);
+
+        Assert.Equal(new LiteralOperand(expected), node.Right);
+    }
+
+    [Fact]
+    public void Parses_NegativeDecimalLiteral()
+    {
+        var node = (ComparisonNode)QueryParser.Parse("Offset > -1.5");
+
+        Assert.Equal(new LiteralOperand(-1.5d), node.Right);
+    }
+
+    [Fact]
+    public void Parses_NegativeLiteral_OnTheLeftAndInsideParens()
+    {
+        Assert.Equal(new LiteralOperand(-5L), ((ComparisonNode)QueryParser.Parse("-5 = Delta")).Left);
+        Assert.Equal(
+            new LiteralOperand(-5L),
+            ((ComparisonNode)QueryParser.Parse("(Delta = -5)")).Right);
+        // after a logical keyword a value is expected too
+        var node = (AndNode)QueryParser.Parse("A = 1 and Delta = -5");
+        Assert.Equal(new LiteralOperand(-5L), ((ComparisonNode)node.Right).Right);
+    }
+
+    [Theory]
+    // after an operand a sign would be arithmetic, which the language does not have
+    [InlineData("Delta-1 = 2")]
+    [InlineData("Delta = 1-2")]
+    [InlineData("Delta = -")]
+    [InlineData("Delta = - 42")]
+    public void Rejects_SignWhereNoValueIsExpected(string filter)
+    {
+        Assert.Throws<QueryParseException>(() => QueryParser.Parse(filter));
+    }
+
     [Fact]
     public void Parses_BuiltinField_ToColumn()
     {

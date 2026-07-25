@@ -24,11 +24,13 @@ public sealed class SqliteSpanStore : ISpanStore
         using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
+        // OTLP is at-least-once: a retried batch must land once, not twice (migration 012)
         command.CommandText =
             "INSERT INTO spans (trace_id, span_id, parent_span_id, name, kind, service, " +
             "start_timestamp, duration_ms, status_code, status_message, attributes, ingested_at) " +
             "VALUES (@traceId, @spanId, @parentSpanId, @name, @kind, @service, " +
-            "@start, @duration, @statusCode, @statusMessage, @attributes, @ingestedAt);";
+            "@start, @duration, @statusCode, @statusMessage, @attributes, @ingestedAt) " +
+            "ON CONFLICT(trace_id, span_id) DO NOTHING;";
 
         var traceId = command.Parameters.Add("@traceId", SqliteType.Text);
         var spanId = command.Parameters.Add("@spanId", SqliteType.Text);
@@ -63,14 +65,20 @@ public sealed class SqliteSpanStore : ISpanStore
         await transaction.CommitAsync(cancellationToken);
     }
 
+    // a correct trace is bounded, but a misconfigured sender reusing one trace id would turn
+    // a single page load into the whole spans table
+    private const int MaxTraceSpans = 5000;
+
     public async Task<IReadOnlyList<Span>> GetTraceAsync(
         string traceId, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText =
-            $"SELECT {Columns} FROM spans WHERE trace_id = @traceId ORDER BY start_timestamp, id;";
+            $"SELECT {Columns} FROM spans WHERE trace_id = @traceId " +
+            "ORDER BY start_timestamp, id LIMIT @limit;";
         command.Parameters.AddWithValue("@traceId", traceId);
+        command.Parameters.AddWithValue("@limit", MaxTraceSpans);
 
         var spans = new List<Span>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);

@@ -6,7 +6,7 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
-import { quote } from '../lib/filter'
+import { propertyEquals } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
@@ -18,12 +18,6 @@ const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
 const INPUT_CLASS =
   'w-32 rounded-lg border border-border-strong bg-surface px-2 py-1 text-sm text-fg focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none'
-
-// numeric ids compare as numbers in SQLite; strings need a quoted literal. Emit the matching form
-// so the deep link (and sparkline) works whether the property holds "user-42" or 42.
-function propertyEquals(property: string, value: string): string {
-  return /^-?\d+(\.\d+)?$/.test(value) ? `${property} = ${value}` : `${property} = ${quote(value)}`
-}
 
 export function UsersPage() {
   const { t, lang } = useI18n()

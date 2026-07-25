@@ -50,9 +50,14 @@ def parse_targets(spec):
             continue
         kind, _, name = entry.rpartition(":")
         kind = (kind or "systemd").strip().lower()
+        name = name.strip()
         if kind not in ("systemd", "docker"):
             raise ValueError(f"unknown service kind '{kind}' in '{entry}' (use systemd: or docker:)")
-        targets.append((kind, name.strip()))
+        # "systemd:" would otherwise probe `systemctl is-active ""` every cycle and report a
+        # permanent failure for a service nobody configured
+        if not name:
+            raise ValueError(f"missing service name in '{entry}' (use systemd:NAME or docker:NAME)")
+        targets.append((kind, name))
     return targets
 
 
@@ -198,15 +203,31 @@ def api_call(opener, method, path, payload=None):
 
 
 def ensure_signal(opener, signals, title, filter_text):
-    """Return the id of the signal with this title, creating it when it does not exist."""
+    """Return the id of the signal with this title, creating it when it does not exist.
+
+    Records what it created in `signals`: without that, the same title asked for twice in one
+    run POSTs a duplicate, the API rejects it, and api_call exits with the host half configured.
+    """
     signal_id = signals.get(title)
     if signal_id is not None:
         print(f"signal exists:  {title}")
         return signal_id
     signal_id = api_call(opener, "POST", "/api/signals",
                          {"title": title, "filter": filter_text})["id"]
+    signals[title] = signal_id
     print(f"signal created: {title}  [{filter_text}]")
     return signal_id
+
+
+def service_labels(targets):
+    """Display name per target. A bare name where it is unambiguous, "name (kind)" only when
+    the same name is configured under both kinds — so an existing install keeps its titles and
+    re-running this stays idempotent, while systemd:redis and docker:redis stop colliding."""
+    seen = {}
+    for kind, name in targets:
+        seen.setdefault(name, set()).add(kind)
+    return {(kind, name): (f"{name} ({kind})" if len(seen[name]) > 1 else name)
+            for kind, name in targets}
 
 
 def setup_alerts(targets, webhook, window_minutes, payload_format):
@@ -218,6 +239,7 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
     opener = admin_session()
     signals = {signal["title"]: signal["id"] for signal in api_call(opener, "GET", "/api/signals")}
     alerts = {alert["title"] for alert in api_call(opener, "GET", "/api/alerts")}
+    labels = service_labels(targets)
 
     # Every service reporting anything but a healthy up=1 — the one to toggle when you want
     # to know what is wrong across the whole host.
@@ -226,17 +248,19 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
                   "and (up = 0 or not Has(up))")
 
     for kind, name in targets:
+        label = labels[(kind, name)]
+        # the filter always pins the kind, whether or not the title needs to
         service_filter = (f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
-                          f"and service = {quote(name)}")
+                          f"and kind = {quote(kind)} and service = {quote(name)}")
         # Two signals per service, because they answer different questions. The plain one is
         # the human view: every status the service reported, so a stop and the restart after
         # it sit in one timeline. The heartbeat one is plumbing for the alert below — it
         # matches up=1 only, which is exactly what has to fall silent for the rule to fire.
-        ensure_signal(opener, signals, f"{HOST} {name}", service_filter)
-        signal_id = ensure_signal(opener, signals, f"{HOST} {name} heartbeat",
+        ensure_signal(opener, signals, f"{HOST} {label}", service_filter)
+        signal_id = ensure_signal(opener, signals, f"{HOST} {label} heartbeat",
                                   f"{service_filter} and up = 1")
 
-        alert_title = f"{HOST} {name} down"
+        alert_title = f"{HOST} {label} down"
 
         if alert_title in alerts:
             print(f"alert exists:   {alert_title}")
@@ -257,10 +281,19 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
 
 # --- entry point ------------------------------------------------------------------------------
 
+def positive_seconds(value):
+    """`--interval 0` is falsy, so it used to fall through to a single probe and exit — which,
+    for this tool, is indistinguishable from a dead host to the silence alert it installs."""
+    seconds = float(value)
+    if seconds <= 0:
+        raise argparse.ArgumentTypeError("must be greater than 0")
+    return seconds
+
+
 def main():
     parser = argparse.ArgumentParser(description="Emit systemd/Docker service status as LogHarbor events.")
     parser.add_argument("--dry-run", action="store_true", help="print the batch instead of sending it")
-    parser.add_argument("--interval", type=float, metavar="SECONDS",
+    parser.add_argument("--interval", type=positive_seconds, metavar="SECONDS",
                         help="probe repeatedly instead of once (use without a systemd timer)")
     parser.add_argument("--setup-alerts", action="store_true",
                         help="create the up signal and the silence alert rule per service, then exit")
@@ -292,7 +325,7 @@ def main():
 
     if not API_KEY:
         sys.exit("set LOGHARBOR_API_KEY (see .env.example)")
-    if args.interval:
+    if args.interval is not None:
         print(f"probing {len(targets)} services every {args.interval:.0f}s -> {URL}", flush=True)
         try:
             run_loop(targets, args.interval)

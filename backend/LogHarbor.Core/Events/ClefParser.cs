@@ -61,8 +61,8 @@ public static partial class ClefParser
                 Properties: ExtractProperties(root),
                 Exception: GetString(root, "@x"),
                 IngestedAt: FormatTimestamp(serverTime),
-                TraceId: NormalizeId(GetString(root, "@tr"), 32),
-                SpanId: NormalizeId(GetString(root, "@sp"), 16));
+                TraceId: TraceIds.NormalizeTrace(GetString(root, "@tr")),
+                SpanId: TraceIds.NormalizeSpan(GetString(root, "@sp")));
             error = null;
             return true;
         }
@@ -79,27 +79,6 @@ public static partial class ClefParser
         root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
-
-    /// <summary>W3C ids are fixed-length hex and never all-zero; anything else stores as null
-    /// rather than rejecting the event — same contract as OtlpLogParser.ToHexId, lowercased
-    /// so @TraceId = '...' filters stay exact-match reliable across both ingestion paths.</summary>
-    private static string? NormalizeId(string? value, int expectedLength)
-    {
-        if (value is null || value.Length != expectedLength)
-        {
-            return null;
-        }
-        var allZero = true;
-        foreach (var c in value)
-        {
-            if (!char.IsAsciiHexDigit(c))
-            {
-                return null;
-            }
-            allZero &= c == '0';
-        }
-        return allZero ? null : value.ToLowerInvariant();
-    }
 
     private static string? ExtractProperties(JsonElement root)
     {

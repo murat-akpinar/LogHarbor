@@ -132,14 +132,24 @@ public sealed class SqliteUserStore : IUserStore
 
     public async Task<long> CountAdminsAsync(CancellationToken cancellationToken = default)
     {
-        return await ScalarAsync($"SELECT COUNT(*) FROM users WHERE role = '{UserRole.Admin}';", cancellationToken);
+        // bound, not interpolated: UserRole.Admin is a compile-time constant so nothing was
+        // injectable, but rules.md SECURITY says parameterized only and one exception is how
+        // the habit erodes
+        return await ScalarAsync(
+            "SELECT COUNT(*) FROM users WHERE role = @role;", cancellationToken,
+            ("@role", UserRole.Admin));
     }
 
-    private async Task<long> ScalarAsync(string sql, CancellationToken cancellationToken)
+    private async Task<long> ScalarAsync(
+        string sql, CancellationToken cancellationToken, params (string Name, object Value)[] parameters)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.AddWithValue(name, value);
+        }
         return (long)(await command.ExecuteScalarAsync(cancellationToken))!;
     }
 

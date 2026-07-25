@@ -87,6 +87,33 @@ public sealed class UserEndpointsTests : IDisposable
         Assert.Equal(HttpStatusCode.NoContent, (await admin.DeleteAsync($"/api/users/{adminId}")).StatusCode);
     }
 
+    /// <summary>
+    /// Regression: identity and role ride in the cookie and nothing re-checked that the account
+    /// still existed, so a deleted user kept working — with their original role — for the life of
+    /// the cookie: seven days, renewed indefinitely by an open tab. Firing someone did not lock
+    /// them out.
+    /// </summary>
+    [Fact]
+    public async Task DeletedUser_LosesAccessOnTheNextRequest()
+    {
+        var admin = NewClient();
+        Assert.Equal(HttpStatusCode.Created, (await CreateUserAsync(admin, "alice", "password123", "admin")).StatusCode);
+        await LoginAsync(admin, "alice", "password123");
+        var created = await CreateUserAsync(admin, "bob", "password123", "viewer");
+        var bobId = (await created.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt64();
+
+        var bob = NewClient();
+        await LoginAsync(bob, "bob", "password123");
+        Assert.Equal(HttpStatusCode.OK, (await bob.GetAsync("/api/events")).StatusCode);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await admin.DeleteAsync($"/api/users/{bobId}")).StatusCode);
+
+        // same cookie, still unexpired, now worthless
+        Assert.Equal(HttpStatusCode.Unauthorized, (await bob.GetAsync("/api/events")).StatusCode);
+        // and the surviving admin is unaffected
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync("/api/events")).StatusCode);
+    }
+
     [Theory]
     [InlineData("", "password123", "admin")]
     [InlineData("bad name", "password123", "admin")]

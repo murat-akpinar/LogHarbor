@@ -34,7 +34,10 @@ deleted, so events that arrive mid-archive are never lost.
 
 A day that already has a segment is never re-archived: events that arrive
 late for such a day stay in the hot table (safe, slightly larger db) rather
-than risk merging into a verified segment file.
+than risk merging into a verified segment file. They are still subject to
+retention, which deletes hot rows past the cutoff whether archiving is on or
+off — otherwise a late arrival could never be archived and never be deleted,
+and one backfill would strand its rows in the database permanently.
 
 Scheduling: one background service runs eviction hourly and archive +
 retention once per UTC day, including a pass at startup so frequently
@@ -77,12 +80,14 @@ the 'archive' key holds the values above and overrides appsettings.json defaults
 LogHarbor:ArchivePath                 default: archive/ next to the database file
 LogHarbor:Archive:CompressAfterDays   default 90   (0 = archiving disabled)
 LogHarbor:Archive:HydrationKeepDays   default 1
-LogHarbor:RetentionDays               default 365  (applies to archive segments; hot data
-                                                is archived, not deleted — EXCEPT when
-                                                archiving is disabled (CompressAfterDays=0):
-                                                then retention deletes hot events directly,
-                                                so disabling archiving never means
-                                                unbounded database growth)
+LogHarbor:RetentionDays               default 365  (deletes archive segments AND hot events
+                                                past the cutoff, archiving on or off, so
+                                                retention means one thing everywhere and
+                                                growth is always bounded. Must be >=
+                                                CompressAfterDays: a shorter value would
+                                                compress a day to a file and delete it on
+                                                the same pass, and the Settings page
+                                                rejects it)
 
 --- API ---
 

@@ -301,6 +301,40 @@ public sealed class SqliteEventStoreTests : IDisposable
         Assert.Empty(await _store.MatchAsync(null, []));
     }
 
+    /// <summary>
+    /// Regression: one bound parameter per id hit SQLite's 32766-variable ceiling. MaxBatchBytes
+    /// is 5 MB and a minimal CLEF line is ~30 bytes, so one accepted request can carry far more
+    /// than that — the command threw, TailBroadcaster logged it, and every live-tail subscriber
+    /// silently missed the whole batch.
+    /// </summary>
+    [Fact]
+    public async Task Match_BatchLargerThanTheSqliteParameterLimit_ReturnsEveryEvent()
+    {
+        var events = Enumerable.Range(0, 40_000).Select(index => MakeEvent($"event {index}")).ToList();
+        var ids = await _store.WriteBatchAsync(events);
+
+        var matched = await _store.MatchAsync(null, ids);
+
+        Assert.Equal(ids.Count, matched.Count);
+        // still one descending list, so the tail prepends in the right order
+        Assert.Equal(matched.Select(item => item.Id).OrderByDescending(id => id), matched.Select(item => item.Id));
+    }
+
+    [Fact]
+    public async Task Match_LargeBatchWithFilter_AppliesTheFilterToEveryChunk()
+    {
+        var events = Enumerable.Range(0, 2_000)
+            .Select(index => MakeEvent($"event {index}") with { Level = index % 2 == 0 ? "Error" : "Information" })
+            .ToList();
+        var ids = await _store.WriteBatchAsync(events);
+        var filter = SqlTranslator.Translate(QueryParser.Parse("@Level = 'Error'"));
+
+        var matched = await _store.MatchAsync(filter, ids);
+
+        Assert.Equal(1_000, matched.Count);
+        Assert.All(matched, item => Assert.Equal("Error", item.Level));
+    }
+
     [Fact]
     public async Task GetHistogram_BucketsEventsByTimeAndLevel()
     {

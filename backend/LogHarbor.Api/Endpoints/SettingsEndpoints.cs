@@ -29,6 +29,16 @@ public static class SettingsEndpoints
             {
                 errors["retentionDays"] = ["Must be at least 1 day."];
             }
+            // retention shorter than the compression delay means every day is archived to a file
+            // and deleted again on the same pass — the compression work is pure waste, and the
+            // setting reads as if it keeps data longer than it does
+            if (errors.Count == 0 && request.CompressAfterDays > 0
+                && request.RetentionDays < request.CompressAfterDays)
+            {
+                errors["retentionDays"] = [
+                    $"Must be at least the compression delay ({request.CompressAfterDays} days), " +
+                    "otherwise days would be compressed and deleted on the same pass."];
+            }
             if (errors.Count > 0)
             {
                 return Results.ValidationProblem(errors);

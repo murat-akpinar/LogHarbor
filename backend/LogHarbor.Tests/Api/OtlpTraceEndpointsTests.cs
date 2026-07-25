@@ -67,6 +67,32 @@ public sealed class OtlpTraceEndpointsTests : IDisposable
         Assert.Equal("GET /cart", Assert.Single(spans).Name);
     }
 
+    /// <summary>
+    /// Regression: (trace_id, span_id) had no unique constraint, so a retried export - which
+    /// every OTLP exporter does on a timeout or 5xx, delivery being at-least-once by spec - drew
+    /// each span twice in the waterfall with doubled durations.
+    /// </summary>
+    [Fact]
+    public async Task Protobuf_RetriedExport_DoesNotDuplicateSpans()
+    {
+        var token = await CreateApiKeyAsync();
+
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            var message = new HttpRequestMessage(HttpMethod.Post, "/v1/traces")
+            {
+                Content = new ByteArrayContent(OneSpan("GET /cart").ToByteArray()),
+            };
+            message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-protobuf");
+            message.Headers.Add("X-LogHarbor-ApiKey", token);
+            Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(message)).StatusCode);
+        }
+
+        var spans = await _factory.Services
+            .GetRequiredService<LogHarbor.Core.Storage.ISpanStore>().GetTraceAsync(HexTrace);
+        Assert.Equal("GET /cart", Assert.Single(spans).Name);
+    }
+
     [Fact]
     public async Task Json_IngestsSpans()
     {

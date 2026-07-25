@@ -46,7 +46,7 @@ public static class StatsEndpoints
         var unknown = effectiveLevels.FirstOrDefault(level => !Levels.All.Contains(level));
         if (unknown is not null)
         {
-            return BadRequest("Invalid query", $"unknown level '{unknown}'.");
+            return Problems.BadRequest("Invalid query", $"unknown level '{unknown}'.");
         }
 
         var errors = await eventStore.GetTopErrorsAsync(
@@ -88,11 +88,11 @@ public static class StatsEndpoints
     {
         if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
         {
-            return BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
+            return Problems.BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
         }
         if (minSamples < 1 || floorMs < 0 || factor < 1)
         {
-            return BadRequest("Invalid query", "minSamples>=1, floorMs>=0 and factor>=1 are required.");
+            return Problems.BadRequest("Invalid query", "minSamples>=1, floorMs>=0 and factor>=1 are required.");
         }
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {
@@ -137,7 +137,7 @@ public static class StatsEndpoints
         // the probe cycle is a minute, so the default tolerates four missed heartbeats
         if (staleMinutes is < 1 or > 1440)
         {
-            return BadRequest("Invalid query", "staleMinutes must be between 1 and 1440.");
+            return Problems.BadRequest("Invalid query", "staleMinutes must be between 1 and 1440.");
         }
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {
@@ -184,7 +184,7 @@ public static class StatsEndpoints
         // same alphabet as query-language identifiers; anything else could escape the JSON path
         if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
         {
-            return BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
+            return Problems.BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
         }
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {
@@ -213,7 +213,7 @@ public static class StatsEndpoints
         {
             if (name.Length == 0 || !name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
             {
-                return BadRequest("Invalid query", "property names must contain only letters, digits, underscores, or dots.");
+                return Problems.BadRequest("Invalid query", "property names must contain only letters, digits, underscores, or dots.");
             }
         }
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
@@ -239,7 +239,7 @@ public static class StatsEndpoints
         // same alphabet as query-language identifiers; anything else could escape the JSON path
         if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
         {
-            return BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
+            return Problems.BadRequest("Invalid query", "property must contain only letters, digits, underscores, or dots.");
         }
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {
@@ -252,25 +252,38 @@ public static class StatsEndpoints
         return Results.Ok(new { values });
     }
 
-    private static bool TryValidateCommon(
-        string from, string to, string? filter, int limit,
+    /// <summary>Range + filter, which every stats endpoint takes.</summary>
+    private static bool TryValidateRange(
+        string from, string to, string? filter,
         out DateTimeOffset fromValue, out DateTimeOffset toValue, out QuerySql? filterSql, out IResult? error)
     {
         filterSql = null;
         error = null;
         if (!TryParseRange(from, to, out fromValue, out toValue, out var rangeError))
         {
-            error = BadRequest("Invalid query", rangeError!);
-            return false;
-        }
-        if (limit is < 1 or > 100)
-        {
-            error = BadRequest("Invalid query", "limit must be between 1 and 100.");
+            error = Problems.BadRequest("Invalid query", rangeError!);
             return false;
         }
         if (!TryTranslateFilter(filter, out filterSql, out var filterError))
         {
-            error = BadRequest("Invalid filter", filterError!);
+            error = Problems.BadRequest("Invalid filter", filterError!);
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>The above plus the row limit, for the nine endpoints that page their results.</summary>
+    private static bool TryValidateCommon(
+        string from, string to, string? filter, int limit,
+        out DateTimeOffset fromValue, out DateTimeOffset toValue, out QuerySql? filterSql, out IResult? error)
+    {
+        if (!TryValidateRange(from, to, filter, out fromValue, out toValue, out filterSql, out error))
+        {
+            return false;
+        }
+        if (limit is < 1 or > 100)
+        {
+            error = Problems.BadRequest("Invalid query", "limit must be between 1 and 100.");
             return false;
         }
         return true;
@@ -286,15 +299,11 @@ public static class StatsEndpoints
     {
         if (buckets is < 1 or > 500)
         {
-            return BadRequest("Invalid query", "buckets must be between 1 and 500.");
+            return Problems.BadRequest("Invalid query", "buckets must be between 1 and 500.");
         }
-        if (!TryParseRange(from, to, out var fromValue, out var toValue, out var rangeError))
+        if (!TryValidateRange(from, to, filter, out var fromValue, out var toValue, out var filterSql, out var error))
         {
-            return BadRequest("Invalid query", rangeError!);
-        }
-        if (!TryTranslateFilter(filter, out var filterSql, out var filterError))
-        {
-            return BadRequest("Invalid filter", filterError!);
+            return error!;
         }
 
         var result = await eventStore.GetHistogramAsync(filterSql, fromValue, toValue, buckets, cancellationToken);
@@ -308,13 +317,9 @@ public static class StatsEndpoints
         string to,
         string? filter = null)
     {
-        if (!TryParseRange(from, to, out var fromValue, out var toValue, out var rangeError))
+        if (!TryValidateRange(from, to, filter, out var fromValue, out var toValue, out var filterSql, out var error))
         {
-            return BadRequest("Invalid query", rangeError!);
-        }
-        if (!TryTranslateFilter(filter, out var filterSql, out var filterError))
-        {
-            return BadRequest("Invalid filter", filterError!);
+            return error!;
         }
 
         var cells = await eventStore.GetHeatmapAsync(
@@ -329,13 +334,9 @@ public static class StatsEndpoints
         string to,
         string? filter = null)
     {
-        if (!TryParseRange(from, to, out var fromValue, out var toValue, out var rangeError))
+        if (!TryValidateRange(from, to, filter, out var fromValue, out var toValue, out var filterSql, out var error))
         {
-            return BadRequest("Invalid query", rangeError!);
-        }
-        if (!TryTranslateFilter(filter, out var filterSql, out var filterError))
-        {
-            return BadRequest("Invalid filter", filterError!);
+            return error!;
         }
 
         var summary = await eventStore.GetSummaryAsync(
@@ -385,7 +386,4 @@ public static class StatsEndpoints
             return false;
         }
     }
-
-    private static IResult BadRequest(string title, string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: title, detail: detail);
 }
