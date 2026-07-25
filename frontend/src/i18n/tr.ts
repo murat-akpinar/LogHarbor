@@ -18,6 +18,7 @@ export const tr: Messages = {
     queries: 'Sorgular',
   },
   common: {
+    live: 'Canlı',
     loading: 'Yükleniyor…',
     cancel: 'İptal',
     save: 'Kaydet',
@@ -63,7 +64,6 @@ export const tr: Messages = {
     newEvents: (count: number) => `${count} yeni olay — devam etmek için tıkla`,
     noEventsMatch: 'Bu filtreyle eşleşen olay yok.',
     clearFilter: 'Filtreyi temizle',
-    liveTail: 'Canlı akış',
     tailStatus: {
       connected: 'bağlı',
       connecting: 'bağlanıyor',
@@ -81,11 +81,6 @@ export const tr: Messages = {
     shortcutNextPrev: 'Sonraki / önceki olay',
     shortcutCloseDetail: 'Detay panelini kapat',
     shortcutToggleHelp: 'Bu yardımı aç/kapat',
-    archivedDays: (count: number) =>
-      `Bu aralıkta ${count} arşivlenmiş gün var — sonuçlar yalnızca canlı veriyi kapsıyor.`,
-    extract: 'Çıkar',
-    extracting: 'Çıkarılıyor…',
-    extractionFailed: 'Çıkarma başarısız; arşiv segmentine dokunulmadı. Tekrar dene.',
   },
   filters: {
     addFilter: '+ Filtre ekle',
@@ -155,7 +150,6 @@ export const tr: Messages = {
     rate: 'Oran',
     fatal: 'Kritik',
     noEventsYet: 'Henüz olay yok.',
-    live: 'Canlı',
     throughput: 'Olay hızı',
     eventsPerMin: 'olay/dk',
     errorRate: 'Hata oranı',
@@ -323,6 +317,16 @@ export const tr: Messages = {
     saveArchive: 'Arşiv ayarlarını kaydet',
     saved: 'Kaydedildi',
     archivedDays: 'Arşivlenmiş günler',
+    archivedDaysHint:
+      'Arşivlenmiş günler diskte sıkıştırılmış durur; çıkarılana kadar arama sonuçlarına girmez.',
+    noArchivedDays: 'Henüz arşivlenmiş gün yok.',
+    colDay: 'Gün',
+    colEvents: 'Olay',
+    colSize: 'Boyut',
+    segmentStatus: { cold: 'Arşivde', hydrating: 'Çıkarılıyor…', hydrated: 'Aranabilir' },
+    extract: 'Çıkar',
+    extracting: 'Çıkarılıyor…',
+    extractionFailed: 'Çıkarma başarısız; arşiv segmentine dokunulmadı. Tekrar dene.',
     compressedSize: 'Sıkıştırılmış boyut',
     compressionRatio: 'Sıkıştırma oranı',
     users: 'Kullanıcılar',

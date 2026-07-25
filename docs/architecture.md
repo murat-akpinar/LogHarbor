@@ -76,6 +76,14 @@ React SPA:
   Served as static files by the backend in production
   Vite dev server with proxy during development (docs/frontend.md)
 
+--- HOST-SIDE TOOLS (NOT PART OF THE SERVER) ---
+
+service-probe (tools/service-probe, docs/service-status.md):
+  A systemd timer on a watched host runs systemctl is-active / docker inspect once a
+  minute and POSTs the result as ordinary CLEF events (Source="service-probe", up=1|0).
+  Up/down therefore needs no endpoint, table or alert type of its own: alerting is the
+  existing silence rule over a signal matching the up=1 heartbeat.
+
 --- BACKEND PROJECTS ---
 
 LogHarbor.Api:   ASP.NET Core host, endpoints, SignalR hub, migrations, static SPA hosting

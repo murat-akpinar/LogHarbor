@@ -1,28 +1,22 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { TopError } from '../types'
 import { useSlowOperations, useTopErrors, useTopExceptions } from '../hooks/useStats'
 import { LevelBadge } from '../components/LevelBadge'
 import { Sparkline } from '../components/Sparkline'
-import { TimeRangePicker } from '../components/TimeRangePicker'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
-const DEFAULT_RANGE_HOURS = 24
+const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 20
 // baseline window start: anything before this predates the server itself
 const BASELINE_START = '2000-01-01T00:00:00.000Z'
 // the frontend never overrides the endpoint's `property` default, so the timed message names it
 const SLOW_PROPERTY = 'Elapsed'
-
-function defaultRange() {
-  const to = new Date()
-  const from = new Date(to.getTime() - DEFAULT_RANGE_HOURS * 60 * 60 * 1000)
-  return { from: from.toISOString(), to: to.toISOString() }
-}
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -34,7 +28,8 @@ function formatMs(ms: number, locale: string): string {
 
 export function AnalysisPage() {
   const { t, lang } = useI18n()
-  const [range, setRange] = useState(defaultRange)
+  // a 24 h window like before, now pausable/livened from the same control as every other page
+  const { live, range, toggleLive, setRange } = useLiveRange({ windowMs: DEFAULT_WINDOW_MS, initialLive: false })
   const navigate = useNavigate()
 
   const errors = useTopErrors({ ...range, limit: ROW_LIMIT })
@@ -64,13 +59,12 @@ export function AnalysisPage() {
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-fg">{t.analysis.title}</h1>
-        <TimeRangePicker
+        <LiveRangeControls
+          live={live}
+          onToggleLive={toggleLive}
           from={range.from}
           to={range.to}
-          onChange={(next) => {
-            // presets leave `to` open-ended; this page compares two closed windows, so pin it to now
-            if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
-          }}
+          onRangeChange={setRange}
         />
       </div>
 

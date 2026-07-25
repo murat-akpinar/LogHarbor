@@ -24,6 +24,8 @@ container, sign in, create a key, see your first log line on screen.
 - **Analysis**: top errors grouped by message template, top exception types, and
   operations slower than their own p95 baseline
 - **Services**: per-service RED overview (event rate, error %, p95) straight from the logs
+- **Lens pages**: the same data read four ways — Requests (endpoints + status codes),
+  Exceptions (live feed with source location), Queries (SQL by cost), Users (activity per id)
 - **Traces**: follow one request across services; OTLP spans render as a waterfall
 - **Alerts**: webhook when a signal matches N events — or a dead man's switch when one
   goes silent; Slack / Discord / generic payloads
@@ -114,18 +116,127 @@ cd frontend && npm run build && npm run lint
 Everything sits behind the login gate. The top bar carries the page nav plus an EN/TR
 language toggle and a light/dark theme toggle.
 
-| Page | What it's for |
-|---|---|
-| **Events** | Search and live-tail the stream, expand an event for its properties and raw JSON, and open a request's trace as a span waterfall ("View trace"). Active Signals AND into the filter. |
-| **Dashboard** | Level histogram (drag across it to zoom a range), summary cards, and an hour-of-day × day-of-week activity heatmap. |
-| **Services** | Per-service RED table — event rate, error %, p95 `Elapsed` with sparklines — grouped by `service.name` / `Service`. Rows deep-link to filtered Events. |
-| **Analysis** | Top errors grouped by message template, top exception types, and "Slower than usual" — operations whose current p95 regressed past their own baseline. |
-| **Signals** | Create, edit and delete saved filters; toggle them on the Events page. |
-| **Alerts** | Call a webhook when a Signal matches N events in a window, or a dead man's switch that fires when a Signal goes silent. Slack, Discord or generic payloads. |
-| **Settings** | API keys, users and roles, archive settings and stats, health info, and a one-click database backup. |
+**Two controls behave the same on every page that has a time dimension** (Dashboard, Events,
+Requests, Exceptions, Queries, Services, Users, Analysis), top right:
+
+```
+[ ● Live ]  |  [ Last hour ▾ ]
+```
+
+- **Live** keeps a rolling window and refreshes every 10 s. On the Dashboard and the three
+  lens pages it is on by default over the last hour; on Services, Users and Analysis it is off
+  and their window is 24 h. On Events, Live is a real socket subscription (SignalR) and the dot
+  shows the connection: green connected, amber connecting, red dropped.
+- **Time range** picks a preset or a custom from/to. Choosing one leaves Live — an explicit
+  window and "now" contradict each other — so the pair never shifts under your cursor.
+
+Level colour is consistent everywhere, in badges, charts and chips: Verbose violet, Debug cyan,
+Information blue, Warning amber, Error red, Fatal rose.
+
+### Dashboard (`/`)
+
+The page to leave open on a second monitor. Four sections: **Activity** (Events and Errors
+cards — a big figure, its breakdown and a stacked histogram each), **Analysis** (top errors,
+top exceptions, slowest operations), **Services & users**, and an **hour-of-day × day-of-week
+heatmap** that shows when your system is actually busy.
+
+Click a histogram bar to open Events for that slice; drag across the histogram to zoom into a
+narrower window (that also pauses Live). Every card links to the page it summarises.
+
+### Events (`/events`)
+
+The stream itself, and where you end up from every deep link.
+
+- **Search bar** takes the [filter language](#query-language) and validates on submit;
+  it autocompletes property names and values as you type, and remembers your last 10 filters.
+- **Level chips** narrow to one or more levels. Everything right of the `|` is your saved
+  **Signals** — toggling them ANDs them into the filter.
+- **The list** is virtualised and pages by keyset, so scrolling stays smooth at any depth.
+  With Live on, new events prepend with a highlight; scrolling down pauses the prepend and a
+  banner counts what is waiting.
+- **Click a row** for the detail panel: identity chips that filter on click, a property tree
+  (nested values collapse) with per-property filter/copy, the exception with its source
+  location, "events around this" (±2 min), and the raw JSON collapsed at the bottom.
+  If the event carries a trace id, **View trace** replaces the filter with `@TraceId = '…'` and
+  draws the request as a waterfall — real OTLP spans when you send them, inferred from log
+  timestamps when you don't.
+- **Columns** adds any property as a list column, **Time** switches absolute/relative stamps,
+  **Export** downloads the current filter + range as JSON or CSV.
+- **Keyboard**: `/` focus search, `j`/`k` move the selection, `Esc` close the panel, `?` help.
+
+### Requests (`/requests`)
+
+HTTP endpoints as a RED table: events/min, error %, p95 `Elapsed` and a trend sparkline per
+operation, sortable by any of them. Above it, a stacked **status-code chart** (1/2/3xx, 4xx,
+5xx) with an hour axis and a hover tooltip; clicking a legend chip isolates one class and
+narrows the table with it. Rows deep-link to the matching Events search.
+
+Feed it by logging `StatusCode` and `Elapsed` on your request-completed event — ASP.NET Core
+and most frameworks do this out of the box.
+
+### Exceptions (`/exceptions`)
+
+A live feed grouped by exception type: count, trend, first and last seen, and **Source** —
+the `path:line` parsed out of the latest stack trace (.NET, PHP, Python and Node formats).
+Expand a row and the latest occurrence opens inline, together with the other events of its
+trace, so you read the failure in context instead of hunting for it.
+
+### Queries (`/queries`)
+
+Your database work, grouped by SQL text: calls, total time, average and p95 per statement on
+the left; pick one and the right pane shows the full SQL, stat tiles, the connection, its
+trend and recent occurrences, with a link into Events.
+
+It reads EF Core's `Executed DbCommand` shape by default; if your logger names things
+differently, change the property names (`commandText` / `elapsed`) at the top of the page.
+
+### Services (`/services`)
+
+One row per service, identified by `service.name` (OTLP) or `Service` (CLEF/Seq): event rate,
+error %, p95 `Elapsed`, trend. The quickest answer to "which service is having a bad day".
+
+### Users (`/users`)
+
+The same shape, per user: events, errors, last seen, trend. `UserId` is the default grouping
+property — type another one (`TenantId`, `AccountId`, …) to regroup. Deep links handle numeric
+and string ids correctly.
+
+### Analysis (`/analysis`)
+
+Three questions on one page:
+
+- **Top errors** grouped by message template, so `Order {OrderId} failed` is one row no matter
+  how many order ids it rendered.
+- **Top exception types**, with a `new` badge on anything first seen inside the range.
+- **Slower than usual** — operations whose p95 in this window regressed past their own
+  baseline from before it. This is the one that finds a slowdown nobody reported yet.
+
+### Signals (`/signals`)
+
+Saved filters, validated when you save them. They are toggles on the Events page and the input
+to alert rules — anything you can type in the search bar can become one.
+
+### Alerts (`/alerts`)
+
+A rule is a signal plus a condition plus a webhook, evaluated once a minute:
+
+- **at-least** — fire when the signal matches N events within the window.
+- **silence** (dead man's switch) — fire when a signal that *was* alive produces nothing for a
+  whole window. This is what watches heartbeats: a service that stops logging, a probe that
+  dies, a host that goes away.
+
+Payload format is Slack, Discord or generic JSON — paste an incoming-webhook URL and pick the
+matching one. After firing, a rule cools down for one window, so a broken webhook is not
+hammered every minute.
+
+### Settings (`/settings`)
+
+API keys (create, copy once, revoke), users and roles, health and database size, a one-click
+database backup, and the archive section: how long before events are compressed, how long
+extracted data is kept, when archives are deleted — plus the list of archived days with an
+**Extract** button on each, which is how you bring a compressed day back into search.
 
 Full UI reference: [docs/frontend.md](docs/frontend.md).
-
 ---
 
 ## Sending logs
@@ -187,6 +298,22 @@ LogHarbor, tagged with the compose project and service name, so `App = 'shop-api
 rather than structured fields — the trade for touching nothing.
 
 Setup: [docs/ingestion-docker.md](docs/ingestion-docker.md).
+
+### Service status (up/down)
+
+"Is nginx up?" needs no uptime subsystem: a small probe on the host runs
+`systemctl is-active` / `docker inspect` once a minute and sends the answer as a normal
+log event (`up` = 1 or 0, tagged `Source = 'service-probe'`). Alerting is the dead man's
+switch you already have — a signal on the `up = 1` heartbeat plus a `silence` rule, so one
+alert covers the service dying, the probe dying and the host dying.
+
+```bash
+python3 service-probe.py --dry-run        # see what it would send
+python3 service-probe.py --setup-alerts --webhook https://hooks.slack.com/... --format slack
+```
+
+The tool is [tools/service-probe/](tools/service-probe/README.md); the design and event
+schema are in [docs/service-status.md](docs/service-status.md).
 
 ---
 
@@ -264,3 +391,4 @@ Running from source: stop the backend and replace the file at
 | [docs/ingestion-otlp.md](docs/ingestion-otlp.md) | Sending logs with OpenTelemetry (OTLP) |
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Collecting Docker logs via Vector |
 | [docs/archiving.md](docs/archiving.md) | Tiered storage: compression, hydration, retention |
+| [docs/service-status.md](docs/service-status.md) | Up/down for systemd units and Docker containers |

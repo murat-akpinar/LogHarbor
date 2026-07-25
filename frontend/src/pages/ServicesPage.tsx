@@ -1,21 +1,15 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useServices } from '../hooks/useStats'
 import { Sparkline } from '../components/Sparkline'
-import { TimeRangePicker } from '../components/TimeRangePicker'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
-const DEFAULT_RANGE_HOURS = 24
+const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 50
-
-function defaultRange() {
-  const to = new Date()
-  const from = new Date(to.getTime() - DEFAULT_RANGE_HOURS * 60 * 60 * 1000)
-  return { from: from.toISOString(), to: to.toISOString() }
-}
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -27,7 +21,8 @@ function serviceFilter(service: string): string {
 
 export function ServicesPage() {
   const { t, lang } = useI18n()
-  const [range, setRange] = useState(defaultRange)
+  // a 24 h window like before, now pausable/livened from the same control as every other page
+  const { live, range, toggleLive, setRange } = useLiveRange({ windowMs: DEFAULT_WINDOW_MS, initialLive: false })
   const navigate = useNavigate()
 
   const services = useServices({ ...range, limit: ROW_LIMIT })
@@ -43,13 +38,12 @@ export function ServicesPage() {
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-fg">{t.services.title}</h1>
-        <TimeRangePicker
+        <LiveRangeControls
+          live={live}
+          onToggleLive={toggleLive}
           from={range.from}
           to={range.to}
-          onChange={(next) => {
-            // presets leave `to` open-ended; rate math needs a closed window, so pin it to now
-            if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
-          }}
+          onRangeChange={setRange}
         />
       </div>
 

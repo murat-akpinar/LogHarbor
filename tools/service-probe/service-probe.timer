@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the LogHarbor service probe every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+# a missed cycle (host asleep, timer disabled) must not backfill a burst of stale status
+Persistent=false
+
+[Install]
+WantedBy=timers.target

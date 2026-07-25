@@ -1,0 +1,10 @@
+[Unit]
+Description=LogHarbor service probe (one cycle)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/service-probe
+EnvironmentFile=/root/service-probe/.env
+ExecStart=/usr/bin/python3 /root/service-probe/service-probe.py

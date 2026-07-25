@@ -16,6 +16,7 @@ export const en = {
     queries: 'Queries',
   },
   common: {
+    live: 'Live',
     loading: 'Loading…',
     cancel: 'Cancel',
     save: 'Save',
@@ -61,7 +62,6 @@ export const en = {
     newEvents: (count: number) => `${count} new event${count === 1 ? '' : 's'} — click to resume`,
     noEventsMatch: 'No events match this filter.',
     clearFilter: 'Clear the filter',
-    liveTail: 'Live tail',
     tailStatus: {
       connected: 'connected',
       connecting: 'connecting',
@@ -79,11 +79,6 @@ export const en = {
     shortcutNextPrev: 'Next / previous event',
     shortcutCloseDetail: 'Close the detail panel',
     shortcutToggleHelp: 'Toggle this help',
-    archivedDays: (count: number) =>
-      `${count} archived day${count === 1 ? '' : 's'} in this range — results cover live data only.`,
-    extract: 'Extract',
-    extracting: 'Extracting…',
-    extractionFailed: 'Extraction failed; the archive segment was left untouched. Try again.',
   },
   filters: {
     addFilter: '+ Add filter',
@@ -153,7 +148,6 @@ export const en = {
     rate: 'Rate',
     fatal: 'Fatal',
     noEventsYet: 'No events yet.',
-    live: 'Live',
     throughput: 'Throughput',
     eventsPerMin: 'events/min',
     errorRate: 'Error rate',
@@ -323,6 +317,16 @@ export const en = {
     archivedDays: 'Archived days',
     compressedSize: 'Compressed size',
     compressionRatio: 'Compression ratio',
+    archivedDaysHint:
+      'Archived days are compressed on disk and left out of search results until extracted.',
+    noArchivedDays: 'No archived days yet.',
+    colDay: 'Day',
+    colEvents: 'Events',
+    colSize: 'Size',
+    segmentStatus: { cold: 'Archived', hydrating: 'Extracting…', hydrated: 'Searchable' },
+    extract: 'Extract',
+    extracting: 'Extracting…',
+    extractionFailed: 'Extraction failed; the archive segment was left untouched. Try again.',
     users: 'Users',
     username: 'Username',
     role: 'Role',

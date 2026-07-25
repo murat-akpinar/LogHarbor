@@ -104,16 +104,34 @@ Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
   from log timestamps: one row per span_id, bounds from the span's earliest/latest
   event (a lower bound on real duration), a dot per event. Both paths are pure frontend;
   a note appears when the log fetch (count=1000, newest first) is truncated.
-Live tail: toggle connects to /hubs/tail with current filter; new events prepend with highlight
-Time range: picker sets from/to; live tail forces "now"
-Archived range: banner "N days in this range are archived" with Extract button;
-  polls hydration status, refreshes results when segments become hydrated
+Live tail: the shared Live control connects to /hubs/tail with the current filter (its dot
+  carries the socket state: green connected, amber connecting, red dropped); new events prepend
+  with a highlight
+Time range: the picker beside it sets from/to and drops out of live, as everywhere else
+Archived range: no notice on this page — the archived-day list and its Extract
+  button live on the Settings page (search silently covers hot + hydrated data)
 First-run onboarding: when the server has no events at all (empty result with no
   filter, level chips, signals or time range active), the list area shows a
   "send your first log" panel instead of an empty table — inline API key creation
   (admins; viewers are told to ask one), copy-paste curl / Serilog / OTel snippets
   with the origin and created key filled in, and a 5 s poll on the events query so
   the panel replaces itself with the list the moment the first event arrives
+
+--- LIVE + TIME RANGE (EVERY TIME-RANGED PAGE) ---
+
+One control group, top right of the page header, in the same place on Dashboard, Events,
+Requests, Exceptions, Queries, Services, Users and Analysis: [Live] | [time range].
+Both stay visible in both states — picking a range leaves live mode rather than making the
+picker appear, so the row never shifts under the cursor.
+
+components/LiveRangeControls.tsx composes it; hooks/useLiveRange.ts owns the state for the
+stat pages. Nothing polls: `now` advances every 10 s while live, the range is part of every
+query key, and React Query refetches because the key changed. Pages that are live by default
+(Dashboard and the three lens pages) use a rolling last hour; Services, Users and Analysis
+keep their 24 h window and start paused, so their default view is unchanged.
+Events is the exception in kind, not in placement: its Live is a SignalR subscription rather
+than a rolling window, so it keeps its own state and only borrows the control. It has no h1,
+so the group sits at the right of the search-bar row — that row is the page's header.
 
 --- LEVEL COLORS ---
 
@@ -123,12 +141,12 @@ Colors come from theme tokens, not per-component Tailwind classes: --color-level
 via lib/levels.ts (LEVEL_TEXT for text, LEVEL_BAR for bars/badges, LEVEL_HEX for chart fills,
 which can't read a CSS variable back).
 
-Verbose and Debug are muted/desaturated -- low-signal levels should recede.
-Warning is amber, Error is red, Fatal is a deeper red/rose so it still reads as worse than
-Error next to it.
-Information stays neutral, the same muted tone as body text: most events are Information,
-and if every level carries color then none of them draws the eye, so color is reserved for
-levels worth calling out.
+Every level owns a hue, so severity is readable from color alone: Verbose violet, Debug cyan,
+Information blue, Warning amber, Error red, Fatal a deeper rose so it still reads as worse
+than Error next to it.
+The low three are told apart by hue rather than by lightness, because all six have to clear
+4.5:1 as text on white and on surface-raised (the active level chip). They were muted greys
+until 2026-07-25; distinguishing them at a glance beat keeping Information quiet.
 
 --- DASHBOARD PAGE ---
 

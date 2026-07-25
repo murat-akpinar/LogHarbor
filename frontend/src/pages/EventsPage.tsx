@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import type { Event, Level } from '../types'
 import { buildExportUrl } from '../api/events'
 import { useEventSearch } from '../hooks/useEventSearch'
@@ -15,9 +14,7 @@ import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
 import { LevelChips } from '../components/LevelChips'
 import { SignalToggles } from '../components/SignalToggles'
-import { TimeRangePicker } from '../components/TimeRangePicker'
-import { LiveTailToggle } from '../components/LiveTailToggle'
-import { ArchivedRangeBanner } from '../components/ArchivedRangeBanner'
+import { LiveRangeControls } from '../components/LiveRangeControls'
 import { ColumnPicker } from '../components/ColumnPicker'
 import { VirtualizedEventList } from '../components/VirtualizedEventList'
 import type { EventListHandle } from '../components/VirtualizedEventList'
@@ -68,7 +65,6 @@ export function EventsPage() {
   }, [relativeTime])
 
   const listRef = useRef<EventListHandle>(null)
-  const queryClient = useQueryClient()
   const { data: signals } = useSignals()
 
   const activeSignalFilters = useMemo(
@@ -89,9 +85,6 @@ export function EventsPage() {
   const tail = useLiveTail({ filter, enabled: isLive, paused: !isAtTop })
 
   const searchEvents = useMemo(() => search.data?.pages.flatMap((page) => page.events) ?? [], [search.data])
-
-  // every page of one search reports the same range, so the first page is enough
-  const archivedDays = search.data?.pages[0]?.archivedDays ?? []
 
   // live events sit on top of the search page; an id can appear in both after a refetch
   const events = useMemo(() => {
@@ -123,6 +116,12 @@ export function EventsPage() {
       else next.add(id)
       return next
     })
+  }
+
+  // an explicit window and a live tail contradict each other, so picking one leaves the other
+  function chooseRange(next: { from: string | undefined; to: string | undefined }) {
+    setRange(next)
+    setIsLive(false)
   }
 
   function toggleLive() {
@@ -182,8 +181,19 @@ export function EventsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border bg-surface">
-        <div className="p-3">
-          <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
+        <div className="flex items-start gap-3 p-3">
+          <div className="min-w-0 flex-1">
+            <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
+          </div>
+          {/* top right, the same corner as every other page — this row is the page's header */}
+          <LiveRangeControls
+            live={isLive}
+            onToggleLive={toggleLive}
+            from={range.from}
+            to={range.to}
+            onRangeChange={chooseRange}
+            status={tail.status}
+          />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-3 py-1.5">
           <div className="flex flex-wrap items-center gap-3">
@@ -191,7 +201,6 @@ export function EventsPage() {
             <SignalToggles activeSignalIds={activeSignalIds} onToggle={toggleSignal} />
           </div>
           <div className="flex items-center gap-2">
-            {!isLive && <TimeRangePicker from={range.from} to={range.to} onChange={setRange} />}
             <ColumnPicker columns={columns} onChange={setColumns} />
             <Button variant="ghost" onClick={() => setRelativeTime((current) => !current)} title={t.events.toggleTimestamps}>
               {relativeTime ? t.events.relativeTime : t.events.absoluteTime}
@@ -211,7 +220,6 @@ export function EventsPage() {
                 CSV
               </a>
             </span>
-            <LiveTailToggle isLive={isLive} status={tail.status} onToggle={toggleLive} />
           </div>
         </div>
       </div>
@@ -220,14 +228,6 @@ export function EventsPage() {
         <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{search.error.message}</p>
       )}
       {tail.error && <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{tail.error}</p>}
-
-      {archivedDays.length > 0 && (
-        <ArchivedRangeBanner
-          key={archivedDays.join(',')}
-          archivedDays={archivedDays}
-          onHydrated={() => queryClient.invalidateQueries({ queryKey: ['events'] })}
-        />
-      )}
 
       {tail.pendingCount > 0 && (
         <button

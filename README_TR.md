@@ -24,6 +24,9 @@ başlat, giriş yap, anahtar oluştur, ilk log satırını ekranda gör.
 - **Analiz**: mesaj şablonuna göre gruplanmış en sık hatalar, en sık exception tipleri,
   ve kendi p95 baseline'ından yavaşlayan işlemler
 - **Servisler**: loglardan servis başına RED özeti (olay hızı, hata %, p95)
+- **Lens sayfaları**: aynı veriyi dört ayrı açıdan okur — İstekler (uç noktalar + durum
+  kodları), İstisnalar (kaynak konumlu canlı akış), Sorgular (maliyete göre SQL),
+  Kullanıcılar (id başına etkinlik)
 - **Trace**: bir isteği servisler arasında izle; OTLP span'leri waterfall olarak çizilir
 - **Uyarı**: bir signal belirlenen sürede N olayı yakalarsa webhook — ya da bir signal
   sustuğunda dead man's switch; Slack / Discord / generic gövde
@@ -116,18 +119,130 @@ cd frontend && npm run build && npm run lint
 Her şey giriş kapısının arkasındadır. Üst çubukta sayfa menüsünün yanında EN/TR dil ve
 açık/koyu tema düğmeleri bulunur.
 
-| Sayfa | Ne işe yarar |
-|---|---|
-| **Olaylar** | Akışı ara ve canlı izle, bir olayı açıp property'lerini ve ham JSON'unu gör, bir isteğin trace'ini span waterfall olarak aç ("View trace"). Aktif Sinyaller filtreye AND'lenir. |
-| **Panel** | Seviye histogramı (üzerinde sürükleyerek bir aralığa yakınlaş), özet kartları, ve saat × haftanın-günü yoğunluk haritası. |
-| **Servisler** | `service.name` / `Service`'e göre servis başına RED tablosu — olay hızı, hata %, p95 `Elapsed` + sparkline. Satırlar filtreli Olaylar'a gider. |
-| **Analiz** | Mesaj şablonuna göre en sık hatalar, en sık exception tipleri, ve "Slower than usual" — güncel p95'i kendi baseline'ını aşan işlemler. |
-| **Sinyaller** | Kaydedilmiş filtreleri oluştur/düzenle/sil; Olaylar sayfasında aç-kapa. |
-| **Uyarılar** | Bir Sinyal pencerede N olay yakalayınca webhook, ya da bir Sinyal sustuğunda tetiklenen dead man's switch. Slack, Discord veya generic gövde. |
-| **Ayarlar** | API key'ler, kullanıcılar ve roller, arşiv ayarları + istatistik, sağlık bilgisi, ve tek tıkla veritabanı yedeği. |
+**Zaman boyutu olan her sayfada** (Panel, Olaylar, İstekler, İstisnalar, Sorgular, Servisler,
+Kullanıcılar, Analiz) sağ üstte aynı iki kontrol durur:
+
+```
+[ ● Canlı ]  |  [ Son 1 saat ▾ ]
+```
+
+- **Canlı** kayan bir pencere tutar ve 10 saniyede bir tazeler. Panel'de ve üç lens sayfasında
+  varsayılan olarak açıktır (son 1 saat); Servisler, Kullanıcılar ve Analiz'de kapalıdır ve
+  pencereleri 24 saattir. Olaylar sayfasında Canlı gerçek bir soket aboneliğidir (SignalR) ve
+  noktanın rengi bağlantıyı gösterir: yeşil bağlı, amber bağlanıyor, kırmızı koptu.
+- **Zaman aralığı** hazır bir aralık ya da elle başlangıç/bitiş seçer. Aralık seçmek Canlı'dan
+  çıkar — belirli bir pencere ile "şu an" birbiriyle çelişir — böylece ikili imlecin altında
+  kaymaz.
+
+Seviye renkleri her yerde aynıdır (rozetlerde, grafiklerde, çiplerde): Verbose mor, Debug
+camgöbeği, Information mavi, Warning amber, Error kırmızı, Fatal gül.
+
+### Panel (`/`)
+
+İkinci ekranda açık bırakılacak sayfa. Dört bölüm: **Etkinlik** (Olaylar ve Hatalar kartları —
+her biri büyük bir rakam, kırılımı ve yığılmış histogramı), **Analiz** (en sık hatalar, en sık
+istisnalar, en yavaş işlemler), **Servisler ve kullanıcılar**, ve sistemin gerçekte ne zaman
+yoğun olduğunu gösteren **saat × haftanın günü yoğunluk haritası**.
+
+Histogramda bir çubuğa tıklayınca o dilim Olaylar'da açılır; histogram üzerinde sürükleyerek
+daha dar bir pencereye yakınlaşırsın (bu aynı zamanda Canlı'yı durdurur). Her kart özetlediği
+sayfaya bağlanır.
+
+### Olaylar (`/events`)
+
+Akışın kendisi; bütün derin bağlantıların vardığı yer.
+
+- **Arama çubuğu** [filtre dilini](#sorgu-dili) alır ve gönderirken doğrular; yazarken property
+  adlarını ve değerlerini tamamlar, son 10 filtreni hatırlar.
+- **Seviye çipleri** bir veya birkaç seviyeye daraltır. `|` işaretinin sağındaki her şey senin
+  kaydettiğin **Sinyaller**'dir — açtığında filtreye AND'lenirler.
+- **Liste** sanallaştırılmıştır ve keyset ile sayfalanır; ne kadar aşağı inersen in akıcı kalır.
+  Canlı açıkken yeni olaylar vurguyla başa eklenir; aşağı kaydırdığında ekleme durur ve bir
+  şerit bekleyen olay sayısını sayar.
+- **Bir satıra tıkla**, detay paneli açılır: tıklayınca filtreleyen kimlik çipleri, property
+  ağacı (iç içe değerler katlanır) ve property başına filtrele/kopyala, kaynak konumuyla
+  birlikte exception, "bu olayın çevresi" (±2 dk) ve en altta katlanmış ham JSON.
+  Olay bir trace id taşıyorsa **İzi görüntüle** filtreyi `@TraceId = '…'` yapar ve isteği
+  waterfall olarak çizer — OTLP span'i gönderiyorsan gerçek span'lerle, göndermiyorsan log
+  zaman damgalarından çıkarılarak.
+- **Sütunlar** herhangi bir property'yi listeye sütun olarak ekler, **Zaman** mutlak/göreceli
+  damga arasında geçiş yapar, **Dışa aktar** mevcut filtre + aralığı JSON veya CSV indirir.
+- **Klavye**: `/` aramaya odaklan, `j`/`k` seçimi gezdir, `Esc` paneli kapat, `?` yardım.
+
+### İstekler (`/requests`)
+
+HTTP uç noktaları RED tablosu olarak: işlem başına olay/dk, hata %, p95 `Elapsed` ve eğilim
+sparkline'ı; her sütuna göre sıralanabilir. Üstünde saat ekseni ve imleç ipucu olan yığılmış
+**durum kodu grafiği** (1/2/3xx, 4xx, 5xx); bir gösterge çipine tıklamak o sınıfı yalnızlaştırır
+ve tabloyu da onunla daraltır. Satırlar ilgili Olaylar aramasına gider.
+
+Beslemek için istek tamamlandı olayında `StatusCode` ve `Elapsed` logla — ASP.NET Core ve pek
+çok framework bunu zaten yapıyor.
+
+### İstisnalar (`/exceptions`)
+
+İstisna tipine göre gruplanmış canlı akış: sayı, eğilim, ilk ve son görülme, ve **Kaynak** —
+en son stack trace'inden ayrıştırılan `dosya:satır` (.NET, PHP, Python ve Node biçimleri).
+Bir satırı açtığında en son oluşumu, yanında da aynı trace'in diğer olaylarıyla birlikte gelir;
+hatayı aramak yerine bağlamıyla okursun.
+
+### Sorgular (`/queries`)
+
+Veritabanı işlerin, SQL metnine göre gruplanmış: solda ifade başına çağrı sayısı, toplam süre,
+ortalama ve p95; birini seçtiğinde sağ panelde tam SQL, istatistik kutucukları, bağlantı,
+eğilim ve son oluşumlar, Olaylar'a bir bağlantıyla birlikte.
+
+Varsayılan olarak EF Core'un `Executed DbCommand` biçimini okur; logger'ın farklı adlar
+kullanıyorsa sayfanın üstünden property adlarını (`commandText` / `elapsed`) değiştir.
+
+### Servisler (`/services`)
+
+Servis başına tek satır; kimlik `service.name` (OTLP) ya da `Service` (CLEF/Seq): olay hızı,
+hata %, p95 `Elapsed`, eğilim. "Hangi servisin günü kötü geçiyor" sorusunun en hızlı cevabı.
+
+### Kullanıcılar (`/users`)
+
+Aynı biçim, kullanıcı başına: olay, hata, son görülme, eğilim. Varsayılan gruplama property'si
+`UserId` — başka bir tane yaz (`TenantId`, `AccountId`, …) ve yeniden gruplansın. Derin
+bağlantılar sayısal ve metin id'leri doğru işler.
+
+### Analiz (`/analysis`)
+
+Tek sayfada üç soru:
+
+- **En sık hatalar**, mesaj şablonuna göre gruplanmış; yani `Order {OrderId} failed` kaç farklı
+  sipariş numarası basmış olursa olsun tek satırdır.
+- **En sık istisna tipleri**, aralık içinde ilk kez görülenlerde `yeni` rozetiyle.
+- **Normalden yavaş** — bu penceredeki p95'i, kendisinin önceki baseline'ını aşan işlemler.
+  Kimsenin henüz bildirmediği yavaşlamayı bulan bölüm burasıdır.
+
+### Sinyaller (`/signals`)
+
+Kaydedilmiş filtreler; kaydederken doğrulanır. Olaylar sayfasında birer düğmedir ve uyarı
+kurallarının girdisidir — arama çubuğuna yazabildiğin her şey sinyal olabilir.
+
+### Uyarılar (`/alerts`)
+
+Bir kural = sinyal + koşul + webhook; dakikada bir değerlendirilir:
+
+- **at-least** — sinyal pencere içinde N olay yakalarsa tetikler.
+- **silence** (ölü adam düğmesi) — bir zamanlar *canlı olan* bir sinyal tam bir pencere boyunca
+  hiçbir şey üretmezse tetikler. Nabız izleyen budur: log basmayı bırakan bir servis, ölen bir
+  prob, kaybolan bir makine.
+
+Gövde biçimi Slack, Discord veya generic JSON — incoming webhook URL'sini yapıştır ve uygun
+biçimi seç. Tetikledikten sonra kural bir pencere boyunca soğur; bozuk bir webhook her dakika
+dövülmez.
+
+### Ayarlar (`/settings`)
+
+API anahtarları (oluştur, bir kez kopyala, iptal et), kullanıcılar ve roller, sağlık bilgisi ve
+veritabanı boyutu, tek tıkla veritabanı yedeği, ve arşiv bölümü: olaylar kaç gün sonra
+sıkıştırılsın, çıkarılmış veri ne kadar tutulsun, arşivler ne zaman silinsin — ayrıca
+arşivlenmiş günlerin listesi ve her birinde bir **Çıkar** düğmesi; sıkıştırılmış bir günü
+aramaya geri getirmenin yolu budur.
 
 Tam UI referansı: [docs/frontend.md](docs/frontend.md).
-
 ---
 
 ## Log gönderme
@@ -189,6 +304,22 @@ böylece `App = 'shop-api'` ve `Service = 'backend'` filtreleri proje başına h
 yapmadan çalışır. Bedeli: log satırları yapısal alanlar olarak değil, düz metin olarak gelir.
 
 Kurulum: [docs/ingestion-docker.md](docs/ingestion-docker.md).
+
+### Servis durumu (ayakta mı?)
+
+"nginx ayakta mı?" sorusu için ayrı bir uptime altyapısı gerekmiyor: makinede çalışan küçük bir
+prob dakikada bir `systemctl is-active` / `docker inspect` çalıştırıp cevabı normal bir log olayı
+olarak gönderiyor (`up` = 1 veya 0, `Source = 'service-probe'` etiketiyle). Uyarı tarafı zaten
+var olan ölü adam düğmesi: `up = 1` nabzını yakalayan bir signal ve bir `silence` kuralı — tek
+kural hem servisin, hem probun, hem de makinenin ölmesini yakalıyor.
+
+```bash
+python3 service-probe.py --dry-run        # ne göndereceğini gösterir
+python3 service-probe.py --setup-alerts --webhook https://hooks.slack.com/... --format slack
+```
+
+Araç [tools/service-probe/](tools/service-probe/README.md) altında; tasarım ve olay şeması
+[docs/service-status.md](docs/service-status.md) içinde.
 
 ---
 
@@ -270,3 +401,4 @@ Dokümanlar İngilizcedir (rules.md).
 | [docs/ingestion-otlp.md](docs/ingestion-otlp.md) | OpenTelemetry (OTLP) ile log gönderme |
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Vector ile Docker loglarını toplama |
 | [docs/archiving.md](docs/archiving.md) | Katmanlı depolama: sıkıştırma, geri açma, saklama |
+| [docs/service-status.md](docs/service-status.md) | systemd/Docker servisleri için ayakta-mı durumu |

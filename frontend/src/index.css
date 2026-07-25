@@ -30,14 +30,15 @@
   --logharbor-accent-hover: #065f46;
   --logharbor-accent-fg: #ffffff;
 
+  /* Every level carries a hue, so a level is identifiable without reading the label. The
+     low levels are separated by hue rather than by lightness, because all six must clear
+     4.5:1 as text on white and on --logharbor-surface-raised (the active chip). */
   --logharbor-level-fatal: #be123c;
   --logharbor-level-error: #dc2626;
   --logharbor-level-warning: #b45309;
-  --logharbor-level-information: #52627a;
-  --logharbor-level-debug: #6b7280;
-  /* #94a3b8 was 2.56:1 as text; #6e7583 reaches 4.63:1 while staying lighter (quieter)
-     than --logharbor-level-debug's 4.83:1 */
-  --logharbor-level-verbose: #6e7583;
+  --logharbor-level-information: #2563eb;
+  --logharbor-level-debug: #0e7490;
+  --logharbor-level-verbose: #7c3aed;
 
   /* drop shadows read on light backgrounds; on dark they are replaced by a border */
   --logharbor-shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px rgb(16 24 40 / 0.06);
@@ -67,9 +68,9 @@
   --logharbor-level-fatal: #fb7185;
   --logharbor-level-error: #f87171;
   --logharbor-level-warning: #fbbf24;
-  --logharbor-level-information: #8fa3b8;
-  --logharbor-level-debug: #7c8590;
-  --logharbor-level-verbose: #5f6771;
+  --logharbor-level-information: #60a5fa;
+  --logharbor-level-debug: #22d3ee;
+  --logharbor-level-verbose: #a78bfa;
 
   --logharbor-shadow-card: 0 0 0 1px rgb(255 255 255 / 0.04);
 }
