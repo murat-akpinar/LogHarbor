@@ -169,6 +169,49 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
         Assert.Equal(1, events.GetArrayLength());
     }
 
+    /// <summary>
+    /// The endpoint is open to viewers and took an unbounded range, so one call could
+    /// decompress the whole archive back into SQLite on the single writer, with eviction unable
+    /// to reclaim any of it for at least HydrationKeepDays.
+    /// </summary>
+    [Fact]
+    public async Task Hydrate_RangeWithMoreSegmentsThanTheCap_IsRefused()
+    {
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        // 40 consecutive archivable days, one event each, past the 31-segment cap
+        var start = new DateOnly(2026, 1, 1);
+        var seed = Enumerable.Range(0, 40)
+            .Select(offset => $"{start.AddDays(offset):yyyy-MM-dd}T10:00:00.0000000Z")
+            .Select(ts => new Event(0, ts, "Information", "old", null, null, null, ts))
+            .ToList();
+        await store.WriteBatchAsync(seed);
+        await RunArchiveAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/archive/hydrate",
+            new { from = "2026-01-01T00:00:00Z", to = "2026-02-09T23:59:59Z" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("31", problem.GetProperty("detail").GetString());
+
+        // and nothing was claimed: every one of those segments is still cold
+        var segments = await _client.GetFromJsonAsync<JsonElement>("/api/archive/segments");
+        Assert.All(
+            segments.EnumerateArray().Where(s => s.GetProperty("day").GetString()!.StartsWith("2026-0")),
+            s => Assert.Equal("cold", s.GetProperty("status").GetString()));
+    }
+
+    [Fact]
+    public async Task Hydrate_RangeInsideTheCap_IsAccepted()
+    {
+        await RunArchiveAsync();
+
+        var response = await _client.PostAsJsonAsync("/api/archive/hydrate",
+            new { from = "2026-03-01T00:00:00Z", to = "2026-03-01T23:59:59Z" });
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+    }
+
     [Fact]
     public async Task Export_Csv_StreamsHeaderAndRows()
     {
