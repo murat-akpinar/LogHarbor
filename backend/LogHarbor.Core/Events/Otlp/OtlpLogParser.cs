@@ -109,8 +109,8 @@ public static class OtlpLogParser
             Properties: properties.Count > 0 ? properties.ToJsonString() : null,
             Exception: ComposeException(exceptionType, exceptionMessage, exceptionStacktrace),
             IngestedAt: ingestedAt,
-            TraceId: ToHexId(record.TraceId, 16),
-            SpanId: ToHexId(record.SpanId, 8));
+            TraceId: TraceIds.FromTraceBytes(record.TraceId),
+            SpanId: TraceIds.FromSpanBytes(record.SpanId));
     }
 
     private static bool IsString(AnyValue? value) =>
@@ -141,18 +141,6 @@ public static class OtlpLogParser
         // anything far-future lands in the clamp like any other broken clock
         var parsed = DateTimeOffset.UnixEpoch.AddTicks((long)(nanos / 100));
         return ClefParser.ClampFuture(parsed, serverTime);
-    }
-
-    /// <summary>W3C ids are fixed-length and never all-zero; anything else stores as null
-    /// rather than rejecting the record (docs/ingestion-otlp.md MAPPING).</summary>
-    private static string? ToHexId(ByteString id, int expectedLength)
-    {
-        if (id.Length != expectedLength)
-        {
-            return null;
-        }
-        var bytes = id.ToByteArray();
-        return bytes.All(b => b == 0) ? null : Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     private static string? ComposeException(string? type, string? message, string? stacktrace)

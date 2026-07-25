@@ -28,7 +28,7 @@ public static class SignalEndpoints
             }
             catch (DuplicateSignalTitleException ex)
             {
-                return BadRequest("Duplicate title", ex.Message);
+                return Problems.BadRequest("Duplicate title", ex.Message);
             }
         });
 
@@ -48,7 +48,7 @@ public static class SignalEndpoints
             }
             catch (DuplicateSignalTitleException ex)
             {
-                return BadRequest("Duplicate title", ex.Message);
+                return Problems.BadRequest("Duplicate title", ex.Message);
             }
         });
 
@@ -62,7 +62,7 @@ public static class SignalEndpoints
             }
             catch (SignalInUseException ex)
             {
-                return BadRequest("Signal is in use", ex.Message);
+                return Problems.BadRequest("Signal is in use", ex.Message);
             }
         });
     }
@@ -86,11 +86,8 @@ public static class SignalEndpoints
         }
         catch (QueryParseException ex)
         {
-            return BadRequest("Invalid filter", $"{ex.Message} (position {ex.Position})");
+            return Problems.BadRequest("Invalid filter", $"{ex.Message} (position {ex.Position})");
         }
         return null;
     }
-
-    private static IResult BadRequest(string title, string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: title, detail: detail);
 }

@@ -33,8 +33,8 @@ public static class OtlpTraceParser
             {
                 foreach (var span in scopeSpans.Spans)
                 {
-                    var traceId = ToHexId(span.TraceId, 16);
-                    var spanId = ToHexId(span.SpanId, 8);
+                    var traceId = TraceIds.FromTraceBytes(span.TraceId);
+                    var spanId = TraceIds.FromSpanBytes(span.SpanId);
                     if (traceId is null || spanId is null || span.CalculateSize() > maxSpanBytes)
                     {
                         rejected++;
@@ -69,7 +69,7 @@ public static class OtlpTraceParser
             Id: 0,
             TraceId: traceId,
             SpanId: spanId,
-            ParentSpanId: ToHexId(span.ParentSpanId, 8),
+            ParentSpanId: TraceIds.FromSpanBytes(span.ParentSpanId),
             Name: span.Name,
             Kind: MapKind(span.Kind),
             Service: service,
@@ -127,15 +127,4 @@ public static class OtlpTraceParser
         return ClefParser.ClampFuture(parsed, serverTime);
     }
 
-    /// <summary>W3C ids are fixed-length and never all-zero; anything else is null (a null
-    /// trace/span id rejects the span, a null parent id marks a root).</summary>
-    private static string? ToHexId(ByteString id, int expectedLength)
-    {
-        if (id.Length != expectedLength)
-        {
-            return null;
-        }
-        var bytes = id.ToByteArray();
-        return bytes.All(b => b == 0) ? null : Convert.ToHexString(bytes).ToLowerInvariant();
-    }
 }

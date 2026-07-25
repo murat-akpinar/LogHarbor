@@ -52,7 +52,7 @@ public static partial class UserEndpoints
         // a viewer-only install would lock everyone out of user management forever
         if (request.Role != UserRole.Admin && await store.CountAsync(cancellationToken) == 0)
         {
-            return BadRequest("First user must be an admin",
+            return Problems.BadRequest("First user must be an admin",
                 "Create an admin account first; viewers can be added afterwards.");
         }
 
@@ -65,7 +65,7 @@ public static partial class UserEndpoints
         }
         catch (DuplicateUsernameException ex)
         {
-            return BadRequest("Duplicate username", ex.Message);
+            return Problems.BadRequest("Duplicate username", ex.Message);
         }
     }
 
@@ -82,7 +82,7 @@ public static partial class UserEndpoints
         }
         if (user.Role == UserRole.Admin && await store.CountAdminsAsync(cancellationToken) == 1)
         {
-            return BadRequest("Cannot delete the last admin",
+            return Problems.BadRequest("Cannot delete the last admin",
                 "Create another admin first, then delete this one.");
         }
 
@@ -90,7 +90,4 @@ public static partial class UserEndpoints
         authService.Invalidate();
         return Results.NoContent();
     }
-
-    private static IResult BadRequest(string title, string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: title, detail: detail);
 }

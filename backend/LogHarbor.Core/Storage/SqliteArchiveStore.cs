@@ -8,8 +8,7 @@ public sealed class SqliteArchiveStore : IArchiveStore
     private const string SegmentColumns =
         "day, file_path, event_count, size_bytes, uncompressed_bytes, status, hydrated_at, last_accessed_at";
 
-    private const string EventColumns =
-        "id, timestamp, level, message, message_template, properties, exception, ingested_at, trace_id, span_id";
+    private const string EventColumns = EventRow.Columns;
 
     private readonly LogHarborDb _db;
 
@@ -85,7 +84,7 @@ public sealed class SqliteArchiveStore : IArchiveStore
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            events.Add(ReadEvent(reader));
+            events.Add(EventRow.Read(reader));
         }
         return events;
     }
@@ -276,29 +275,9 @@ public sealed class SqliteArchiveStore : IArchiveStore
         return await ReadSegmentsAsync(command, cancellationToken);
     }
 
-    public async Task DeleteSegmentAsync(string day, CancellationToken cancellationToken = default)
-    {
-        using var connection = _db.OpenConnection();
-        using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
-
+    public Task DeleteSegmentAsync(string day, CancellationToken cancellationToken = default) =>
         // cache rows first: events_cache.segment_day references archive_segments(day)
-        using (var clearCache = connection.CreateCommand())
-        {
-            clearCache.Transaction = transaction;
-            clearCache.CommandText = "DELETE FROM events_cache WHERE segment_day = @day;";
-            clearCache.Parameters.AddWithValue("@day", day);
-            await clearCache.ExecuteNonQueryAsync(cancellationToken);
-        }
-        using (var deleteSegment = connection.CreateCommand())
-        {
-            deleteSegment.Transaction = transaction;
-            deleteSegment.CommandText = "DELETE FROM archive_segments WHERE day = @day;";
-            deleteSegment.Parameters.AddWithValue("@day", day);
-            await deleteSegment.ExecuteNonQueryAsync(cancellationToken);
-        }
-
-        await transaction.CommitAsync(cancellationToken);
-    }
+        ClearCacheThenAsync(day, "DELETE FROM archive_segments WHERE day = @day;", cancellationToken);
 
     public async Task<long> DeleteHotEventsBeforeAsync(
         string cutoffTimestamp, CancellationToken cancellationToken = default)
@@ -323,7 +302,22 @@ public sealed class SqliteArchiveStore : IArchiveStore
     internal static string NextDay(string day) =>
         DateOnly.ParseExact(day, "yyyy-MM-dd").AddDays(1).ToString("yyyy-MM-dd");
 
-    private async Task ClearAndMarkColdAsync(string day, CancellationToken cancellationToken)
+    private Task ClearAndMarkColdAsync(string day, CancellationToken cancellationToken) =>
+        ClearCacheThenAsync(
+            day,
+            "UPDATE archive_segments SET status = @cold, hydrated_at = NULL, last_accessed_at = NULL " +
+            "WHERE day = @day;",
+            cancellationToken,
+            ("@cold", SegmentStatus.Cold));
+
+    /// <summary>
+    /// Drops the day's cache rows and runs one more statement against archive_segments, both in
+    /// one transaction. Eviction, aborted hydration and segment deletion are the same shape and
+    /// differ only in that second statement.
+    /// </summary>
+    private async Task ClearCacheThenAsync(
+        string day, string segmentSql, CancellationToken cancellationToken,
+        params (string Name, object Value)[] extraParameters)
     {
         using var connection = _db.OpenConnection();
         using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
@@ -335,15 +329,16 @@ public sealed class SqliteArchiveStore : IArchiveStore
             clear.Parameters.AddWithValue("@day", day);
             await clear.ExecuteNonQueryAsync(cancellationToken);
         }
-        using (var mark = connection.CreateCommand())
+        using (var segment = connection.CreateCommand())
         {
-            mark.Transaction = transaction;
-            mark.CommandText =
-                "UPDATE archive_segments SET status = @cold, hydrated_at = NULL, last_accessed_at = NULL " +
-                "WHERE day = @day;";
-            mark.Parameters.AddWithValue("@cold", SegmentStatus.Cold);
-            mark.Parameters.AddWithValue("@day", day);
-            await mark.ExecuteNonQueryAsync(cancellationToken);
+            segment.Transaction = transaction;
+            segment.CommandText = segmentSql;
+            segment.Parameters.AddWithValue("@day", day);
+            foreach (var (name, value) in extraParameters)
+            {
+                segment.Parameters.AddWithValue(name, value);
+            }
+            await segment.ExecuteNonQueryAsync(cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -370,16 +365,4 @@ public sealed class SqliteArchiveStore : IArchiveStore
         reader.GetString(5),
         reader.IsDBNull(6) ? null : reader.GetString(6),
         reader.IsDBNull(7) ? null : reader.GetString(7));
-
-    private static Event ReadEvent(SqliteDataReader reader) => new(
-        reader.GetInt64(0),
-        reader.GetString(1),
-        reader.GetString(2),
-        reader.GetString(3),
-        reader.IsDBNull(4) ? null : reader.GetString(4),
-        reader.IsDBNull(5) ? null : reader.GetString(5),
-        reader.IsDBNull(6) ? null : reader.GetString(6),
-        reader.GetString(7),
-        reader.IsDBNull(8) ? null : reader.GetString(8),
-        reader.IsDBNull(9) ? null : reader.GetString(9));
 }

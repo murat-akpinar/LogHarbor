@@ -53,14 +53,14 @@ public static class OtlpTraceEndpoints
             }
             catch (InvalidProtocolBufferException ex)
             {
-                return BadRequest(ex.Message);
+                return Problems.BadRequest("Invalid OTLP payload", ex.Message);
             }
         }
         else
         {
             if (!OtlpJson.TryParseTraces(Encoding.UTF8.GetString(body), out var parsed, out var error))
             {
-                return BadRequest(error!);
+                return Problems.BadRequest("Invalid OTLP payload", error!);
             }
             request = parsed!;
         }
@@ -83,8 +83,4 @@ public static class OtlpTraceEndpoints
             ? Results.Bytes(response.ToByteArray(), "application/x-protobuf")
             : Results.Text(JsonFormatter.Default.Format(response), "application/json");
     }
-
-    private static IResult BadRequest(string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid OTLP payload", detail: detail);
 }

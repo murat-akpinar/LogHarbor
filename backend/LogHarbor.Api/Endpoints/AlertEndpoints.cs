@@ -38,11 +38,11 @@ public static class AlertEndpoints
             }
             catch (DuplicateAlertTitleException ex)
             {
-                return BadRequest("Duplicate title", ex.Message);
+                return Problems.BadRequest("Duplicate title", ex.Message);
             }
             catch (UnknownSignalException ex)
             {
-                return BadRequest("Unknown signal", ex.Message);
+                return Problems.BadRequest("Unknown signal", ex.Message);
             }
         });
 
@@ -66,11 +66,11 @@ public static class AlertEndpoints
             }
             catch (DuplicateAlertTitleException ex)
             {
-                return BadRequest("Duplicate title", ex.Message);
+                return Problems.BadRequest("Duplicate title", ex.Message);
             }
             catch (UnknownSignalException ex)
             {
-                return BadRequest("Unknown signal", ex.Message);
+                return Problems.BadRequest("Unknown signal", ex.Message);
             }
         });
 
@@ -116,7 +116,4 @@ public static class AlertEndpoints
         }
         return errors.Count > 0 ? Results.ValidationProblem(errors) : null;
     }
-
-    private static IResult BadRequest(string title, string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: title, detail: detail);
 }

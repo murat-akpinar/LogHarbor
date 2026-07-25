@@ -60,7 +60,7 @@ public sealed class SqlTranslator
         if (node.Op == "contains")
         {
             var value = (string)((LiteralOperand)node.Right).Value!;
-            return $"{Operand(node.Left)} LIKE '%' || {AddParameter(EscapeLike(value))} || '%' ESCAPE '\\'";
+            return $"{Operand(node.Left)} LIKE '%' || {AddParameter(SqlLike.Escape(value))} || '%' ESCAPE '\\'";
         }
         if (node.Op == "like")
         {
@@ -85,10 +85,6 @@ public sealed class SqlTranslator
         _parameters.Add(new KeyValuePair<string, object>(name, value));
         return name;
     }
-
-    /// <summary>contains means literal substring: escape LIKE wildcards in the user value.</summary>
-    private static string EscapeLike(string value) =>
-        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     /// <summary>Wraps free text as an FTS5 phrase so it can never inject MATCH operators.</summary>
     private static string FtsPhrase(string text) =>

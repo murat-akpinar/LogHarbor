@@ -26,15 +26,15 @@ public static class EventEndpoints
     {
         if (count is < 1 or > 1000)
         {
-            return BadRequest("Invalid query", "count must be between 1 and 1000.");
+            return Problems.BadRequest("Invalid query", "count must be between 1 and 1000.");
         }
-        if (!TryNormalizeTimestamp(from, out var fromUtc))
+        if (!Timestamps.TryNormalize(from, out var fromUtc))
         {
-            return BadRequest("Invalid query", "from is not a valid ISO-8601 timestamp.");
+            return Problems.BadRequest("Invalid query", "from is not a valid ISO-8601 timestamp.");
         }
-        if (!TryNormalizeTimestamp(to, out var toUtc))
+        if (!Timestamps.TryNormalize(to, out var toUtc))
         {
-            return BadRequest("Invalid query", "to is not a valid ISO-8601 timestamp.");
+            return Problems.BadRequest("Invalid query", "to is not a valid ISO-8601 timestamp.");
         }
 
         QuerySql? filterSql = null;
@@ -46,7 +46,7 @@ public static class EventEndpoints
             }
             catch (QueryParseException ex)
             {
-                return BadRequest("Invalid filter", $"{ex.Message} (position {ex.Position})");
+                return Problems.BadRequest("Invalid filter", $"{ex.Message} (position {ex.Position})");
             }
         }
 
@@ -80,22 +80,4 @@ public static class EventEndpoints
         }
     }
 
-    /// <summary>Reformats to the stored fixed-width UTC format so string comparison stays chronological.</summary>
-    private static bool TryNormalizeTimestamp(string? input, out string? normalized)
-    {
-        normalized = null;
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return true;
-        }
-        if (!TimestampParsing.TryParseUtc(input, out var parsed))
-        {
-            return false;
-        }
-        normalized = ClefParser.FormatTimestamp(parsed);
-        return true;
-    }
-
-    private static IResult BadRequest(string title, string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: title, detail: detail);
 }

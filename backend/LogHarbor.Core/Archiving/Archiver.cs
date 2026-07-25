@@ -178,7 +178,7 @@ public sealed class Archiver
         {
             uncompressedBytes = WriteSegmentFile(tempPath, events);
 
-            var verifiedCount = CountLines(tempPath);
+            var verifiedCount = CountVerifiedEvents(tempPath);
             if (verifiedCount != events.Count)
             {
                 throw new ArchiveVerificationException(
@@ -224,41 +224,31 @@ public sealed class Archiver
         return uncompressedBytes;
     }
 
-    private static IReadOnlyList<Event> ReadSegmentFile(string path)
+    /// <summary>
+    /// Streams a segment file back into events. One reader for both callers: verification used to
+    /// count lines without parsing them, so a segment whose JSON was corrupt passed the check and
+    /// only failed years later at hydrate time. Now the write path proves the file parses.
+    /// </summary>
+    private static IEnumerable<Event> ReadSegment(string path)
     {
         using var file = File.OpenRead(path);
         using var brotli = new BrotliStream(file, CompressionMode.Decompress);
         using var reader = new StreamReader(brotli, Encoding.UTF8);
 
-        var events = new List<Event>();
         while (reader.ReadLine() is { } line)
         {
             if (line.Length == 0)
             {
                 continue;
             }
-            events.Add(JsonSerializer.Deserialize<Event>(line, LineOptions)
-                ?? throw new ArchiveVerificationException($"{Path.GetFileName(path)}: null event line."));
+            yield return JsonSerializer.Deserialize<Event>(line, LineOptions)
+                ?? throw new ArchiveVerificationException($"{Path.GetFileName(path)}: null event line.");
         }
-        return events;
     }
 
-    private static long CountLines(string path)
-    {
-        using var file = File.OpenRead(path);
-        using var brotli = new BrotliStream(file, CompressionMode.Decompress);
-        using var reader = new StreamReader(brotli, Encoding.UTF8);
+    private static IReadOnlyList<Event> ReadSegmentFile(string path) => ReadSegment(path).ToList();
 
-        long count = 0;
-        while (reader.ReadLine() is { } line)
-        {
-            if (line.Length > 0)
-            {
-                count++;
-            }
-        }
-        return count;
-    }
+    private static long CountVerifiedEvents(string path) => ReadSegment(path).LongCount();
 
     /// <summary>file_path is stored as a bare file name; strip any directories as defense in depth.</summary>
     private string SegmentPath(string filePath) =>

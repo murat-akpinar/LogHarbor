@@ -8,8 +8,7 @@ namespace LogHarbor.Core.Storage;
 
 public sealed class SqliteEventStore : IEventStore
 {
-    private const string Columns =
-        "id, timestamp, level, message, message_template, properties, exception, ingested_at, trace_id, span_id";
+    private const string Columns = EventRow.Columns;
 
     private readonly LogHarborDb _db;
 
@@ -107,7 +106,7 @@ public sealed class SqliteEventStore : IEventStore
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
-                events.Add(ReadEvent(reader));
+                events.Add(EventRow.Read(reader));
             }
         }
 
@@ -202,7 +201,7 @@ public sealed class SqliteEventStore : IEventStore
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            events.Add(ReadEvent(reader));
+            events.Add(EventRow.Read(reader));
         }
 
         var hasMore = events.Count > query.Count;
@@ -223,7 +222,7 @@ public sealed class SqliteEventStore : IEventStore
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (await reader.ReadAsync(cancellationToken))
             {
-                return ReadEvent(reader);
+                return EventRow.Read(reader);
             }
         }
 
@@ -236,7 +235,7 @@ public sealed class SqliteEventStore : IEventStore
             return null;
         }
 
-        var found = ReadEvent(cacheReader);
+        var found = EventRow.Read(cacheReader);
         await TouchSegmentAsync(connection, cacheReader.GetString(10), cancellationToken);
         return found;
     }
@@ -795,7 +794,7 @@ public sealed class SqliteEventStore : IEventStore
             $"SELECT properties FROM events WHERE properties IS NOT NULL ORDER BY id DESC LIMIT {SuggestionScanRows}" +
             ") recent, json_each(recent.properties) je " +
             "WHERE je.key LIKE @prefix || '%' ESCAPE '\\' ORDER BY je.key LIMIT @limit;";
-        command.Parameters.AddWithValue("@prefix", EscapeLike(prefix));
+        command.Parameters.AddWithValue("@prefix", SqlLike.Escape(prefix));
         command.Parameters.AddWithValue("@limit", limit);
         return await ReadStringsAsync(command, cancellationToken);
     }
@@ -812,13 +811,10 @@ public sealed class SqliteEventStore : IEventStore
             "WHERE je.key = @property AND je.value IS NOT NULL " +
             "AND CAST(je.value AS TEXT) LIKE @prefix || '%' ESCAPE '\\' ORDER BY 1 LIMIT @limit;";
         command.Parameters.AddWithValue("@property", property);
-        command.Parameters.AddWithValue("@prefix", EscapeLike(prefix));
+        command.Parameters.AddWithValue("@prefix", SqlLike.Escape(prefix));
         command.Parameters.AddWithValue("@limit", limit);
         return await ReadStringsAsync(command, cancellationToken);
     }
-
-    private static string EscapeLike(string value) =>
-        value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 
     private static async Task<IReadOnlyList<string>> ReadStringsAsync(
         SqliteCommand command, CancellationToken cancellationToken)
@@ -831,16 +827,4 @@ public sealed class SqliteEventStore : IEventStore
         }
         return values;
     }
-
-    private static Event ReadEvent(SqliteDataReader reader) => new(
-        reader.GetInt64(0),
-        reader.GetString(1),
-        reader.GetString(2),
-        reader.GetString(3),
-        reader.IsDBNull(4) ? null : reader.GetString(4),
-        reader.IsDBNull(5) ? null : reader.GetString(5),
-        reader.IsDBNull(6) ? null : reader.GetString(6),
-        reader.GetString(7),
-        reader.IsDBNull(8) ? null : reader.GetString(8),
-        reader.IsDBNull(9) ? null : reader.GetString(9));
 }

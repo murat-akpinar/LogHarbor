@@ -33,15 +33,15 @@ public static class ExportEndpoints
     {
         if (format is not ("json" or "csv"))
         {
-            return BadRequest("format must be 'json' or 'csv'.");
+            return Problems.BadRequest("Invalid export request", "format must be 'json' or 'csv'.");
         }
         if (limit is < 1 or > MaxLimit)
         {
-            return BadRequest($"limit must be between 1 and {MaxLimit}.");
+            return Problems.BadRequest("Invalid export request", $"limit must be between 1 and {MaxLimit}.");
         }
-        if (!TryNormalize(from, out var fromUtc) || !TryNormalize(to, out var toUtc))
+        if (!Timestamps.TryNormalize(from, out var fromUtc) || !Timestamps.TryNormalize(to, out var toUtc))
         {
-            return BadRequest("from/to must be valid ISO-8601 timestamps.");
+            return Problems.BadRequest("Invalid export request", "from/to must be valid ISO-8601 timestamps.");
         }
 
         QuerySql? filterSql = null;
@@ -53,7 +53,7 @@ public static class ExportEndpoints
             }
             catch (QueryParseException ex)
             {
-                return BadRequest($"invalid filter: {ex.Message} (position {ex.Position})");
+                return Problems.BadRequest("Invalid export request", $"invalid filter: {ex.Message} (position {ex.Position})");
             }
         }
 
@@ -179,22 +179,4 @@ public static class ExportEndpoints
         return "\"" + value.Replace("\"", "\"\"") + "\"";
     }
 
-    /// <summary>Same normalization as the search endpoint, so exports match what the UI shows.</summary>
-    private static bool TryNormalize(string? input, out string? normalized)
-    {
-        normalized = null;
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            return true;
-        }
-        if (!TimestampParsing.TryParseUtc(input, out var parsed))
-        {
-            return false;
-        }
-        normalized = ClefParser.FormatTimestamp(parsed);
-        return true;
-    }
-
-    private static IResult BadRequest(string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid export request", detail: detail);
 }

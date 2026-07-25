@@ -33,11 +33,11 @@ public static class ArchiveEndpoints
     {
         if (!TryParseDay(request.From, out var fromDay) || fromDay is null)
         {
-            return BadRequest("from is required and must be a valid ISO-8601 timestamp.");
+            return Problems.BadRequest("Invalid request", "from is required and must be a valid ISO-8601 timestamp.");
         }
         if (!TryParseDay(request.To, out var toDay) || toDay is null)
         {
-            return BadRequest("to is required and must be a valid ISO-8601 timestamp.");
+            return Problems.BadRequest("Invalid request", "to is required and must be a valid ISO-8601 timestamp.");
         }
 
         var inRange = await store.ListRangeAsync(fromDay, toDay, cancellationToken);
@@ -47,7 +47,7 @@ public static class ArchiveEndpoints
         // at least HydrationKeepDays
         if (cold > MaxSegmentsPerRequest)
         {
-            return BadRequest(
+            return Problems.BadRequest("Invalid request", 
                 $"That range holds {cold} archived days; at most {MaxSegmentsPerRequest} can be " +
                 "extracted per request. Narrow the range and repeat.");
         }
@@ -76,11 +76,11 @@ public static class ArchiveEndpoints
     {
         if (!TryParseDay(from, out var fromDay))
         {
-            return BadRequest("from is not a valid ISO-8601 timestamp.");
+            return Problems.BadRequest("Invalid request", "from is not a valid ISO-8601 timestamp.");
         }
         if (!TryParseDay(to, out var toDay))
         {
-            return BadRequest("to is not a valid ISO-8601 timestamp.");
+            return Problems.BadRequest("Invalid request", "to is not a valid ISO-8601 timestamp.");
         }
 
         return Results.Ok(new { segments = await GetStatusesAsync(store, fromDay, toDay, cancellationToken) });
@@ -108,7 +108,4 @@ public static class ArchiveEndpoints
         day = ClefParser.FormatTimestamp(parsed)[..10];
         return true;
     }
-
-    private static IResult BadRequest(string detail) =>
-        Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request", detail: detail);
 }
