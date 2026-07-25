@@ -130,7 +130,8 @@ query key, and React Query refetches because the key changed. Pages that are liv
 (Dashboard and the three lens pages) use a rolling last hour; Services, Users and Analysis
 keep their 24 h window and start paused, so their default view is unchanged.
 Events is the exception in kind, not in placement: its Live is a SignalR subscription rather
-than a rolling window, so it keeps its own state and only borrows the control.
+than a rolling window, so it keeps its own state and only borrows the control. It has no h1,
+so the group sits at the right of the search-bar row — that row is the page's header.
 
 --- LEVEL COLORS ---
 

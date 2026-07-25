@@ -181,8 +181,19 @@ export function EventsPage() {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="shrink-0 border-b border-border bg-surface">
-        <div className="p-3">
-          <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
+        <div className="flex items-start gap-3 p-3">
+          <div className="min-w-0 flex-1">
+            <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
+          </div>
+          {/* top right, the same corner as every other page — this row is the page's header */}
+          <LiveRangeControls
+            live={isLive}
+            onToggleLive={toggleLive}
+            from={range.from}
+            to={range.to}
+            onRangeChange={chooseRange}
+            status={tail.status}
+          />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border px-3 py-1.5">
           <div className="flex flex-wrap items-center gap-3">
@@ -190,14 +201,6 @@ export function EventsPage() {
             <SignalToggles activeSignalIds={activeSignalIds} onToggle={toggleSignal} />
           </div>
           <div className="flex items-center gap-2">
-            <LiveRangeControls
-              live={isLive}
-              onToggleLive={toggleLive}
-              from={range.from}
-              to={range.to}
-              onRangeChange={chooseRange}
-              status={tail.status}
-            />
             <ColumnPicker columns={columns} onChange={setColumns} />
             <Button variant="ghost" onClick={() => setRelativeTime((current) => !current)} title={t.events.toggleTimestamps}>
               {relativeTime ? t.events.relativeTime : t.events.absoluteTime}
