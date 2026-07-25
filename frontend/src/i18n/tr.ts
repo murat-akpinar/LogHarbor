@@ -149,6 +149,12 @@ export const tr: Messages = {
   dashboard: {
     title: 'Panel',
     activity: 'Etkinlik',
+    ingestionLag: 'Toplama gecikmesi',
+    lagUnits: { s: 'sn', m: 'dk', h: 'sa', d: 'g' },
+    lagWorst: 'en kötü',
+    lagOnTime: 'her şey zamanında geldi',
+    lagLate: (count: string) => `${count} olay geç geldi`,
+    lagSkewed: (count: string) => `${count} olayın saati ilerideydi`,
     routes: 'Rotalar',
     servicesUsers: 'Servisler ve kullanıcılar',
     info: 'Bilgi',
@@ -333,6 +339,16 @@ export const tr: Messages = {
     days: 'gün',
     saveArchive: 'Arşiv ayarlarını kaydet',
     saved: 'Kaydedildi',
+    timeline: {
+      hot: (days: string) => `${days} gün sıcak ve aranabilir`,
+      compressed: (from: string, to: string) => `${from}-${to} gün arası diskte sıkıştırılmış`,
+      deleted: (days: string) => `${days} gün sonra silinir`,
+      noArchiving: (days: string) =>
+        `Arşivleme kapalı: olaylar sıcak kalır ve ${days} gün sonra silinir.`,
+      retentionTooShort:
+        'Arşivleri sıkıştırıldıklarından daha erken silmek, her günü diske yazıp aynı geçişte ' +
+        'silmek demek. Silme süresini en az sıkıştırma gecikmesi kadar yap.',
+    },
     archivedDays: 'Arşivlenmiş günler',
     archivedDaysHint:
       'Arşivlenmiş günler diskte sıkıştırılmış durur; çıkarılana kadar arama sonuçlarına girmez.',

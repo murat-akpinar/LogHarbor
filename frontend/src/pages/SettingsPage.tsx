@@ -153,6 +153,45 @@ interface ArchiveFormState {
   retentionDays: string
 }
 
+/**
+ * What the three numbers mean together, from the values currently in the form.
+ *
+ * They interact in ways three separate inputs cannot show: retention shorter than the
+ * compression delay would compress a day to a file and delete it on the same pass, which the
+ * API rejects — so say what will happen before the user finds out from a validation error.
+ * Returns null while the form holds anything unparseable.
+ */
+export function describeArchiveTimeline(
+  form: ArchiveFormState,
+  t: {
+    hot: (days: string) => string
+    compressed: (from: string, to: string) => string
+    deleted: (days: string) => string
+    noArchiving: (days: string) => string
+    retentionTooShort: string
+  },
+): { text: string; warning: boolean } | null {
+  const compress = Number(form.compressAfterDays)
+  const retention = Number(form.retentionDays)
+  if (!Number.isFinite(compress) || !Number.isFinite(retention)) return null
+  if (form.compressAfterDays === '' || form.retentionDays === '') return null
+
+  if (compress <= 0) {
+    return { text: t.noArchiving(String(retention)), warning: false }
+  }
+  if (retention < compress) {
+    return { text: t.retentionTooShort, warning: true }
+  }
+  return {
+    text: [
+      t.hot(String(compress)),
+      t.compressed(String(compress), String(retention)),
+      t.deleted(String(retention)),
+    ].join(' → '),
+    warning: false,
+  }
+}
+
 function ArchiveField({
   label,
   hint,
@@ -226,6 +265,7 @@ function ArchiveCard() {
   const totalSize = (segments ?? []).reduce((sum, segment) => sum + segment.sizeBytes, 0)
   const totalUncompressed = (segments ?? []).reduce((sum, segment) => sum + segment.uncompressedBytes, 0)
   const ratio = totalSize > 0 ? totalUncompressed / totalSize : undefined
+  const timeline = form ? describeArchiveTimeline(form, t.settings.timeline) : null
 
   if (error) {
     return <p className="text-sm text-level-error">{error.message}</p>
@@ -255,6 +295,11 @@ function ArchiveCard() {
           onChange={(value) => setForm((current) => current && { ...current, retentionDays: value })}
           disabled={!isAdmin}
         />
+        {timeline && (
+          <p className={`text-xs ${timeline.warning ? 'text-level-warning' : 'text-fg-muted'}`}>
+            {timeline.text}
+          </p>
+        )}
         {isAdmin && (
           <div className="flex items-center gap-3">
             <Button type="submit" variant="primary" disabled={!form || save.isPending} className="self-start">
@@ -385,7 +430,7 @@ export function SettingsPage() {
         {authStatus?.authRequired && (
           <div className="flex items-center gap-3">
             <span className="text-xs text-fg-muted">
-              {t.settings.signedInAs(authStatus.username ?? '', authStatus.role)}
+              {t.settings.signedInAs(authStatus.username ?? '', authStatus.role ?? '')}
             </span>
             <Button variant="secondary" onClick={() => logoutMutation.mutate()}>
               {t.settings.signOut}

@@ -745,6 +745,58 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    public async Task<IngestionLag> GetIngestionLagAsync(
+        QuerySql? filter, string fromUtc, string toUtc, double lateAfterSeconds,
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "timestamp, ingested_at", fromUtc, toUtc, cancellationToken);
+
+        // julianday reads our fixed-width ISO-8601 directly; * 86400 turns days into seconds.
+        // Percentiles run over non-negative lag only: a client stamping events ahead of its own
+        // arrival would otherwise pull p50 below zero and hide how late the genuinely late ones are.
+        // ROW_NUMBER, not PERCENT_RANK, matching every other percentile in this file.
+        command.CommandText =
+            "WITH v AS (SELECT (julianday(ingested_at) - julianday(timestamp)) * 86400.0 AS lag " +
+            $"FROM {source}), " +
+            "p AS (SELECT lag FROM v WHERE lag >= 0), " +
+            "r AS (SELECT lag, ROW_NUMBER() OVER (ORDER BY lag) AS rn, COUNT(*) OVER () AS n FROM p) " +
+            "SELECT (SELECT COUNT(*) FROM v), " +
+            "(SELECT COUNT(*) FROM v WHERE lag > @lateAfter), " +
+            "(SELECT COUNT(*) FROM v WHERE lag < 0), " +
+            "(SELECT MIN(lag) FILTER (WHERE rn >= 0.50 * n) FROM r), " +
+            "(SELECT MIN(lag) FILTER (WHERE rn >= 0.95 * n) FROM r), " +
+            "(SELECT MAX(lag) FROM p); " +
+            // second result set: the single latest arrival, so the UI can point at it
+            $"SELECT timestamp, ingested_at FROM {source} " +
+            "ORDER BY (julianday(ingested_at) - julianday(timestamp)) DESC LIMIT 1;";
+        command.Parameters.AddWithValue("@lateAfter", lateAfterSeconds);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new IngestionLag(0, 0, 0, 0, 0, 0, null, null);
+        }
+
+        var total = reader.GetInt64(0);
+        var late = reader.GetInt64(1);
+        var skewed = reader.GetInt64(2);
+        // NULL whenever no row had non-negative lag; an empty range reads as zero, not as missing
+        var p50 = reader.IsDBNull(3) ? 0 : reader.GetDouble(3);
+        var p95 = reader.IsDBNull(4) ? 0 : reader.GetDouble(4);
+        var max = reader.IsDBNull(5) ? 0 : reader.GetDouble(5);
+
+        string? worstTimestamp = null, worstIngestedAt = null;
+        if (await reader.NextResultAsync(cancellationToken) && await reader.ReadAsync(cancellationToken))
+        {
+            worstTimestamp = reader.GetString(0);
+            worstIngestedAt = reader.GetString(1);
+        }
+        return new IngestionLag(total, late, skewed, p50, p95, max, worstTimestamp, worstIngestedAt);
+    }
+
     /// <summary>
     /// Builds the FROM source for stats aggregates: hot events only, or hot UNION ALL hydrated cache
     /// when the range touches hydrated segments (same pattern as QueryAsync, including the eviction

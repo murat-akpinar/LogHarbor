@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { getHeatmap, getHistogram, getOperations, getQueries, getServices, getServiceStatus, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
+import { getHeatmap, getHistogram, getIngestionLag, getOperations, getQueries, getServices, getServiceStatus, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
 import type { StatsRangeParams } from '../api/stats'
 
 // refetch keeps the previous render instead of flashing a skeleton (dataviz interaction rules)
@@ -25,6 +25,14 @@ export function useSummary(params: StatsRangeParams) {
   return useQuery({
     queryKey: ['stats', 'summary', params],
     queryFn: () => getSummary(params),
+    ...KEEP_PREVIOUS,
+  })
+}
+
+export function useIngestionLag(params: StatsRangeParams & { lateAfterSeconds?: number }) {
+  return useQuery({
+    queryKey: ['stats', 'ingestion-lag', params],
+    queryFn: () => getIngestionLag(params),
     ...KEEP_PREVIOUS,
   })
 }

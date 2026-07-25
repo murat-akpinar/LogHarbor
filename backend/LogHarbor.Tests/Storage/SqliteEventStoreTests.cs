@@ -30,6 +30,89 @@ public sealed class SqliteEventStoreTests : IDisposable
         Exception: null,
         IngestedAt: "2026-07-13T10:00:01.0000000Z");
 
+    private const string LagFrom = "2026-07-13T00:00:00.0000000Z";
+    private const string LagTo = "2026-07-13T23:59:59.9999999Z";
+
+    /// <summary>Event stamped at 10:00 that arrived <paramref name="lagSeconds"/> later.</summary>
+    private static Event Lagged(string message, double lagSeconds)
+    {
+        var stamped = DateTimeOffset.Parse("2026-07-13T10:00:00Z");
+        return MakeEvent(message) with
+        {
+            Timestamp = ClefParser.FormatTimestamp(stamped),
+            IngestedAt = ClefParser.FormatTimestamp(stamped.AddSeconds(lagSeconds)),
+        };
+    }
+
+    [Fact]
+    public async Task IngestionLag_ReportsPercentilesAndTheWorstArrival()
+    {
+        await _store.WriteBatchAsync(
+        [
+            Lagged("a", 1), Lagged("b", 1), Lagged("c", 2), Lagged("d", 2),
+            Lagged("e", 3), Lagged("f", 4), Lagged("g", 5), Lagged("h", 6),
+            Lagged("i", 7), Lagged("backfill", 604800), // a week late, the shape a backfill has
+        ]);
+
+        var lag = await _store.GetIngestionLagAsync(null, LagFrom, LagTo, lateAfterSeconds: 60);
+
+        Assert.Equal(10, lag.Total);
+        Assert.Equal(1, lag.LateCount);            // only the backfill is past 60 s
+        Assert.Equal(0, lag.SkewedCount);
+        Assert.Equal(604800, lag.MaxSeconds, 3);
+        Assert.Equal(3, lag.P50Seconds, 3);        // 5th of 10 by rank
+        Assert.Equal(604800, lag.P95Seconds, 3);
+        // the UI points at this event, so it has to be the actually-worst one
+        Assert.Equal("2026-07-13T10:00:00.0000000Z", lag.WorstTimestamp);
+        Assert.Equal("2026-07-20T10:00:00.0000000Z", lag.WorstIngestedAt);
+    }
+
+    [Fact]
+    public async Task IngestionLag_CountsClockSkewSeparatelyFromLateness()
+    {
+        await _store.WriteBatchAsync(
+        [
+            Lagged("ontime", 1),
+            Lagged("skewed", -3600),  // stamped an hour ahead of its own arrival
+            Lagged("late", 120),
+        ]);
+
+        var lag = await _store.GetIngestionLagAsync(null, LagFrom, LagTo, lateAfterSeconds: 60);
+
+        Assert.Equal(3, lag.Total);
+        Assert.Equal(1, lag.LateCount);
+        Assert.Equal(1, lag.SkewedCount);
+        // the skewed event must not drag the percentiles below zero and hide the late one
+        Assert.True(lag.P50Seconds >= 0, $"p50 was {lag.P50Seconds}");
+        Assert.Equal(120, lag.MaxSeconds, 3);
+    }
+
+    [Fact]
+    public async Task IngestionLag_EmptyRange_ReadsAsZeroNotNull()
+    {
+        var lag = await _store.GetIngestionLagAsync(null, LagFrom, LagTo, lateAfterSeconds: 60);
+
+        Assert.Equal(0, lag.Total);
+        Assert.Equal(0, lag.MaxSeconds);
+        Assert.Null(lag.WorstTimestamp);
+    }
+
+    [Fact]
+    public async Task IngestionLag_HonoursTheFilter()
+    {
+        await _store.WriteBatchAsync(
+        [
+            Lagged("kept", 300) with { Level = "Error" },
+            Lagged("dropped", 900),
+        ]);
+
+        var filter = SqlTranslator.Translate(QueryParser.Parse("@Level = 'Error'"));
+        var lag = await _store.GetIngestionLagAsync(filter, LagFrom, LagTo, lateAfterSeconds: 60);
+
+        Assert.Equal(1, lag.Total);
+        Assert.Equal(300, lag.MaxSeconds, 3);
+    }
+
     [Fact]
     public async Task ServiceOverview_CoalescesSpellings_CountsErrors_ComputesP95()
     {

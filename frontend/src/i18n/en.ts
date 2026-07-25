@@ -148,6 +148,12 @@ export const en = {
   dashboard: {
     title: 'Dashboard',
     activity: 'Activity',
+    ingestionLag: 'Ingestion lag',
+    lagUnits: { s: 's', m: 'm', h: 'h', d: 'd' },
+    lagWorst: 'worst',
+    lagOnTime: 'everything arrived on time',
+    lagLate: (count: string) => `${count} arrived late`,
+    lagSkewed: (count: string) => `${count} stamped ahead of arrival`,
     routes: 'Routes',
     servicesUsers: 'Services & users',
     info: 'Info',
@@ -334,6 +340,16 @@ export const en = {
     days: 'days',
     saveArchive: 'Save archive settings',
     saved: 'Saved',
+    timeline: {
+      hot: (days: string) => `hot and searchable for ${days} d`,
+      compressed: (from: string, to: string) => `compressed on disk from ${from} to ${to} d`,
+      deleted: (days: string) => `deleted after ${days} d`,
+      noArchiving: (days: string) =>
+        `Archiving is off: events stay hot and are deleted after ${days} d.`,
+      retentionTooShort:
+        'Deleting archives sooner than they are compressed would write each day to disk and ' +
+        'delete it on the same pass. Set deletion to at least the compression delay.',
+    },
     archivedDays: 'Archived days',
     compressedSize: 'Compressed size',
     compressionRatio: 'Compression ratio',

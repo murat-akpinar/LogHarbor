@@ -49,6 +49,31 @@ public sealed record QueryOverview(
     string Value, string? Connection, long Calls, long ErrorCount,
     double? TotalMs, double? AvgMs, double? P95Ms, string LastSeen);
 
+/// <summary>
+/// How far behind their own timestamps events arrived: ingested_at minus @t, in seconds, over
+/// the range. Every event stores both halves already, so this needs no new instrumentation.
+/// </summary>
+/// <remarks>
+/// What it catches: a client whose clock is wrong, a collector that stalled and dumped its
+/// backlog when it recovered, and a backfill landing on days that are already archived — the
+/// last of which is what stranded 22,226 rows on the test instance in July 2026, unnoticed for
+/// a day because nothing looked at this.
+///
+/// Negative lag (an event stamped in the future relative to when it arrived) is counted
+/// separately as SkewedCount rather than folded into the percentiles, where it would drag them
+/// below zero and hide real lateness. Worst* describe the single latest-arriving event, so the
+/// UI can point at it.
+/// </remarks>
+public sealed record IngestionLag(
+    long Total,
+    long LateCount,
+    long SkewedCount,
+    double P50Seconds,
+    double P95Seconds,
+    double MaxSeconds,
+    string? WorstTimestamp,
+    string? WorstIngestedAt);
+
 public interface IEventStore
 {
     /// <summary>Writes all events in a single transaction; all or nothing. Returns the ids assigned, in insertion order.</summary>
@@ -104,6 +129,15 @@ public interface IEventStore
     /// <summary>Counts by (day-of-week, hour-of-day) UTC, ordered by day then hour. Searches hot + hydrated data.</summary>
     Task<IReadOnlyList<HeatmapCell>> GetHeatmapAsync(
         QuerySql? filter, string fromUtc, string toUtc, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Distribution of ingested_at minus @t over the range, in seconds. Events later than
+    /// <paramref name="lateAfterSeconds"/> are counted as late; events stamped ahead of their own
+    /// arrival are counted as skewed and left out of the percentiles. Searches hot + hydrated data.
+    /// </summary>
+    Task<IngestionLag> GetIngestionLagAsync(
+        QuerySql? filter, string fromUtc, string toUtc, double lateAfterSeconds,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Per-service totals, Error+Fatal counts and p95 of Elapsed, largest first. Service identity

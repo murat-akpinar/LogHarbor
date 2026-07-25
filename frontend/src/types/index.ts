@@ -55,6 +55,26 @@ export interface StatsSummary {
   byLevel: Record<Level, number>
 }
 
+/**
+ * How far behind their own timestamps events arrived, in seconds. Skewed events (stamped ahead
+ * of their arrival) are counted apart and left out of the percentiles.
+ */
+export interface IngestionLag {
+  total: number
+  lateCount: number
+  skewedCount: number
+  p50Seconds: number
+  p95Seconds: number
+  maxSeconds: number
+  worstTimestamp: string | null
+  worstIngestedAt: string | null
+}
+
+export interface IngestionLagResult {
+  lateAfterSeconds: number
+  lag: IngestionLag
+}
+
 /** One error group: all events sharing a CLEF message template and level. */
 export interface TopError {
   template: string
@@ -177,7 +197,12 @@ export interface AuthStatus {
   authRequired: boolean
   authenticated: boolean
   username: string | null
-  role: UserRole
+  /**
+   * Null when auth is on and nobody is signed in: the API reads the role off the session
+   * claim, which does not exist yet. The type used to claim UserRole unconditionally, which
+   * was simply untrue of the responses the login gate depends on.
+   */
+  role: UserRole | null
   /** Seeded admin/admin account: the API refuses everything until a new password is set. */
   mustChangePassword: boolean
 }

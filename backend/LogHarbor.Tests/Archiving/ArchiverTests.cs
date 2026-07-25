@@ -222,6 +222,26 @@ public sealed class ArchiverTests : IDisposable
         Assert.Equal(summary.Total, heatmap.Sum(cell => cell.Count));
     }
 
+    /// <summary>
+    /// Every new aggregate has to go through BuildStatsSourceAsync or it repeats the bug 40f53b1
+    /// fixed. Ingestion lag is the newest one, so it gets the same guard.
+    /// </summary>
+    [Fact]
+    public async Task IngestionLag_CountsHotAndHydratedTogether()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _archiver.RunArchiveAsync(Now);
+        await HydrateAsync("2026-05-01", "2026-05-02");
+
+        var from = "2026-05-01T00:00:00.0000000Z";
+        var to = "2026-07-13T00:00:00.0000000Z";
+
+        var lag = await _eventStore.GetIngestionLagAsync(null, from, to, lateAfterSeconds: 60);
+
+        // all six seeded events, five of them from the hydrated cache
+        Assert.Equal(6, lag.Total);
+    }
+
     [Fact]
     public async Task HistogramAndSummary_HonourFiltersAcrossHydratedData()
     {

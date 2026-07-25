@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   useHeatmap,
   useHistogram,
+  useIngestionLag,
   useOperations,
   useServices,
   useSlowOperations,
@@ -11,6 +12,7 @@ import {
   useUserActivity,
 } from '../hooks/useStats'
 import { MetricCard } from '../components/dashboard/MetricCard'
+import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { SectionHeader } from '../components/dashboard/SectionHeader'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
@@ -39,6 +41,7 @@ export function DashboardPage() {
   const histogram = useHistogram({ ...range, buckets: BUCKET_COUNT })
   const errorHistogram = useHistogram({ ...range, buckets: BUCKET_COUNT, filter: ERROR_FILTER })
   const heatmap = useHeatmap(range)
+  const ingestionLag = useIngestionLag(range)
   const topErrors = useTopErrors({ ...range, limit: PANEL_LIMIT })
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
   const services = useServices({ ...range, limit: PANEL_LIMIT })
@@ -86,6 +89,12 @@ export function DashboardPage() {
       {/* Activity: the pulse of raw volume and errors over time */}
       <section>
         <SectionHeader title={t.dashboard.activity} to="/events" linkLabel={t.dashboard.viewAll} />
+        {/* sits above the volume charts on purpose: it says whether to trust their x-axis */}
+        {ingestionLag.data && (
+          <div className="mb-3">
+            <IngestionLagStrip lag={ingestionLag.data.lag} />
+          </div>
+        )}
         <div className="grid gap-4 lg:grid-cols-2">
           <MetricCard
             eyebrow={t.nav.events}

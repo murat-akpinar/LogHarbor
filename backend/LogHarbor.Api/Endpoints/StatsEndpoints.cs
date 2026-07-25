@@ -13,6 +13,7 @@ public static class StatsEndpoints
         group.MapGet("/histogram", HistogramAsync);
         group.MapGet("/heatmap", HeatmapAsync);
         group.MapGet("/summary", SummaryAsync);
+        group.MapGet("/ingestion-lag", IngestionLagAsync);
         group.MapGet("/top-errors", TopErrorsAsync);
         group.MapGet("/top-exceptions", TopExceptionsAsync);
         group.MapGet("/slow-operations", SlowOperationsAsync);
@@ -325,6 +326,32 @@ public static class StatsEndpoints
         var cells = await eventStore.GetHeatmapAsync(
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue), cancellationToken);
         return Results.Ok(new { cells });
+    }
+
+    /// <summary>How late events in the range arrived relative to their own timestamps.</summary>
+    private static async Task<IResult> IngestionLagAsync(
+        IEventStore eventStore,
+        CancellationToken cancellationToken,
+        string from,
+        string to,
+        string? filter = null,
+        double lateAfterSeconds = 60)
+    {
+        // a negative threshold would count clock-skewed events as late, which is the one thing
+        // this endpoint separates out; an unbounded one makes "late" meaningless
+        if (lateAfterSeconds is < 0 or > 86400)
+        {
+            return Problems.BadRequest("Invalid query", "lateAfterSeconds must be between 0 and 86400.");
+        }
+        if (!TryValidateRange(from, to, filter, out var fromValue, out var toValue, out var filterSql, out var error))
+        {
+            return error!;
+        }
+
+        var lag = await eventStore.GetIngestionLagAsync(
+            filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
+            lateAfterSeconds, cancellationToken);
+        return Results.Ok(new { lateAfterSeconds, lag });
     }
 
     private static async Task<IResult> SummaryAsync(

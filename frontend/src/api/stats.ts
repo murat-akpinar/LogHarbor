@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { HeatmapCell, Histogram, OperationOverview, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
+import type { HeatmapCell, Histogram, IngestionLagResult, OperationOverview, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
 
 export interface StatsRangeParams {
   from: string
@@ -25,6 +25,12 @@ export function getHeatmap(params: StatsRangeParams): Promise<{ cells: HeatmapCe
 
 export function getSummary(params: StatsRangeParams): Promise<StatsSummary> {
   return api.get<StatsSummary>(`/api/stats/summary${buildQuery(params)}`)
+}
+
+export function getIngestionLag(
+  params: StatsRangeParams & { lateAfterSeconds?: number },
+): Promise<IngestionLagResult> {
+  return api.get<IngestionLagResult>(`/api/stats/ingestion-lag${buildQuery(params)}`)
 }
 
 export function getTopErrors(params: StatsRangeParams & { limit?: number }): Promise<{ errors: TopError[] }> {

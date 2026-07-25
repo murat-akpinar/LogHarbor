@@ -30,10 +30,21 @@ const SLOW = {
 const OPERATIONS = { operations: [{ template: 'GET /articles', total: 90, errorCount: 2, p95ElapsedMs: 512 }] }
 const USERS = { users: [{ value: 'user-7', total: 33, errorCount: 3, lastSeen: ISO }] }
 
+const LAG = {
+  lateAfterSeconds: 60,
+  lag: {
+    total: 200, lateCount: 3, skewedCount: 0,
+    p50Seconds: 0.5, p95Seconds: 2, maxSeconds: 604800,
+    worstTimestamp: '2026-07-18T13:10:37.0000000Z',
+    worstIngestedAt: '2026-07-24T23:28:52.0000000Z',
+  },
+}
+
 vi.mock('../api/stats', () => ({
   getSummary: vi.fn(async () => SUMMARY),
   getHistogram: vi.fn(async () => ({ buckets: [] })),
   getHeatmap: vi.fn(async () => ({ cells: [] })),
+  getIngestionLag: vi.fn(async () => LAG),
   getTopErrors: vi.fn(async () => TOP_ERRORS),
   getTopExceptions: vi.fn(async () => TOP_EXCEPTIONS),
   getServices: vi.fn(async () => SERVICES),
@@ -103,6 +114,15 @@ describe('DashboardPage', () => {
     const toggle = await screen.findByRole('button', { name: 'Live' })
     expect(toggle.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByTitle('Time range')).toBeDefined()
+  })
+
+  // the strip sits above the volume charts because it says whether to trust their x-axis
+  it('shows how late events arrived, above the charts', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Ingestion lag')).toBeDefined()
+    expect(screen.getByText(/worst 7d/)).toBeDefined()
+    expect(screen.getByText(/3 arrived late/)).toBeDefined()
   })
 
   it('picking a range leaves live mode and narrows the queried window', async () => {
