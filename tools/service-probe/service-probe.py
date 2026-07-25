@@ -219,6 +219,17 @@ def ensure_signal(opener, signals, title, filter_text):
     return signal_id
 
 
+def service_labels(targets):
+    """Display name per target. A bare name where it is unambiguous, "name (kind)" only when
+    the same name is configured under both kinds — so an existing install keeps its titles and
+    re-running this stays idempotent, while systemd:redis and docker:redis stop colliding."""
+    seen = {}
+    for kind, name in targets:
+        seen.setdefault(name, set()).add(kind)
+    return {(kind, name): (f"{name} ({kind})" if len(seen[name]) > 1 else name)
+            for kind, name in targets}
+
+
 def setup_alerts(targets, webhook, window_minutes, payload_format):
     """Per service: a signal for reading, a heartbeat signal, and a silence alert rule.
     Everything is reused by title, so re-running this is safe.
@@ -228,6 +239,7 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
     opener = admin_session()
     signals = {signal["title"]: signal["id"] for signal in api_call(opener, "GET", "/api/signals")}
     alerts = {alert["title"] for alert in api_call(opener, "GET", "/api/alerts")}
+    labels = service_labels(targets)
 
     # Every service reporting anything but a healthy up=1 — the one to toggle when you want
     # to know what is wrong across the whole host.
@@ -236,8 +248,8 @@ def setup_alerts(targets, webhook, window_minutes, payload_format):
                   "and (up = 0 or not Has(up))")
 
     for kind, name in targets:
-        # the kind is part of the title so systemd:redis and docker:redis stay two services
-        label = f"{name} ({kind})"
+        label = labels[(kind, name)]
+        # the filter always pins the kind, whether or not the title needs to
         service_filter = (f"Source = {quote(SOURCE)} and host = {quote(HOST)} "
                           f"and kind = {quote(kind)} and service = {quote(name)}")
         # Two signals per service, because they answer different questions. The plain one is
