@@ -31,6 +31,17 @@ export function formatRelative(iso: string, locale?: string): string {
   return relativeFormat(locale).format(Math.round(seconds / unitSeconds), unit)
 }
 
+/**
+ * Relative wording for an age the caller already measured, in seconds. Unlike formatRelative
+ * it never consults the clock, so a reading measured against something other than now (the end
+ * of a chosen range, say) stays consistent with the status derived from it.
+ */
+export function formatAge(seconds: number, locale?: string): string {
+  const magnitude = Math.max(0, seconds)
+  const [unitSeconds, , unit] = RELATIVE_STEPS.find(([, upTo]) => magnitude < upTo)!
+  return relativeFormat(locale).format(-Math.round(magnitude / unitSeconds), unit)
+}
+
 /** datetime-local inputs carry no timezone; interpret as local time and emit UTC ISO for the API. */
 export function localInputToIso(value: string): string | undefined {
   if (!value) return undefined

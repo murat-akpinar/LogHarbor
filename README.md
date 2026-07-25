@@ -195,6 +195,11 @@ differently, change the property names (`commandText` / `elapsed`) at the top of
 One row per service, identified by `service.name` (OTLP) or `Service` (CLEF/Seq): event rate,
 error %, p95 `Elapsed`, trend. The quickest answer to "which service is having a bad day".
 
+Above it, a **status board** for the host's own services — systemd units and Docker containers —
+if you installed [`tools/service-probe`](docs/service-status.md) on a machine. One tile per
+service: green up, red down, amber unhealthy or no heartbeat, grey "the probe could not tell".
+Click one to read that service's whole up/down timeline in Events. No probe, no board.
+
 ### Users (`/users`)
 
 The same shape, per user: events, errors, last seen, trend. `UserId` is the default grouping

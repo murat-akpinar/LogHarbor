@@ -200,6 +200,12 @@ kullanıyorsa sayfanın üstünden property adlarını (`commandText` / `elapsed
 Servis başına tek satır; kimlik `service.name` (OTLP) ya da `Service` (CLEF/Seq): olay hızı,
 hata %, p95 `Elapsed`, eğilim. "Hangi servisin günü kötü geçiyor" sorusunun en hızlı cevabı.
 
+Üstünde, sunucunun kendi servisleri için bir **durum panosu** — systemd unit'leri ve Docker
+container'ları — bir makineye [`tools/service-probe`](docs/service-status.md) kurduysanız.
+Servis başına bir kutu: yeşil ayakta, kırmızı kapalı, sarı sağlıksız ya da sinyal yok, gri
+"sonda bakamadı". Birine tıklayınca o servisin bütün açılma/kapanma geçmişi Olaylar'da açılır.
+Sonda yoksa pano da yok.
+
 ### Kullanıcılar (`/users`)
 
 Aynı biçim, kullanıcı başına: olay, hata, son görülme, eğilim. Varsayılan gruplama property'si

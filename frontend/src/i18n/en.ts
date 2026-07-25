@@ -174,6 +174,19 @@ export const en = {
     p95: 'p95',
     trend: 'Trend',
     empty: 'No events with a service identity (service.name or Service) in the selected range.',
+    statusTitle: 'Host services',
+    statusHint: 'What the host probe last reported, as of the end of the selected range.',
+    statusUpCount: (count: number) => `${count} up`,
+    statusNotUpCount: (count: number) => `${count} not up`,
+    status: {
+      up: 'up',
+      down: 'down',
+      // the heartbeat stopped: the service, the probe or the whole host
+      stale: 'no heartbeat',
+      unhealthy: 'unhealthy',
+      // the probe could not ask — deliberately not the same as down
+      unknown: 'unknown',
+    },
   },
   users: {
     title: 'Users',
