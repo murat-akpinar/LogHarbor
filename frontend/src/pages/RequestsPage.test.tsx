@@ -73,14 +73,16 @@ it('stacks status-class series with their totals in the legend', async () => {
   expect(screen.getByText('4')).toBeDefined()
 })
 
-it('starts live and pauses into a static range picker', async () => {
+it('starts live, and keeps the range picker alongside in both states', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
   expect(toggle.getAttribute('aria-pressed')).toBe('true')
-  expect(screen.queryByTitle('Time range')).toBeNull()
+  // the pair is one control group: the picker never appears or vanishes under the cursor
+  expect(screen.getByTitle('Time range')).toBeDefined()
 
   toggle.click()
-  expect(await screen.findByTitle('Time range')).toBeDefined()
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
+  expect(screen.getByTitle('Time range')).toBeDefined()
 })
 
 it('isolates a status class and narrows the table to it', async () => {

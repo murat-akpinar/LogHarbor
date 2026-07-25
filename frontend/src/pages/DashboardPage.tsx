@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   useHeatmap,
@@ -13,7 +12,8 @@ import {
 } from '../hooks/useStats'
 import { MetricCard } from '../components/dashboard/MetricCard'
 import { SectionHeader } from '../components/dashboard/SectionHeader'
-import { LiveToggle } from '../components/dashboard/LiveToggle'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { TopErrorsPanel } from '../components/dashboard/TopErrorsPanel'
 import { ExceptionsPanel } from '../components/dashboard/ExceptionsPanel'
 import { ServicesPanel } from '../components/dashboard/ServicesPanel'
@@ -22,55 +22,18 @@ import { RoutesPanel } from '../components/dashboard/RoutesPanel'
 import { UsersPanel } from '../components/dashboard/UsersPanel'
 import { Histogram } from '../components/Histogram'
 import { Heatmap } from '../components/Heatmap'
-import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const BUCKET_COUNT = 24
 const PANEL_LIMIT = 5
-const REFRESH_MS = 10_000
-const LIVE_WINDOW_MS = 60 * 60 * 1000 // rolling last hour
 const ERROR_FILTER = "@Level = 'Error' or @Level = 'Fatal'"
-
-// floor to the refresh interval so the query keys (and histogram buckets) stay stable within a tick
-function flooredNow() {
-  return Math.floor(Date.now() / REFRESH_MS) * REFRESH_MS
-}
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
-  const [live, setLive] = useState(true)
-  const [now, setNow] = useState(flooredNow)
-  const [frozen, setFrozen] = useState<{ from: string; to: string } | null>(null)
-
-  const liveRange = useMemo(
-    () => ({ from: new Date(now - LIVE_WINDOW_MS).toISOString(), to: new Date(now).toISOString() }),
-    [now],
-  )
-  const range = live ? liveRange : (frozen ?? liveRange)
-
-  useEffect(() => {
-    if (!live) return
-    const id = setInterval(() => setNow(flooredNow()), REFRESH_MS)
-    return () => clearInterval(id)
-  }, [live])
-
-  function pause(on: { from: string; to: string }) {
-    setFrozen(on)
-    setLive(false)
-  }
-
-  function toggleLive() {
-    if (live) {
-      pause(range)
-    } else {
-      setNow(flooredNow())
-      setFrozen(null)
-      setLive(true)
-    }
-  }
+  const { live, range, toggleLive, setRange } = useLiveRange()
 
   const summary = useSummary(range)
   const histogram = useHistogram({ ...range, buckets: BUCKET_COUNT })
@@ -100,18 +63,13 @@ export function DashboardPage() {
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-fg">{t.dashboard.title}</h1>
-        <div className="flex items-center gap-2">
-          <LiveToggle live={live} onToggle={toggleLive} />
-          {!live && (
-            <TimeRangePicker
-              from={range.from}
-              to={range.to}
-              onChange={(next) => {
-                if (next.from) pause({ from: next.from, to: next.to ?? new Date().toISOString() })
-              }}
-            />
-          )}
-        </div>
+        <LiveRangeControls
+          live={live}
+          onToggleLive={toggleLive}
+          from={range.from}
+          to={range.to}
+          onRangeChange={setRange}
+        />
       </div>
 
       {queryError && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queryError.message}</p>}
@@ -144,7 +102,7 @@ export function DashboardPage() {
                   buckets={histogram.data.buckets}
                   rangeEnd={range.to}
                   onBucketClick={goToEvents}
-                  onBrush={(from, to) => pause({ from, to })}
+                  onBrush={(from, to) => setRange({ from, to })}
                   showLegend={false}
                 />
               </div>
@@ -165,7 +123,7 @@ export function DashboardPage() {
                   buckets={errorHistogram.data.buckets}
                   rangeEnd={range.to}
                   onBucketClick={goToEvents}
-                  onBrush={(from, to) => pause({ from, to })}
+                  onBrush={(from, to) => setRange({ from, to })}
                   showLegend={false}
                 />
               </div>

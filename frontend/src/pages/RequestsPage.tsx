@@ -1,30 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { OperationOverview } from '../types'
 import { useOperations } from '../hooks/useStats'
-import { LiveToggle } from '../components/dashboard/LiveToggle'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
 import { StatusChart, STATUS_FILTERS } from '../components/requests/StatusChart'
 import type { StatusClass } from '../components/requests/StatusChart'
-import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
-const REFRESH_MS = 10_000
-const LIVE_WINDOW_MS = 60 * 60 * 1000 // rolling last hour
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
 
 type SortKey = 'total' | 'errorPct' | 'p95'
-
-// floor to the refresh interval so the query keys stay stable within a tick
-function flooredNow() {
-  return Math.floor(Date.now() / REFRESH_MS) * REFRESH_MS
-}
 
 /** ms with locale thousands grouping: 2559 -> "2.559 ms" (tr) / "2,559 ms" (en). */
 function formatMs(ms: number, locale: string): string {
@@ -38,35 +31,10 @@ function errorFraction(op: OperationOverview): number {
 export function RequestsPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
-  const [live, setLive] = useState(true)
-  const [now, setNow] = useState(flooredNow)
-  const [frozen, setFrozen] = useState<{ from: string; to: string } | null>(null)
+  const { live, range, toggleLive, setRange } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
   const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
   const statusFilter = statusClass ? STATUS_FILTERS[statusClass] : undefined
-
-  const liveRange = useMemo(
-    () => ({ from: new Date(now - LIVE_WINDOW_MS).toISOString(), to: new Date(now).toISOString() }),
-    [now],
-  )
-  const range = live ? liveRange : (frozen ?? liveRange)
-
-  useEffect(() => {
-    if (!live) return
-    const id = setInterval(() => setNow(flooredNow()), REFRESH_MS)
-    return () => clearInterval(id)
-  }, [live])
-
-  function toggleLive() {
-    if (live) {
-      setFrozen(range)
-      setLive(false)
-    } else {
-      setNow(flooredNow())
-      setFrozen(null)
-      setLive(true)
-    }
-  }
 
   const operations = useOperations({ ...range, filter: statusFilter, limit: ROW_LIMIT })
   const rangeMinutes = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 60_000)
@@ -109,16 +77,13 @@ export function RequestsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-fg">{t.requests.title}</h1>
         <div className="flex items-center gap-2">
-          <LiveToggle live={live} onToggle={toggleLive} />
-          {!live && (
-            <TimeRangePicker
-              from={range.from}
-              to={range.to}
-              onChange={(next) => {
-                if (next.from) setFrozen({ from: next.from, to: next.to ?? new Date().toISOString() })
-              }}
-            />
-          )}
+          <LiveRangeControls
+            live={live}
+            onToggleLive={toggleLive}
+            from={range.from}
+            to={range.to}
+            onRangeChange={setRange}
+          />
         </div>
       </div>
 

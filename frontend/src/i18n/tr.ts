@@ -18,6 +18,7 @@ export const tr: Messages = {
     queries: 'Sorgular',
   },
   common: {
+    live: 'Canlı',
     loading: 'Yükleniyor…',
     cancel: 'İptal',
     save: 'Kaydet',
@@ -63,7 +64,6 @@ export const tr: Messages = {
     newEvents: (count: number) => `${count} yeni olay — devam etmek için tıkla`,
     noEventsMatch: 'Bu filtreyle eşleşen olay yok.',
     clearFilter: 'Filtreyi temizle',
-    liveTail: 'Canlı akış',
     tailStatus: {
       connected: 'bağlı',
       connecting: 'bağlanıyor',
@@ -150,7 +150,6 @@ export const tr: Messages = {
     rate: 'Oran',
     fatal: 'Kritik',
     noEventsYet: 'Henüz olay yok.',
-    live: 'Canlı',
     throughput: 'Olay hızı',
     eventsPerMin: 'olay/dk',
     errorRate: 'Hata oranı',

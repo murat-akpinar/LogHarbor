@@ -104,8 +104,10 @@ Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
   from log timestamps: one row per span_id, bounds from the span's earliest/latest
   event (a lower bound on real duration), a dot per event. Both paths are pure frontend;
   a note appears when the log fetch (count=1000, newest first) is truncated.
-Live tail: toggle connects to /hubs/tail with current filter; new events prepend with highlight
-Time range: picker sets from/to; live tail forces "now"
+Live tail: the shared Live control connects to /hubs/tail with the current filter (its dot
+  carries the socket state: green connected, amber connecting, red dropped); new events prepend
+  with a highlight
+Time range: the picker beside it sets from/to and drops out of live, as everywhere else
 Archived range: no notice on this page — the archived-day list and its Extract
   button live on the Settings page (search silently covers hot + hydrated data)
 First-run onboarding: when the server has no events at all (empty result with no
@@ -114,6 +116,21 @@ First-run onboarding: when the server has no events at all (empty result with no
   (admins; viewers are told to ask one), copy-paste curl / Serilog / OTel snippets
   with the origin and created key filled in, and a 5 s poll on the events query so
   the panel replaces itself with the list the moment the first event arrives
+
+--- LIVE + TIME RANGE (EVERY TIME-RANGED PAGE) ---
+
+One control group, top right of the page header, in the same place on Dashboard, Events,
+Requests, Exceptions, Queries, Services, Users and Analysis: [Live] | [time range].
+Both stay visible in both states — picking a range leaves live mode rather than making the
+picker appear, so the row never shifts under the cursor.
+
+components/LiveRangeControls.tsx composes it; hooks/useLiveRange.ts owns the state for the
+stat pages. Nothing polls: `now` advances every 10 s while live, the range is part of every
+query key, and React Query refetches because the key changed. Pages that are live by default
+(Dashboard and the three lens pages) use a rolling last hour; Services, Users and Analysis
+keep their 24 h window and start paused, so their default view is unchanged.
+Events is the exception in kind, not in placement: its Live is a SignalR subscription rather
+than a rolling window, so it keeps its own state and only borrows the control.
 
 --- LEVEL COLORS ---
 

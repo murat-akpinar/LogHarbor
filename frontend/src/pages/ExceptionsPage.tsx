@@ -1,9 +1,9 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTopExceptions } from '../hooks/useStats'
-import { LiveToggle } from '../components/dashboard/LiveToggle'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { ExceptionContextPanel } from '../components/exceptions/ExceptionContextPanel'
 import { Sparkline } from '../components/Sparkline'
-import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { exceptionStartsWith } from '../lib/filter'
@@ -11,46 +11,14 @@ import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
-const REFRESH_MS = 10_000
-const LIVE_WINDOW_MS = 60 * 60 * 1000 // rolling last hour
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
 
-// floor to the refresh interval so the query keys stay stable within a tick
-function flooredNow() {
-  return Math.floor(Date.now() / REFRESH_MS) * REFRESH_MS
-}
-
 export function ExceptionsPage() {
   const { t, lang } = useI18n()
-  const [live, setLive] = useState(true)
-  const [now, setNow] = useState(flooredNow)
-  const [frozen, setFrozen] = useState<{ from: string; to: string } | null>(null)
+  const { live, range, toggleLive, setRange } = useLiveRange()
   const [expandedType, setExpandedType] = useState<string | null>(null)
-
-  const liveRange = useMemo(
-    () => ({ from: new Date(now - LIVE_WINDOW_MS).toISOString(), to: new Date(now).toISOString() }),
-    [now],
-  )
-  const range = live ? liveRange : (frozen ?? liveRange)
-
-  useEffect(() => {
-    if (!live) return
-    const id = setInterval(() => setNow(flooredNow()), REFRESH_MS)
-    return () => clearInterval(id)
-  }, [live])
-
-  function toggleLive() {
-    if (live) {
-      setFrozen(range)
-      setLive(false)
-    } else {
-      setNow(flooredNow())
-      setFrozen(null)
-      setLive(true)
-    }
-  }
 
   const exceptions = useTopExceptions({ ...range, limit: ROW_LIMIT })
   const rows = exceptions.data?.exceptions ?? []
@@ -61,16 +29,13 @@ export function ExceptionsPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-fg">{t.exceptions.title}</h1>
         <div className="flex items-center gap-2">
-          <LiveToggle live={live} onToggle={toggleLive} />
-          {!live && (
-            <TimeRangePicker
-              from={range.from}
-              to={range.to}
-              onChange={(next) => {
-                if (next.from) setFrozen({ from: next.from, to: next.to ?? new Date().toISOString() })
-              }}
-            />
-          )}
+          <LiveRangeControls
+            live={live}
+            onToggleLive={toggleLive}
+            from={range.from}
+            to={range.to}
+            onRangeChange={setRange}
+          />
         </div>
       </div>
 

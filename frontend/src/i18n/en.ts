@@ -16,6 +16,7 @@ export const en = {
     queries: 'Queries',
   },
   common: {
+    live: 'Live',
     loading: 'Loading…',
     cancel: 'Cancel',
     save: 'Save',
@@ -61,7 +62,6 @@ export const en = {
     newEvents: (count: number) => `${count} new event${count === 1 ? '' : 's'} — click to resume`,
     noEventsMatch: 'No events match this filter.',
     clearFilter: 'Clear the filter',
-    liveTail: 'Live tail',
     tailStatus: {
       connected: 'connected',
       connecting: 'connecting',
@@ -148,7 +148,6 @@ export const en = {
     rate: 'Rate',
     fatal: 'Fatal',
     noEventsYet: 'No events yet.',
-    live: 'Live',
     throughput: 'Throughput',
     eventsPerMin: 'events/min',
     errorRate: 'Error rate',

@@ -98,15 +98,15 @@ describe('DashboardPage', () => {
     expect(screen.getByText('512 ms')).toBeDefined()
   })
 
-  it('is live by default and hides the range picker until paused', async () => {
+  it('is live by default, with the range picker beside it', async () => {
     renderPage()
-    expect(await screen.findByRole('button', { name: 'Live' })).toBeDefined()
-    expect(screen.queryByTitle('Time range')).toBeNull()
+    const toggle = await screen.findByRole('button', { name: 'Live' })
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByTitle('Time range')).toBeDefined()
   })
 
-  it('pausing live reveals the picker and narrows the queried window', async () => {
+  it('picking a range leaves live mode and narrows the queried window', async () => {
     renderPage()
-    ;(await screen.findByRole('button', { name: 'Live' })).click()
 
     const picker = await screen.findByTitle('Time range')
     picker.click()

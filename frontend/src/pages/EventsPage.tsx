@@ -14,8 +14,7 @@ import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
 import { LevelChips } from '../components/LevelChips'
 import { SignalToggles } from '../components/SignalToggles'
-import { TimeRangePicker } from '../components/TimeRangePicker'
-import { LiveTailToggle } from '../components/LiveTailToggle'
+import { LiveRangeControls } from '../components/LiveRangeControls'
 import { ColumnPicker } from '../components/ColumnPicker'
 import { VirtualizedEventList } from '../components/VirtualizedEventList'
 import type { EventListHandle } from '../components/VirtualizedEventList'
@@ -119,6 +118,12 @@ export function EventsPage() {
     })
   }
 
+  // an explicit window and a live tail contradict each other, so picking one leaves the other
+  function chooseRange(next: { from: string | undefined; to: string | undefined }) {
+    setRange(next)
+    setIsLive(false)
+  }
+
   function toggleLive() {
     setIsLive((current) => {
       // live tail always shows "now", so a fixed time range would contradict it
@@ -185,7 +190,14 @@ export function EventsPage() {
             <SignalToggles activeSignalIds={activeSignalIds} onToggle={toggleSignal} />
           </div>
           <div className="flex items-center gap-2">
-            {!isLive && <TimeRangePicker from={range.from} to={range.to} onChange={setRange} />}
+            <LiveRangeControls
+              live={isLive}
+              onToggleLive={toggleLive}
+              from={range.from}
+              to={range.to}
+              onRangeChange={chooseRange}
+              status={tail.status}
+            />
             <ColumnPicker columns={columns} onChange={setColumns} />
             <Button variant="ghost" onClick={() => setRelativeTime((current) => !current)} title={t.events.toggleTimestamps}>
               {relativeTime ? t.events.relativeTime : t.events.absoluteTime}
@@ -205,7 +217,6 @@ export function EventsPage() {
                 CSV
               </a>
             </span>
-            <LiveTailToggle isLive={isLive} status={tail.status} onToggle={toggleLive} />
           </div>
         </div>
       </div>

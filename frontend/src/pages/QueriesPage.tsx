@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import type { QueryOverview } from '../types'
@@ -6,9 +6,9 @@ import { getEvents } from '../api/events'
 import { useQueries } from '../hooks/useStats'
 import { PageIcon } from '../components/icons'
 import { LevelBadge } from '../components/LevelBadge'
-import { LiveToggle } from '../components/dashboard/LiveToggle'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
-import { TimeRangePicker } from '../components/TimeRangePicker'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { formatTimestamp } from '../lib/dates'
@@ -17,18 +17,11 @@ import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
-const REFRESH_MS = 10_000
-const LIVE_WINDOW_MS = 60 * 60 * 1000 // rolling last hour
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
 
 type SortKey = 'calls' | 'total' | 'avg' | 'p95'
-
-// floor to the refresh interval so the query keys stay stable within a tick
-function flooredNow() {
-  return Math.floor(Date.now() / REFRESH_MS) * REFRESH_MS
-}
 
 /** 830 -> "830 ms", 4100 -> "4.1 s" — totals can reach seconds while p95 stays in ms. */
 function formatDuration(ms: number | null, locale: string): string {
@@ -46,36 +39,11 @@ function sortValue(row: QueryOverview, key: SortKey): number {
 
 export function QueriesPage() {
   const { t, lang } = useI18n()
-  const [live, setLive] = useState(true)
-  const [now, setNow] = useState(flooredNow)
-  const [frozen, setFrozen] = useState<{ from: string; to: string } | null>(null)
+  const { live, range, toggleLive, setRange } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
   const [selectedValue, setSelectedValue] = useState<string | null>(null)
   const [property, setProperty] = useState('commandText')
   const [durationProperty, setDurationProperty] = useState('elapsed')
-
-  const liveRange = useMemo(
-    () => ({ from: new Date(now - LIVE_WINDOW_MS).toISOString(), to: new Date(now).toISOString() }),
-    [now],
-  )
-  const range = live ? liveRange : (frozen ?? liveRange)
-
-  useEffect(() => {
-    if (!live) return
-    const id = setInterval(() => setNow(flooredNow()), REFRESH_MS)
-    return () => clearInterval(id)
-  }, [live])
-
-  function toggleLive() {
-    if (live) {
-      setFrozen(range)
-      setLive(false)
-    } else {
-      setNow(flooredNow())
-      setFrozen(null)
-      setLive(true)
-    }
-  }
 
   const queries = useQueries({ ...range, property, durationProperty, limit: ROW_LIMIT })
   const rows = [...(queries.data?.queries ?? [])].sort((a, b) => sortValue(b, sortKey) - sortValue(a, sortKey))
@@ -130,16 +98,13 @@ export function QueriesPage() {
               className="w-28 font-mono text-xs"
             />
           </label>
-          <LiveToggle live={live} onToggle={toggleLive} />
-          {!live && (
-            <TimeRangePicker
-              from={range.from}
-              to={range.to}
-              onChange={(next) => {
-                if (next.from) setFrozen({ from: next.from, to: next.to ?? new Date().toISOString() })
-              }}
-            />
-          )}
+          <LiveRangeControls
+            live={live}
+            onToggleLive={toggleLive}
+            from={range.from}
+            to={range.to}
+            onRangeChange={setRange}
+          />
         </div>
       </div>
 

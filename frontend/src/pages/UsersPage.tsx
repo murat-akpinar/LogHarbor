@@ -2,22 +2,17 @@ import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserActivity } from '../hooks/useStats'
 import { Sparkline } from '../components/Sparkline'
-import { TimeRangePicker } from '../components/TimeRangePicker'
+import { LiveRangeControls } from '../components/LiveRangeControls'
+import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
-const DEFAULT_RANGE_HOURS = 24
+const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 50
 const DEFAULT_PROPERTY = 'UserId'
-
-function defaultRange() {
-  const to = new Date()
-  const from = new Date(to.getTime() - DEFAULT_RANGE_HOURS * 60 * 60 * 1000)
-  return { from: from.toISOString(), to: to.toISOString() }
-}
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -32,7 +27,8 @@ function propertyEquals(property: string, value: string): string {
 
 export function UsersPage() {
   const { t, lang } = useI18n()
-  const [range, setRange] = useState(defaultRange)
+  // a 24 h window like before, now pausable/livened from the same control as every other page
+  const { live, range, toggleLive, setRange } = useLiveRange({ windowMs: DEFAULT_WINDOW_MS, initialLive: false })
   const [property, setProperty] = useState(DEFAULT_PROPERTY)
   const navigate = useNavigate()
 
@@ -63,13 +59,12 @@ export function UsersPage() {
               className={INPUT_CLASS}
             />
           </form>
-          <TimeRangePicker
+          <LiveRangeControls
+            live={live}
+            onToggleLive={toggleLive}
             from={range.from}
             to={range.to}
-            onChange={(next) => {
-              // presets leave `to` open-ended; the query needs a closed window, so pin it to now
-              if (next.from) setRange({ from: next.from, to: next.to ?? new Date().toISOString() })
-            }}
+            onRangeChange={setRange}
           />
         </div>
       </div>
