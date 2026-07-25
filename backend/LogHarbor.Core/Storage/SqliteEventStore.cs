@@ -287,26 +287,15 @@ public sealed class SqliteEventStore : IEventStore
 
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
-
-        var filterClause = "";
-        if (filter is not null)
-        {
-            filterClause = $" AND ({filter.Sql})";
-            foreach (var (name, value) in filter.Parameters)
-            {
-                command.Parameters.AddWithValue(name, value);
-            }
-        }
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "timestamp, level", fromUtc, toUtc, cancellationToken);
 
         // julianday() reads our fixed-width ISO-8601 timestamp directly; bucket_index truncates
         // toward zero, which is floor() here since every matched row has timestamp >= @from
         command.CommandText =
             "SELECT CAST((julianday(timestamp) - julianday(@from)) * 86400.0 / @bucketSeconds AS INTEGER) AS bucket_index, " +
             "level, COUNT(*) AS cnt " +
-            $"FROM events WHERE timestamp >= @from AND timestamp <= @to{filterClause} " +
-            "GROUP BY bucket_index, level;";
-        command.Parameters.AddWithValue("@from", fromUtc);
-        command.Parameters.AddWithValue("@to", toUtc);
+            $"FROM {source} GROUP BY bucket_index, level;";
         command.Parameters.AddWithValue("@bucketSeconds", bucketSeconds);
 
         var counts = new Dictionary<int, Dictionary<string, long>>();
@@ -341,21 +330,10 @@ public sealed class SqliteEventStore : IEventStore
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "level", fromUtc, toUtc, cancellationToken);
 
-        var filterClause = "";
-        if (filter is not null)
-        {
-            filterClause = $" AND ({filter.Sql})";
-            foreach (var (name, value) in filter.Parameters)
-            {
-                command.Parameters.AddWithValue(name, value);
-            }
-        }
-
-        command.CommandText =
-            $"SELECT level, COUNT(*) FROM events WHERE timestamp >= @from AND timestamp <= @to{filterClause} GROUP BY level;";
-        command.Parameters.AddWithValue("@from", fromUtc);
-        command.Parameters.AddWithValue("@to", toUtc);
+        command.CommandText = $"SELECT level, COUNT(*) FROM {source} GROUP BY level;";
 
         var byLevel = Levels.All.ToDictionary(level => level, _ => 0L);
         var total = 0L;
@@ -730,11 +708,6 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
-    /// <summary>
-    /// Builds the FROM source for stats aggregates: hot events only, or hot UNION ALL hydrated cache
-    /// when the range touches hydrated segments (same pattern as QueryAsync, including the eviction
-    /// touch). Binds @from/@to and the filter parameters onto <paramref name="command"/>.
-    /// </summary>
     public async Task<IReadOnlyList<HeatmapCell>> GetHeatmapAsync(
         QuerySql? filter, string fromUtc, string toUtc, CancellationToken cancellationToken = default)
     {
@@ -758,6 +731,12 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    /// <summary>
+    /// Builds the FROM source for stats aggregates: hot events only, or hot UNION ALL hydrated cache
+    /// when the range touches hydrated segments (same pattern as QueryAsync, including the eviction
+    /// touch). Binds @from/@to and the filter parameters onto <paramref name="command"/>.
+    /// Every aggregate goes through here — one that does not is blind to extracted archive data.
+    /// </summary>
     private static async Task<string> BuildStatsSourceAsync(
         SqliteConnection connection, SqliteCommand command, QuerySql? filter,
         string columns, string fromUtc, string toUtc, CancellationToken cancellationToken)

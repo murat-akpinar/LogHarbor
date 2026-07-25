@@ -30,3 +30,4 @@ test/anomaly-test/webhook.log
 test/anomaly-test/tick.log
 test/anomaly-test/__pycache__/
 last.md
+fix.md
