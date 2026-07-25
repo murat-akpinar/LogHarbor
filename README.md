@@ -188,6 +188,22 @@ rather than structured fields — the trade for touching nothing.
 
 Setup: [docs/ingestion-docker.md](docs/ingestion-docker.md).
 
+### Service status (up/down)
+
+"Is nginx up?" needs no uptime subsystem: a small probe on the host runs
+`systemctl is-active` / `docker inspect` once a minute and sends the answer as a normal
+log event (`up` = 1 or 0, tagged `Source = 'service-probe'`). Alerting is the dead man's
+switch you already have — a signal on the `up = 1` heartbeat plus a `silence` rule, so one
+alert covers the service dying, the probe dying and the host dying.
+
+```bash
+python3 service-probe.py --dry-run        # see what it would send
+python3 service-probe.py --setup-alerts --webhook https://hooks.slack.com/... --format slack
+```
+
+The tool is [tools/service-probe/](tools/service-probe/README.md); the design and event
+schema are in [docs/service-status.md](docs/service-status.md).
+
 ---
 
 ## Query language
@@ -264,3 +280,4 @@ Running from source: stop the backend and replace the file at
 | [docs/ingestion-otlp.md](docs/ingestion-otlp.md) | Sending logs with OpenTelemetry (OTLP) |
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Collecting Docker logs via Vector |
 | [docs/archiving.md](docs/archiving.md) | Tiered storage: compression, hydration, retention |
+| [docs/service-status.md](docs/service-status.md) | Up/down for systemd units and Docker containers |

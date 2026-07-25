@@ -190,6 +190,22 @@ yapmadan çalışır. Bedeli: log satırları yapısal alanlar olarak değil, d�
 
 Kurulum: [docs/ingestion-docker.md](docs/ingestion-docker.md).
 
+### Servis durumu (ayakta mı?)
+
+"nginx ayakta mı?" sorusu için ayrı bir uptime altyapısı gerekmiyor: makinede çalışan küçük bir
+prob dakikada bir `systemctl is-active` / `docker inspect` çalıştırıp cevabı normal bir log olayı
+olarak gönderiyor (`up` = 1 veya 0, `Source = 'service-probe'` etiketiyle). Uyarı tarafı zaten
+var olan ölü adam düğmesi: `up = 1` nabzını yakalayan bir signal ve bir `silence` kuralı — tek
+kural hem servisin, hem probun, hem de makinenin ölmesini yakalıyor.
+
+```bash
+python3 service-probe.py --dry-run        # ne göndereceğini gösterir
+python3 service-probe.py --setup-alerts --webhook https://hooks.slack.com/... --format slack
+```
+
+Araç [tools/service-probe/](tools/service-probe/README.md) altında; tasarım ve olay şeması
+[docs/service-status.md](docs/service-status.md) içinde.
+
 ---
 
 ## Sorgu dili
@@ -270,3 +286,4 @@ Dokümanlar İngilizcedir (rules.md).
 | [docs/ingestion-otlp.md](docs/ingestion-otlp.md) | OpenTelemetry (OTLP) ile log gönderme |
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Vector ile Docker loglarını toplama |
 | [docs/archiving.md](docs/archiving.md) | Katmanlı depolama: sıkıştırma, geri açma, saklama |
+| [docs/service-status.md](docs/service-status.md) | systemd/Docker servisleri için ayakta-mı durumu |

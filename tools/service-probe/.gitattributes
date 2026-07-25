@@ -1,0 +1,6 @@
+# Python and the systemd units run on a Linux host: a CRLF shebang breaks the script and a
+# CRLF ExecStart breaks the unit. Force LF regardless of the repo's core.autocrlf.
+*.py text eol=lf
+*.service text eol=lf
+*.timer text eol=lf
+.env.example text eol=lf
