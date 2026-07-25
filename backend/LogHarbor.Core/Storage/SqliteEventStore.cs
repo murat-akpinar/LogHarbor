@@ -61,6 +61,12 @@ public sealed class SqliteEventStore : IEventStore
         return ids;
     }
 
+    // SQLite binds at most 32766 parameters per statement, and one accepted ingest request can
+    // carry far more events than that: MaxBatchBytes is 5 MB and a minimal CLEF line is ~30 bytes.
+    // Past the limit the command threw, TailBroadcaster logged it, and every subscriber silently
+    // missed the whole batch. Chunking keeps one big batch from taking live tail down with it.
+    private const int MatchIdChunkSize = 500;
+
     public async Task<IReadOnlyList<Event>> MatchAsync(
         QuerySql? filter, IReadOnlyList<long> ids, CancellationToken cancellationToken = default)
     {
@@ -70,34 +76,43 @@ public sealed class SqliteEventStore : IEventStore
         }
 
         using var connection = _db.OpenConnection();
-        using var command = connection.CreateCommand();
 
-        var idParameters = new string[ids.Count];
-        for (var i = 0; i < ids.Count; i++)
+        var events = new List<Event>();
+        for (var offset = 0; offset < ids.Count; offset += MatchIdChunkSize)
         {
-            idParameters[i] = $"@id{i}";
-            command.Parameters.AddWithValue(idParameters[i], ids[i]);
-        }
+            var chunk = Math.Min(MatchIdChunkSize, ids.Count - offset);
+            using var command = connection.CreateCommand();
 
-        var filterClause = "";
-        if (filter is not null)
-        {
-            filterClause = $" AND ({filter.Sql})";
-            foreach (var (name, value) in filter.Parameters)
+            var idParameters = new string[chunk];
+            for (var i = 0; i < chunk; i++)
             {
-                command.Parameters.AddWithValue(name, value);
+                idParameters[i] = $"@id{i}";
+                command.Parameters.AddWithValue(idParameters[i], ids[offset + i]);
+            }
+
+            var filterClause = "";
+            if (filter is not null)
+            {
+                filterClause = $" AND ({filter.Sql})";
+                foreach (var (name, value) in filter.Parameters)
+                {
+                    command.Parameters.AddWithValue(name, value);
+                }
+            }
+
+            command.CommandText =
+                $"SELECT {Columns} FROM events WHERE id IN ({string.Join(", ", idParameters)}){filterClause} " +
+                "ORDER BY id DESC;";
+
+            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                events.Add(ReadEvent(reader));
             }
         }
 
-        command.CommandText =
-            $"SELECT {Columns} FROM events WHERE id IN ({string.Join(", ", idParameters)}){filterClause} ORDER BY id DESC;";
-
-        var events = new List<Event>();
-        using var reader = await command.ExecuteReaderAsync(cancellationToken);
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            events.Add(ReadEvent(reader));
-        }
+        // chunks are id-ordered among themselves; the caller expects one descending list
+        events.Sort((left, right) => right.Id.CompareTo(left.Id));
         return events;
     }
 

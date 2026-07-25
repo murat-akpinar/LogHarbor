@@ -13,17 +13,25 @@ public sealed class ApiKeyMiddleware
 
     public const string KeyIdItem = "ApiKeyId";
 
+    /// <summary>
+    /// The request's API key: primary header, then the Seq alias. Single source of truth so the
+    /// pipeline and the ingestion rate limiter can never disagree about which client a request
+    /// belongs to — the limiter used to read the primary header only, which put every Seq sink
+    /// on the server into one shared "" partition.
+    /// </summary>
+    public static string ReadToken(HttpRequest request)
+    {
+        var token = request.Headers[HeaderName].ToString();
+        return token.Length > 0 ? token : request.Headers[SeqHeaderName].ToString();
+    }
+
     private readonly RequestDelegate _next;
 
     public ApiKeyMiddleware(RequestDelegate next) => _next = next;
 
     public async Task InvokeAsync(HttpContext context, IApiKeyStore apiKeys)
     {
-        var token = context.Request.Headers[HeaderName].ToString();
-        if (token.Length == 0)
-        {
-            token = context.Request.Headers[SeqHeaderName].ToString();
-        }
+        var token = ReadToken(context.Request);
 
         var keyId = token.Length == 0
             ? null

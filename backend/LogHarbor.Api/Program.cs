@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
@@ -95,10 +96,11 @@ builder.Services.AddSingleton(ingestionOptions);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    // partitioned by API key token: one noisy client cannot starve the others
+    // partitioned by API key token: one noisy client cannot starve the others. Reads the key
+    // exactly as the middleware does, Seq alias included, or Seq sinks would all share one bucket
     options.AddPolicy(IngestionEndpoints.RateLimitPolicy, context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            context.Request.Headers[ApiKeyMiddleware.HeaderName].ToString(),
+            ApiKeyMiddleware.ReadToken(context.Request),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = ingestionOptions.IngestRateLimitPerMinute,
@@ -188,6 +190,16 @@ app.UseWhen(
             if (context.User.Identity?.IsAuthenticated != true)
             {
                 await Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Authentication required")
+                    .ExecuteAsync(context);
+                return;
+            }
+            // the cookie carries the role, so a deleted account would otherwise keep its access
+            // for the life of the cookie (7 days, renewed by any open tab)
+            if (!await authService.UserStillExistsAsync(context.User, context.RequestAborted))
+            {
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await Results.Problem(statusCode: StatusCodes.Status401Unauthorized,
+                    title: "Authentication required", detail: "This account no longer exists.")
                     .ExecuteAsync(context);
                 return;
             }
