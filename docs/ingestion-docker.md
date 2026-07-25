@@ -12,13 +12,23 @@ to LogHarbor /api/events/raw as CLEF. The monitored project is not modified.
 
 --- VECTOR SETUP (ONE PER MONITORED HOST) ---
 
-Three files in their own directory, e.g. /opt/logharbor-vector/. Nothing here belongs to
+Two files in their own directory, e.g. /opt/logharbor-vector/. Nothing here belongs to
 the monitored projects, so it can be added and removed independently.
 
-.env  (never committed, the API key is a secret)
+There is no .env file, and the URL and API key are written literally into vector.yaml.
+Vector does not expand ${VAR} or $VAR in this config — verified end to end against Vector
+0.57, in both the sink's `uri` and its `request.headers`. Each failure is quiet in its own
+way, which is worse than an outright crash:
 
-  LOGHARBOR_URL=http://LOGHARBOR_HOST:5000
-  LOGHARBOR_API_KEY=logharbor_xxxxxxxxxxxxxxxx
+  in uri     -> "invalid uri character" per request ($ { } are not legal in a URI)
+  in headers -> the literal text is sent as the key, LogHarbor answers 401, and Vector
+                logs `Not retriable; dropping the request. reason="Unauthorized"`
+
+In both cases the sink's healthcheck still passes and Vector reports itself started and
+healthy, so the setup looks fine while every event is dropped.
+
+Because the key ends up in vector.yaml, that file is the secret: keep it out of version
+control and `chmod 600` it. The LogHarbor URL is not sensitive.
 
 docker-compose.yml
 
@@ -26,7 +36,9 @@ docker-compose.yml
     vector:
       image: timberio/vector:latest-alpine
       restart: unless-stopped
-      env_file: .env
+      # name the monitored host: without this the Vector container's own id lands in the
+      # Host property of every event, and `Host = 'prod-1'` matches nothing
+      hostname: prod-1
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock:ro
         - ./vector.yaml:/etc/vector/vector.yaml:ro
@@ -77,14 +89,19 @@ vector.yaml
     logharbor:
       type: http
       inputs: ["to_clef"]
-      uri: "${LOGHARBOR_URL}/api/events/raw"
+      # literal, not ${LOGHARBOR_URL} — see the note above. This is resolved from inside
+      # the container, so it must be an address the container can reach: the LogHarbor
+      # machine's address, or the docker bridge gateway (172.17.0.1) when LogHarbor runs
+      # on this same host. `localhost` here means the Vector container itself.
+      uri: "http://LOGHARBOR_HOST:5000/api/events/raw"
       encoding:
         codec: json
       framing:
         method: newline_delimited
       request:
         headers:
-          X-LogHarbor-ApiKey: "${LOGHARBOR_API_KEY}"
+          # literal too: this is why the file is the secret (chmod 600, never committed)
+          X-LogHarbor-ApiKey: "logharbor_xxxxxxxxxxxxxxxx"
           Content-Type: "application/vnd.serilog.clef"
       batch:
         max_events: 500
@@ -94,8 +111,22 @@ vector.yaml
         max_size: 268435488
         when_full: block
 
-Run:   docker compose up -d
-Check: docker compose logs -f vector   (401 = bad key, 413 = batch too large, 429 = rate limited)
+Run:    docker compose up -d
+Check:  docker compose logs -f vector
+Verify: the log alone is not proof — Vector reports "Vector has started" and passes its
+        healthcheck even when every event is being dropped. Confirm from the LogHarbor
+        side that events actually arrived:
+
+          filter  Has(ContainerName)      in the Events page
+
+        and look for ERROR lines in the Vector log, which is where the real answer is:
+          reason="Unauthorized"          bad or unexpanded API key
+          "invalid uri character"        the uri is not a literal URL
+          413 / 429                      batch too large / rate limited
+
+After changing vector.yaml, recreate the volume as well as the container:
+`docker compose down -v && docker compose up -d`. The disk buffer survives a plain
+restart and keeps replaying the old failed batch, which hides whether the fix worked.
 
 Vector must exclude its own container: a failed POST makes Vector log an error, which
 would be shipped as an event, which fails again -> feedback loop.
