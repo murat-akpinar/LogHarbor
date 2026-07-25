@@ -78,7 +78,7 @@ public static partial class UserEndpoints
         var user = await store.FindAsync(id, cancellationToken);
         if (user is null)
         {
-            return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "User not found");
+            return Problems.NotFound("User not found");
         }
         if (user.Role == UserRole.Admin && await store.CountAdminsAsync(cancellationToken) == 1)
         {

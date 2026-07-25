@@ -62,7 +62,7 @@ public static class AlertEndpoints
                     request.PayloadFormat ?? "generic", request.Condition ?? "at-least", cancellationToken);
                 return updated is not null
                     ? Results.Ok(updated)
-                    : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert rule not found");
+                    : Problems.NotFound("Alert rule not found");
             }
             catch (DuplicateAlertTitleException ex)
             {
@@ -77,7 +77,7 @@ public static class AlertEndpoints
         group.MapDelete("/{id:long}", async (long id, IAlertStore store, CancellationToken cancellationToken) =>
             await store.DeleteAsync(id, cancellationToken)
                 ? Results.NoContent()
-                : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Alert rule not found"));
+                : Problems.NotFound("Alert rule not found"));
     }
 
     private static IResult? Validate(AlertRequest request)

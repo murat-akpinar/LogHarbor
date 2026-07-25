@@ -60,7 +60,7 @@ public static class EventEndpoints
         var found = await eventStore.FindAsync(id, cancellationToken);
         return found is not null
             ? Results.Ok(found)
-            : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Event not found");
+            : Problems.NotFound("Event not found");
     }
 
     private static IResult Validate(ValidateRequest request)

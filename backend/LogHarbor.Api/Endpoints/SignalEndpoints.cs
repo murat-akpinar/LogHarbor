@@ -44,7 +44,7 @@ public static class SignalEndpoints
                 var updated = await store.UpdateAsync(id, title, filter, cancellationToken);
                 return updated is not null
                     ? Results.Ok(updated)
-                    : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Signal not found");
+                    : Problems.NotFound("Signal not found");
             }
             catch (DuplicateSignalTitleException ex)
             {
@@ -58,7 +58,7 @@ public static class SignalEndpoints
             {
                 return await store.DeleteAsync(id, cancellationToken)
                     ? Results.NoContent()
-                    : Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Signal not found");
+                    : Problems.NotFound("Signal not found");
             }
             catch (SignalInUseException ex)
             {

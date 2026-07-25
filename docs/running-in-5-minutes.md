@@ -33,14 +33,20 @@ below it.
 ## 4. First event (1 min)
 
 Pick the **curl** tab in the same panel and run the copied command — it is this,
-with your key and address already in place:
+with your key, your address and the current time already in place:
 
 ```bash
 curl -X POST "http://localhost:5000/api/events/raw" \
   -H "X-LogHarbor-ApiKey: <your key>" \
   -H "Content-Type: application/vnd.serilog.clef" \
-  --data-binary '{"@t":"2026-07-18T12:00:00Z","@mt":"Hello from {Source}","Source":"curl"}'
+  --data-binary "{\"@t\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"@mt\":\"Hello from {Source}\",\"Source\":\"curl\"}"
 ```
+
+`@t` is the event's own time, and every time-ranged view is a window over it —
+so stamp it *now*. The panel does this for you. Pasting a fixed date from a
+page like this one instead lands the event outside the Dashboard's rolling
+window, and step 5 below then shows nothing while the Events page shows the
+event just fine, which is a confusing way to start.
 
 Expect `201`. The panel polls for you — within five seconds it replaces itself
 with the event list and your line is on screen. Click the row to see its
