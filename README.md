@@ -268,10 +268,11 @@ Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 `OrderId` and `Customer` become queryable fields, and every `Order {OrderId} failed` event
 groups as one error on the Analysis page regardless of the id.
 
-Same deal with `NLog.Targets.Seq` (.NET), `seqlog` (Python) and `@datalust/winston-seq`
-(Node) — set the server URL and API key, nothing else. Each of those snippets is a verified
-end-to-end send; the Python and Node ones have language-specific gotchas worth reading
-(named logger, ESM import, flush before exit): [docs/ingestion-app.md](docs/ingestion-app.md).
+`seqlog` (Python) and `@datalust/winston-seq` (Node) work the same way, and their snippets
+in [docs/ingestion-app.md](docs/ingestion-app.md) were run end to end against a live server —
+read them rather than guessing, because both have gotchas that lose events silently (named
+logger, ESM import, and a flush that a short-lived script has to outlive). `NLog.Targets.Seq`
+takes the same serverUrl + apiKey settings but has not been tested here.
 
 Anything else: POST newline-delimited CLEF yourself.
 

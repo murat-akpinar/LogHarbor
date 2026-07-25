@@ -40,7 +40,9 @@ failed for {Customer}", OrderId and Customer as structured properties.
 
   Log.CloseAndFlush();   // batching sink: without this a short-lived process sends nothing
 
-.NET (NLog): NLog.Targets.Seq, same serverUrl + apiKey settings.
+.NET (NLog): NLog.Targets.Seq, same serverUrl + apiKey settings. Not tested here — it
+sends CLEF like Serilog, so it should need nothing special, but that is reasoning rather
+than a verified run.
 
 Python (seqlog):
 

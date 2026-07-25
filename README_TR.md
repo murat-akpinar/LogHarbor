@@ -275,10 +275,12 @@ Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 `OrderId` ve `Customer` artık sorgulanabilir birer alan; ayrıca `Order {OrderId} failed`
 olaylarının hepsi, id'si ne olursa olsun, Analiz sayfasında tek bir hata olarak gruplanır.
 
-Aynısı `NLog.Targets.Seq` (.NET), `seqlog` (Python) ve `@datalust/winston-seq` (Node) için de
-geçerli — sunucu adresini ve API key'i ver, başka bir şey gerekmez. Örneklerin hepsi canlı bir
-LogHarbor'a karşı uçtan uca denendi; Python ve Node tarafında dile özgü tuzaklar var (adlandırılmış
-logger, ESM import, çıkmadan önce flush): [docs/ingestion-app.md](docs/ingestion-app.md).
+`seqlog` (Python) ve `@datalust/winston-seq` (Node) da aynı şekilde çalışır;
+[docs/ingestion-app.md](docs/ingestion-app.md) içindeki örnekleri canlı bir sunucuya karşı
+uçtan uca denedik — tahmin etmek yerine oradan bak, çünkü ikisinde de olayı sessizce
+kaybettiren tuzaklar var (adlandırılmış logger, ESM import, ve kısa ömürlü bir script'in
+beklemesi gereken flush). `NLog.Targets.Seq` aynı serverUrl + apiKey ayarlarını alır ama
+burada test edilmedi.
 
 Başka bir dil/kütüphane kullanıyorsan CLEF'i kendin gönder (satır satır, JSON dizisi değil):
 
