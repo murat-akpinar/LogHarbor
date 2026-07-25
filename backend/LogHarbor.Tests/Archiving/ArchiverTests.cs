@@ -357,7 +357,7 @@ public sealed class ArchiverTests : IDisposable
 
         var removed = await _archiver.RunRetentionAsync(Now);
 
-        Assert.Equal(1, removed);
+        Assert.Equal(1, removed.Segments);
         Assert.Null(await _archiveStore.FindAsync("2026-05-01"));
         Assert.False(File.Exists(Path.Combine(_archiveDir, "events-2026-05-01.jsonl.br")));
         Assert.NotNull(await _archiveStore.FindAsync("2026-05-02"));
@@ -373,8 +373,47 @@ public sealed class ArchiverTests : IDisposable
 
         var removed = await _archiver.RunRetentionAsync(Now);
 
-        Assert.Equal(5, removed);
+        Assert.Equal(0, removed.Segments);
+        Assert.Equal(5, removed.Rows);
         Assert.Equal("recent event stays hot", Scalar("SELECT message FROM events;"));
+    }
+
+    /// <summary>
+    /// Regression: an event arriving for a day that already has a segment stays hot forever,
+    /// because that day is never re-archived and retention only deleted hot rows when archiving
+    /// was off. On the test instance one backfill stranded 22,226 rows this way.
+    /// </summary>
+    [Fact]
+    public async Task Retention_DeletesLateArrivalsForAnAlreadyArchivedDay()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _archiver.RunArchiveAsync(Now);
+        // arrives after the day was archived, so the archive pass will never pick it up again
+        await _eventStore.WriteBatchAsync([MakeEvent("2026-05-01T06:00:00.0000000Z", "late arrival")]);
+        Assert.Empty(await _archiver.RunArchiveAsync(Now));
+        Assert.Equal(2L, Scalar("SELECT COUNT(*) FROM events;"));
+
+        await _settingsStore.SaveArchiveSettingsAsync(
+            new ArchiveSettings { CompressAfterDays = 30, HydrationKeepDays = 1, RetentionDays = 72 });
+        var removed = await _archiver.RunRetentionAsync(Now);
+
+        Assert.Equal(1, removed.Segments);
+        Assert.Equal(1, removed.Rows);
+        Assert.Equal("recent event stays hot", Scalar("SELECT message FROM events;"));
+    }
+
+    [Fact]
+    public async Task Retention_WithArchivingEnabled_LeavesHotDataInsideTheWindow()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await _settingsStore.SaveArchiveSettingsAsync(
+            new ArchiveSettings { CompressAfterDays = 30, HydrationKeepDays = 1, RetentionDays = 365 });
+
+        var removed = await _archiver.RunRetentionAsync(Now);
+
+        Assert.Equal(0, removed.Segments);
+        Assert.Equal(0, removed.Rows);
+        Assert.Equal(6L, Scalar("SELECT COUNT(*) FROM events;"));
     }
 
     public void Dispose()

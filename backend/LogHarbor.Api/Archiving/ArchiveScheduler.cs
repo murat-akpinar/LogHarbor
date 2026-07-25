@@ -63,9 +63,11 @@ public sealed class ArchiveScheduler : BackgroundService
                     _logger.LogInformation("Archived {Count} day(s)", created.Count);
                 }
                 var removed = await _archiver.RunRetentionAsync(now, stoppingToken);
-                if (removed > 0)
+                if (removed.RemovedAnything)
                 {
-                    _logger.LogInformation("Retention removed {Count} segment(s)/row(s)", removed);
+                    _logger.LogInformation(
+                        "Retention removed {Segments} segment(s) and {Rows} hot event row(s)",
+                        removed.Segments, removed.Rows);
                 }
 
                 var retention = await _settings.GetArchiveSettingsAsync(stoppingToken);

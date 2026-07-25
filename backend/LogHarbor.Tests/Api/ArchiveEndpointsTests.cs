@@ -127,12 +127,25 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
     [InlineData(-1, 1, 365)]
     [InlineData(90, 0, 365)]
     [InlineData(90, 1, 0)]
+    // retention shorter than the compression delay would compress a day and delete it on the
+    // same pass, while reading as if it keeps data for 30 days
+    [InlineData(90, 1, 30)]
     public async Task ArchiveSettings_InvalidValues_Return400(int compress, int keep, int retention)
     {
         var response = await _client.PutAsJsonAsync("/api/settings/archive",
             new { compressAfterDays = compress, hydrationKeepDays = keep, retentionDays = retention });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ArchiveSettings_ShortRetentionAllowedWhenArchivingIsOff()
+    {
+        // CompressAfterDays = 0 disables archiving, so there is no delay to be shorter than
+        var response = await _client.PutAsJsonAsync("/api/settings/archive",
+            new { compressAfterDays = 0, hydrationKeepDays = 1, retentionDays = 7 });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     private async Task WaitForStatusAsync(string day, string expected)

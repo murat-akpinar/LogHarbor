@@ -8,6 +8,13 @@ using LogHarbor.Core.Telemetry;
 
 namespace LogHarbor.Core.Archiving;
 
+/// <summary>What one retention pass removed. Kept apart because segments and event rows are
+/// different units — summing them produces a number that means nothing.</summary>
+public sealed record RetentionResult(int Segments, long Rows)
+{
+    public bool RemovedAnything => Segments > 0 || Rows > 0;
+}
+
 /// <summary>
 /// Tiered-storage jobs (docs/archiving.md): compress old days to disk, hydrate them back
 /// on demand, evict stale cache rows, and apply retention. File paths are always built
@@ -105,10 +112,21 @@ public sealed class Archiver
     }
 
     /// <summary>
-    /// Deletes segments older than RetentionDays (row, cache rows, file). When archiving is
-    /// disabled, deletes hot events past retention directly so growth stays bounded.
+    /// Deletes segments older than RetentionDays (row, cache rows, file) and every hot event
+    /// past the same cutoff, so retention means the same thing whether archiving is on or off.
     /// </summary>
-    public async Task<int> RunRetentionAsync(
+    /// <remarks>
+    /// The hot delete is not optional. A day that already has a segment is never re-archived
+    /// (<see cref="IArchiveStore.GetArchivableDaysAsync"/>), so late arrivals for it stay hot —
+    /// and while the hot delete only ran with archiving disabled, those rows could never be
+    /// archived and never be deleted. On the test instance that had already stranded 22,226
+    /// events, 39% of the table, from a single backfill. It also made retention silently mean
+    /// max(RetentionDays, CompressAfterDays) for everything else.
+    ///
+    /// Runs after <see cref="RunArchiveAsync"/> in the scheduler, so a day about to be archived
+    /// still is; this only removes what is already past the retention cutoff.
+    /// </remarks>
+    public async Task<RetentionResult> RunRetentionAsync(
         DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var settings = await _settings.GetArchiveSettingsAsync(cancellationToken);
@@ -123,18 +141,14 @@ public sealed class Archiver
             File.Delete(SegmentPath(segment.FilePath));
         }
 
-        var removed = expired.Count;
-        if (!settings.ArchivingEnabled)
-        {
-            removed += (int)await _store.DeleteHotEventsBeforeAsync(
-                SqliteArchiveStore.DayStart(cutoffDay), cancellationToken);
-        }
+        var rows = await _store.DeleteHotEventsBeforeAsync(
+            SqliteArchiveStore.DayStart(cutoffDay), cancellationToken);
 
-        if (removed > 0)
+        if (expired.Count > 0 || rows > 0)
         {
             await _store.IncrementalVacuumAsync(cancellationToken);
         }
-        return removed;
+        return new RetentionResult(expired.Count, rows);
     }
 
     private async Task<ArchiveSegment> ArchiveDayAsync(string day, CancellationToken cancellationToken)
