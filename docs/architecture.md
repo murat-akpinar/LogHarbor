@@ -18,9 +18,10 @@ LogHarbor stores them in SQLite and serves a React SPA for search, live tail, an
 --- COMPONENTS ---
 
 Ingestion API:
-  POST /api/events/raw, accepts CLEF (newline-delimited JSON)
+  POST /api/events/raw, accepts CLEF (newline-delimited JSON) and Seq's {"Events":[...]}
+  envelope, sniffed from the body rather than Content-Type
   Validates API key, parses events, writes batch to store, broadcasts to live tail
-  Wire-compatible with Seq (same path, same body, X-Seq-ApiKey accepted as a header alias),
+  Wire-compatible with Seq (same path, both bodies, X-Seq-ApiKey accepted as a header alias),
   so existing Seq sinks ingest into LogHarbor unchanged (docs/ingestion-app.md)
   POST /v1/logs accepts OTLP/HTTP (OpenTelemetry logs) in protobuf and JSON
   encodings — standard path, so OTEL_EXPORTER_OTLP_ENDPOINT pointed at LogHarbor
@@ -57,7 +58,7 @@ Web API:
 
 Self-telemetry:
   Custom meters (Meter "LogHarbor", plain System.Diagnostics.Metrics in Core):
-  ingest rate and ingest request duration by source (clef/otlp), event query
+  ingest rate and ingest request duration by source (clef/seq-raw/otlp), event query
   duration, archive job duration. logharbor.ingest.duration doubles as the
   tripwire for the parked write-path channel refactor (todo.md Phase 13).
   Exported via OTLP together with ASP.NET Core request metrics ONLY when

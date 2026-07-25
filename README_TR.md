@@ -257,10 +257,10 @@ Birbirinden bağımsız üç yol var; birini ya da birkaçını birden kullanabi
 
 ### Uygulamanın içinden — yapısal alanlarla
 
-LogHarbor'un ingestion ucu Seq ile aynı teli konuşur: aynı yol, aynı CLEF gövdesi, ve
-`X-LogHarbor-ApiKey` yanında `X-Seq-ApiKey` header'ı da kabul edilir. Yani **mevcut bir Seq
-sink'ini LogHarbor'a yönlendirmen yeterli** — batching, retry ve tampon (buffer) desteğiyle
-birlikte gelir.
+LogHarbor'un ingestion ucu Seq ile aynı teli konuşur: aynı yol, Seq'in her iki gövde formatı
+(CLEF ve `{"Events":[...]}` zarfı), ve `X-LogHarbor-ApiKey` yanında `X-Seq-ApiKey` header'ı da
+kabul edilir. Yani **mevcut bir Seq sink'ini LogHarbor'a yönlendirmen yeterli** — batching,
+retry ve tampon (buffer) desteğiyle birlikte gelir.
 
 Serilog (.NET), `dotnet add package Serilog.Sinks.Seq`:
 
@@ -276,8 +276,9 @@ Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 olaylarının hepsi, id'si ne olursa olsun, Analiz sayfasında tek bir hata olarak gruplanır.
 
 Aynısı `NLog.Targets.Seq` (.NET), `seqlog` (Python) ve `@datalust/winston-seq` (Node) için de
-geçerli — sunucu adresini ve API key'i ver, başka bir şey gerekmez. Dile göre örnekler ve
-ayrıntılar: [docs/ingestion-app.md](docs/ingestion-app.md).
+geçerli — sunucu adresini ve API key'i ver, başka bir şey gerekmez. Örneklerin hepsi canlı bir
+LogHarbor'a karşı uçtan uca denendi; Python ve Node tarafında dile özgü tuzaklar var (adlandırılmış
+logger, ESM import, çıkmadan önce flush): [docs/ingestion-app.md](docs/ingestion-app.md).
 
 Başka bir dil/kütüphane kullanıyorsan CLEF'i kendin gönder (satır satır, JSON dizisi değil):
 

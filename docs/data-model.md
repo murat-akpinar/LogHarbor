@@ -28,6 +28,21 @@ CLEF key   ->  Event field
 @sp        ->  span_id (validated + lowercased)
 other keys ->  properties JSON
 
+--- SEQ RAW EVENTS MAPPING ---
+
+The {"Events":[...]} envelope some Seq sinks send (docs/ingestion-app.md) lands on the
+same fields, so an event is indistinguishable once stored:
+
+Events[] key    ->  Event field
+Timestamp       ->  timestamp (required)
+Level           ->  level (default: Information, same alias map)
+Message         ->  message (rendered)
+MessageTemplate ->  message_template
+Exception       ->  exception
+Properties.*    ->  properties JSON (the bag verbatim, re-serialized compact)
+Renderings, EventType -> dropped; trace_id/span_id are null, the format carries no
+                         trace ids (a TraceId property stays an ordinary property)
+
 --- INGESTION NORMALIZATION ---
 
 timestamp: @t parsed as DateTimeOffset, converted to UTC, stored as fixed-width

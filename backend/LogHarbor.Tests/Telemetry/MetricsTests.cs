@@ -67,6 +67,26 @@ public sealed class MetricsTests : IDisposable
     }
 
     [Fact]
+    public async Task SeqRawEventsIngest_CountsStoredEvents_TaggedSeqRaw()
+    {
+        var token = await CreateApiKeyAsync();
+        // 9 is the distinctive batch size this test owns; the meter is process-global
+        var events = string.Join(",", Enumerable.Range(0, 9).Select(i =>
+            $$"""{"Timestamp":"2026-07-13T10:00:00Z","Message":"metric {{i}}"}"""));
+        using var capture = new MeterCapture();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent($$"""{"Events":[{{events}}]}""", Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-LogHarbor-ApiKey", token);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(request)).StatusCode);
+
+        Assert.Contains(capture.Measurements,
+            m => m.Instrument == "logharbor.ingest.events" && m.Value == 9 && m.Source == "seq-raw");
+    }
+
+    [Fact]
     public async Task OtlpIngest_CountsStoredEvents_TaggedOtlp()
     {
         var token = await CreateApiKeyAsync();

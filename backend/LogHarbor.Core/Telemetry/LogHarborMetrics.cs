@@ -11,7 +11,7 @@ public static class LogHarborMetrics
 {
     public static readonly Meter Meter = new("LogHarbor");
 
-    /// <summary>Stored events per ingestion request; tag "source" is "clef" or "otlp".</summary>
+    /// <summary>Stored events per ingestion request; tag "source" is "clef", "seq-raw" or "otlp".</summary>
     public static readonly Counter<long> IngestedEvents =
         Meter.CreateCounter<long>("logharbor.ingest.events", unit: "{event}",
             description: "Events stored per ingestion request");
@@ -22,7 +22,7 @@ public static class LogHarborMetrics
             description: "Event search duration");
 
     /// <summary>One successful ingestion request (parse + write + broadcast), in milliseconds;
-    /// tag "source" is "clef" or "otlp". The tripwire for the parked write-path channel refactor:
+    /// tag "source" is "clef", "seq-raw" or "otlp". The tripwire for the parked write-path channel refactor:
     /// its p99 degrading in a real deployment is the signal to revisit (todo.md Phase 13).</summary>
     public static readonly Histogram<double> IngestDuration =
         Meter.CreateHistogram<double>("logharbor.ingest.duration", unit: "ms",

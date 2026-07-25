@@ -48,7 +48,7 @@ DELETE /api/users/{id} 204 | 404 | 400 when deleting the last remaining admin
 
 POST /api/events/raw
   Headers: X-LogHarbor-ApiKey: <token>, Content-Type: application/vnd.serilog.clef
-  Body: newline-delimited CLEF JSON events
+  Body: newline-delimited CLEF JSON events, or Seq's {"Events":[...]} envelope
   201 Created | 400 invalid payload | 401 missing/invalid key | 413 too large | 429 rate limited
   Limits: MaxBatchBytes per request, MaxEventBytes per event, rate limit per API key
 
@@ -57,8 +57,19 @@ POST /api/events/raw
   NLog.Targets.Seq, seqlog, winston-seq all work by pointing them at LogHarbor
   (docs/ingestion-app.md).
 
-Example body:
+  Both of Seq's body formats are accepted, distinguished by the body rather than Content-Type:
+  a JSON object whose top level holds an "Events" array (and no CLEF @t) is the envelope,
+  everything else is parsed as CLEF lines. Serilog and NLog send CLEF; seqlog and winston-seq
+  send the envelope. 400 details name the position in the format that was sent — "line 2: ..."
+  for CLEF, "event 2: ..." for the envelope — and no event of a rejected batch is stored.
+
+Example CLEF body:
 {"@t":"2026-07-13T10:00:00Z","@l":"Error","@mt":"Order {OrderId} failed","OrderId":123}
+
+Example Seq raw events body (Timestamp required; MessageTemplate/Message/Exception mirror
+@mt/@m/@x; Properties is the property bag; Renderings and EventType are ignored):
+{"Events":[{"Timestamp":"2026-07-13T10:00:00Z","Level":"Error",
+            "MessageTemplate":"Order {OrderId} failed","Properties":{"OrderId":123}}]}
 
 POST /v1/logs
   OTLP/HTTP log ingestion (docs/ingestion-otlp.md). X-LogHarbor-ApiKey header;

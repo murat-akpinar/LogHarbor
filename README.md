@@ -250,9 +250,10 @@ Three independent routes; run any or all of them.
 
 ### From inside your app — structured properties
 
-LogHarbor's ingestion endpoint is wire-compatible with Seq: same path, same CLEF body, and
-`X-Seq-ApiKey` is accepted alongside `X-LogHarbor-ApiKey`. So **point an existing Seq sink at
-LogHarbor and it works** — with its batching, retry and buffering included.
+LogHarbor's ingestion endpoint is wire-compatible with Seq: same path, both of Seq's body
+formats (CLEF and the `{"Events":[...]}` envelope), and `X-Seq-ApiKey` is accepted alongside
+`X-LogHarbor-ApiKey`. So **point an existing Seq sink at LogHarbor and it works** — with its
+batching, retry and buffering included.
 
 Serilog (.NET), `dotnet add package Serilog.Sinks.Seq`:
 
@@ -268,8 +269,9 @@ Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 groups as one error on the Analysis page regardless of the id.
 
 Same deal with `NLog.Targets.Seq` (.NET), `seqlog` (Python) and `@datalust/winston-seq`
-(Node) — set the server URL and API key, nothing else. Details and per-language snippets:
-[docs/ingestion-app.md](docs/ingestion-app.md).
+(Node) — set the server URL and API key, nothing else. Each of those snippets is a verified
+end-to-end send; the Python and Node ones have language-specific gotchas worth reading
+(named logger, ESM import, flush before exit): [docs/ingestion-app.md](docs/ingestion-app.md).
 
 Anything else: POST newline-delimited CLEF yourself.
 

@@ -1,13 +1,12 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.RegularExpressions;
 
 namespace LogHarbor.Core.Events;
 
 /// <summary>Parses one CLEF JSON line into an Event, applying the normalization
 /// rules from docs/data-model.md (fixed UTC timestamp format, future clamp, level aliases).</summary>
-public static partial class ClefParser
+public static class ClefParser
 {
     public const string TimestampFormat = "yyyy-MM-dd'T'HH:mm:ss.fffffff'Z'";
 
@@ -50,7 +49,7 @@ public static partial class ClefParser
 
             var messageTemplate = GetString(root, "@mt");
             var message = GetString(root, "@m")
-                ?? (messageTemplate is null ? "" : RenderTemplate(messageTemplate, root));
+                ?? (messageTemplate is null ? "" : MessageTemplateRenderer.Render(messageTemplate, root));
 
             parsed = new Event(
                 Id: 0,
@@ -92,17 +91,4 @@ public static partial class ClefParser
         }
         return properties.Count > 0 ? properties.ToJsonString() : null;
     }
-
-    private static string RenderTemplate(string template, JsonElement root) =>
-        TemplateToken().Replace(template, match =>
-        {
-            var name = match.Groups[1].Value;
-            return root.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null
-                ? value.ToString()
-                : match.Value;
-        });
-
-    // {UserId}, {@Order}, {Elapsed:0.00} etc.; unmatched tokens are left as-is
-    [GeneratedRegex(@"\{@?\$?(\w+)(?:[:,][^{}]*)?\}")]
-    private static partial Regex TemplateToken();
 }

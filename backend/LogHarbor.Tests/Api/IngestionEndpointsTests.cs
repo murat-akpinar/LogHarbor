@@ -32,6 +32,18 @@ public sealed class IngestionEndpointsTests : IDisposable
         return _client.SendAsync(request);
     }
 
+    /// <summary>seqlog and winston-seq post Seq's other wire format: one JSON document
+    /// {"Events":[…]} as application/json, not newline-delimited CLEF.</summary>
+    private Task<HttpResponseMessage> PostSeqRawEventsAsync(string body, string apiKey)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Seq-ApiKey", apiKey);
+        return _client.SendAsync(request);
+    }
+
     private async Task<long> GetEventCountAsync()
     {
         var health = await _client.GetFromJsonAsync<JsonElement>("/healthz");
@@ -99,6 +111,94 @@ public sealed class IngestionEndpointsTests : IDisposable
     {
         var response = await PostRawAsync(
             """{"@t":"2026-07-13T10:00:00Z"}""", "logharbor_not_a_real_key", header: "X-Seq-ApiKey");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task SeqRawEventsEnvelope_Returns201_AndStoresStructuredProperties()
+    {
+        var token = await CreateApiKeyAsync();
+        var body =
+            """
+            {"Events":[{"Timestamp":"2026-07-13T10:00:00Z","Level":"error",
+            "MessageTemplate":"Order {OrderId} failed for {Customer}",
+            "Properties":{"OrderId":123,"Customer":"acme"}}]}
+            """;
+
+        var response = await PostSeqRawEventsAsync(body, token);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var page = await _client.GetFromJsonAsync<JsonElement>("/api/events");
+        var stored = page.GetProperty("events").EnumerateArray().Single();
+        Assert.Equal("Error", stored.GetProperty("level").GetString());
+        Assert.Equal("Order 123 failed for acme", stored.GetProperty("message").GetString());
+        Assert.Equal("Order {OrderId} failed for {Customer}",
+            stored.GetProperty("messageTemplate").GetString());
+        Assert.Equal("""{"OrderId":123,"Customer":"acme"}""",
+            stored.GetProperty("properties").GetString());
+    }
+
+    [Fact]
+    public async Task SeqRawEventsEnvelope_StoresEveryEventInTheBatch()
+    {
+        var token = await CreateApiKeyAsync();
+        var body =
+            """
+            {"Events":[{"Timestamp":"2026-07-13T10:00:00Z","Message":"first"},
+                       {"Timestamp":"2026-07-13T10:00:01Z","Message":"second"}]}
+            """;
+
+        var response = await PostSeqRawEventsAsync(body, token);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        Assert.Equal(2, await GetEventCountAsync());
+    }
+
+    [Fact]
+    public async Task SeqRawEventsEnvelope_BadEvent_Returns400WithEventNumber_AndStoresNothing()
+    {
+        var token = await CreateApiKeyAsync();
+        var body =
+            """{"Events":[{"Timestamp":"2026-07-13T10:00:00Z"},{"Level":"Error"}]}""";
+
+        var response = await PostSeqRawEventsAsync(body, token);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("event 2", problem.GetProperty("detail").GetString());
+        Assert.Equal(0, await GetEventCountAsync());
+    }
+
+    [Fact]
+    public async Task SeqRawEventsEnvelope_EventOverMaxEventBytes_Returns413WithEventNumber()
+    {
+        var token = await CreateApiKeyAsync();
+        var filler = new string('x', LogHarborApiFactory.MaxEventBytes);
+        var body =
+            $$$"""
+            {"Events":[{"Timestamp":"2026-07-13T10:00:00Z","Message":"ok"},
+                       {"Timestamp":"2026-07-13T10:00:01Z","Properties":{"Filler":"{{{filler}}}"}}]}
+            """;
+
+        var response = await PostSeqRawEventsAsync(body, token);
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Contains("event 2", problem.GetProperty("detail").GetString());
+    }
+
+    [Fact]
+    public async Task SeqRawEventsEnvelope_MissingApiKey_Returns401()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent(
+                """{"Events":[{"Timestamp":"2026-07-13T10:00:00Z"}]}""",
+                Encoding.UTF8, "application/json"),
+        };
+
+        var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
