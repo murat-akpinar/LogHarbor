@@ -74,6 +74,18 @@ export function VirtualizedEventList({
     return () => observer.disconnect()
   }, [])
 
+  // scroll events are not the only way the scroll position changes: a shorter list (a narrower
+  // filter, a smaller viewport) can leave the container unscrollable, and with at-top only ever
+  // updated from onScroll the live tail stayed paused with no scrollbar left to un-pause it.
+  // The same reset keeps the window from pointing past the end of a list that just shrank.
+  useEffect(() => {
+    const node = containerRef.current
+    if (!node) return
+    const top = node.scrollTop
+    setScrollTop(top)
+    onAtTopChange(top <= AT_TOP_THRESHOLD)
+  }, [events.length, containerHeight, onAtTopChange])
+
   const { startIndex, visibleEvents } = useMemo(() => {
     const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
     const visibleCount = Math.ceil(containerHeight / ROW_HEIGHT) + OVERSCAN * 2

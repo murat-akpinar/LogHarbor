@@ -1,5 +1,7 @@
+using System.Net;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
@@ -168,6 +170,30 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
         .ExecuteAsync(context);
 }));
 app.UseStatusCodePages();
+
+// production runs behind a reverse proxy (see the cookie policy above), where every request
+// carries the proxy's address — so the login limiter's per-IP partition would put every user in
+// one 10/min bucket and a few typo'd passwords would lock the whole organisation out. Only
+// trusted proxies may rewrite the client address, hence KnownProxies; with none configured this
+// is inert, which is right for a directly published port.
+var knownProxies = builder.Configuration.GetSection("LogHarbor:KnownProxies").Get<string[]>() ?? [];
+if (knownProxies.Length > 0)
+{
+    var forwardedOptions = new ForwardedHeadersOptions
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+    };
+    forwardedOptions.KnownProxies.Clear();
+    forwardedOptions.KnownNetworks.Clear();
+    foreach (var proxy in knownProxies)
+    {
+        if (IPAddress.TryParse(proxy, out var address))
+        {
+            forwardedOptions.KnownProxies.Add(address);
+        }
+    }
+    app.UseForwardedHeaders(forwardedOptions);
+}
 
 
 app.UseWhen(

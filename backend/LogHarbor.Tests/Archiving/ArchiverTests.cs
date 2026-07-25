@@ -402,6 +402,30 @@ public sealed class ArchiverTests : IDisposable
         Assert.Equal("recent event stays hot", Scalar("SELECT message FROM events;"));
     }
 
+    /// <summary>
+    /// The archivable-day list and the day's rows are read on separate connections, so a
+    /// retention pass or a manual delete in between can empty a day. That used to die on
+    /// events[^1] with a raw IndexOutOfRangeException instead of skipping it.
+    /// </summary>
+    [Fact]
+    public async Task RunArchive_DayEmptiedBetweenListingAndReading_SkipsItInsteadOfThrowing()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        // emptying day one leaves GetArchivableDaysAsync's answer stale for this pass
+        using (var connection = _db.OpenConnection())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "DELETE FROM events WHERE timestamp LIKE '2026-05-01%';";
+            command.ExecuteNonQuery();
+        }
+
+        var created = await _archiver.RunArchiveAsync(Now);
+
+        Assert.Equal(["2026-05-02"], created.Select(segment => segment.Day));
+        Assert.Null(await _archiveStore.FindAsync("2026-05-01"));
+        Assert.False(File.Exists(Path.Combine(_archiveDir, "events-2026-05-01.jsonl.br")));
+    }
+
     [Fact]
     public async Task Retention_WithArchivingEnabled_LeavesHotDataInsideTheWindow()
     {

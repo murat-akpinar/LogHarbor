@@ -170,6 +170,29 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Export_Csv_StreamsHeaderAndRows()
+    {
+        var response = await _client.GetAsync(
+            "/api/events/export?from=2026-07-01T00:00:00Z&to=2026-07-13T00:00:00Z&format=csv");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var csv = await response.Content.ReadAsStringAsync();
+        var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.StartsWith("id,timestamp,level,message,", lines[0]);
+        Assert.Contains("hot event", Assert.Single(lines[1..]));
+    }
+
+    [Fact]
+    public async Task Export_HonoursTheLimit()
+    {
+        var response = await _client.GetAsync("/api/events/export?format=json&limit=2");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, events.GetArrayLength());
+    }
+
+    [Fact]
     public async Task Export_AfterHydration_IncludesTheOnceColdDay()
     {
         await RunArchiveAsync();

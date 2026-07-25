@@ -27,6 +27,11 @@ function capped(events: Event[]): Event[] {
   return events.length > BUFFER_CAP ? events.slice(0, BUFFER_CAP) : events
 }
 
+/** How many arrived while paused, including the ones the buffer had to drop. */
+function heldCount(pending: Event[], dropped: number): number {
+  return pending.length + dropped
+}
+
 // newest first, matching the search list's ordering
 function newestFirst(events: Event[]): Event[] {
   return [...events].sort((a, b) => b.id - a.id)
@@ -39,18 +44,32 @@ function prepend(incoming: Event[]) {
 export function useLiveTail({ filter, enabled, paused }: UseLiveTailParams): UseLiveTailResult {
   const [events, setEvents] = useState<Event[]>([])
   const [pending, setPending] = useState<Event[]>([])
+  // the pending buffer is capped like the visible list, so its length alone would report
+  // "500 new events" after thousands went past; this counts what the cap discarded
+  const [droppedWhilePaused, setDroppedWhilePaused] = useState(0)
   const [status, setStatus] = useState<TailStatus>('disconnected')
   const [error, setError] = useState<string | null>(null)
+
+  // flush() reads the held batch without a nested state update: calling setEvents from inside
+  // a setPending updater made that updater impure, and React re-invokes updaters (StrictMode
+  // does it on every render) which prepended the batch twice
+  const pendingRef = useRef<Event[]>([])
 
   // read inside the SignalR callback, which is registered once per connection
   const pausedRef = useRef(paused)
   pausedRef.current = paused
 
+  const clearPending = useCallback(() => {
+    pendingRef.current = []
+    setPending([])
+    setDroppedWhilePaused(0)
+  }, [])
+
   useEffect(() => {
     if (!enabled) {
       setStatus('disconnected')
       setEvents([])
-      setPending([])
+      clearPending()
       setError(null)
       return
     }
@@ -67,8 +86,14 @@ export function useLiveTail({ filter, enabled, paused }: UseLiveTailParams): Use
 
       built.on('EventsArrived', (arrived: Event[]) => {
         const incoming = newestFirst(arrived)
-        if (pausedRef.current) setPending(prepend(incoming))
-        else setEvents(prepend(incoming))
+        if (!pausedRef.current) {
+          setEvents(prepend(incoming))
+          return
+        }
+        const merged = [...incoming, ...pendingRef.current]
+        pendingRef.current = capped(merged)
+        setPending(pendingRef.current)
+        setDroppedWhilePaused((current) => current + merged.length - pendingRef.current.length)
       })
 
       // a reconnect gives a fresh connection id on the server, so the subscription must be re-sent
@@ -102,7 +127,7 @@ export function useLiveTail({ filter, enabled, paused }: UseLiveTailParams): Use
 
     // a filter change means a different subscription: drop what the old one collected
     setEvents([])
-    setPending([])
+    clearPending()
     connect().catch(() => setStatus('disconnected'))
 
     return () => {
@@ -113,16 +138,17 @@ export function useLiveTail({ filter, enabled, paused }: UseLiveTailParams): Use
         })
       }
     }
-  }, [enabled, filter])
+  }, [enabled, filter, clearPending])
 
   const flush = useCallback(() => {
-    setPending((currentPending) => {
-      if (currentPending.length > 0) {
-        setEvents((current) => capped([...currentPending, ...current]))
-      }
-      return []
-    })
+    const held = pendingRef.current
+    pendingRef.current = []
+    setPending([])
+    setDroppedWhilePaused(0)
+    if (held.length > 0) {
+      setEvents((current) => capped([...held, ...current]))
+    }
   }, [])
 
-  return { events, pendingCount: pending.length, status, error, flush }
+  return { events, pendingCount: heldCount(pending, droppedWhilePaused), status, error, flush }
 }

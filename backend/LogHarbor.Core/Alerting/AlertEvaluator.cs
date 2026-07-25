@@ -32,10 +32,16 @@ public sealed class AlertEvaluator
         _webhooks = webhooks;
     }
 
+    // a dead webhook costs the sender's full timeout, and evaluation used to await each one in
+    // the rule loop: seven of them pushed a pass past the scheduler's one-minute tick and made
+    // every rule, healthy ones included, evaluate late. Bounded so a burst cannot open hundreds
+    // of sockets at once.
+    private const int WebhookConcurrency = 4;
+
     /// <summary>Returns the number of webhooks fired successfully.</summary>
     public async Task<int> EvaluateAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
-        var fired = 0;
+        var due = new List<(AlertRule Rule, string Payload)>();
         foreach (var (rule, signalTitle, signalFilter) in await _alerts.GetEnabledWithSignalAsync(cancellationToken))
         {
             var toUtc = ClefParser.FormatTimestamp(now);
@@ -83,15 +89,37 @@ public sealed class AlertEvaluator
                 count = windowCount;
             }
 
-            var payload = BuildPayload(rule, signalTitle, signalFilter, count, fromUtc, toUtc);
-
-            var error = await _webhooks.SendAsync(rule.WebhookUrl, payload, cancellationToken);
-            await _alerts.MarkTriggeredAsync(rule.Id, toUtc, error, cancellationToken);
-            if (error is null)
-            {
-                fired++;
-            }
+            due.Add((rule with { LastTriggeredAt = toUtc }, BuildPayload(
+                rule, signalTitle, signalFilter, count, fromUtc, toUtc)));
         }
+
+        if (due.Count == 0)
+        {
+            return 0;
+        }
+
+        var fired = 0;
+        using var slots = new SemaphoreSlim(WebhookConcurrency);
+        await Task.WhenAll(due.Select(async item =>
+        {
+            await slots.WaitAsync(cancellationToken);
+            try
+            {
+                var error = await _webhooks.SendAsync(item.Rule.WebhookUrl, item.Payload, cancellationToken);
+                // the trigger time is recorded whether or not the call succeeded, so a dead
+                // webhook cools down like any other and is not hammered every evaluation
+                await _alerts.MarkTriggeredAsync(
+                    item.Rule.Id, item.Rule.LastTriggeredAt!, error, cancellationToken);
+                if (error is null)
+                {
+                    Interlocked.Increment(ref fired);
+                }
+            }
+            finally
+            {
+                slots.Release();
+            }
+        }));
         return fired;
     }
 

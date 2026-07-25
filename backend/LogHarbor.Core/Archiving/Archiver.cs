@@ -56,7 +56,12 @@ public sealed class Archiver
             var created = new List<ArchiveSegment>();
             foreach (var day in await _store.GetArchivableDaysAsync(cutoffDay, cancellationToken))
             {
-                created.Add(await ArchiveDayAsync(day, cancellationToken));
+                // the day list and the day's rows are read on separate connections, so a retention
+                // pass or a manual delete in between can empty it; skipping beats dying on events[^1]
+                if (await ArchiveDayAsync(day, cancellationToken) is { } segment)
+                {
+                    created.Add(segment);
+                }
             }
 
             if (created.Count > 0)
@@ -151,9 +156,15 @@ public sealed class Archiver
         return new RetentionResult(expired.Count, rows);
     }
 
-    private async Task<ArchiveSegment> ArchiveDayAsync(string day, CancellationToken cancellationToken)
+    /// <summary>Null when the day turned out to hold no events — no segment row, no file.</summary>
+    private async Task<ArchiveSegment?> ArchiveDayAsync(string day, CancellationToken cancellationToken)
     {
         var events = await _store.ReadDayAsync(day, cancellationToken);
+        if (events.Count == 0)
+        {
+            return null;
+        }
+
         var fileName = $"events-{day}.jsonl.br";
         var finalPath = Path.Combine(ArchiveDirectory, fileName);
         var tempPath = finalPath + ".tmp";

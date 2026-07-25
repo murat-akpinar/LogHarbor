@@ -6,6 +6,9 @@ namespace LogHarbor.Api.Endpoints;
 
 public static class ArchiveEndpoints
 {
+    /// <summary>About a month of days per extraction request (see HydrateAsync).</summary>
+    private const int MaxSegmentsPerRequest = 31;
+
     public sealed record HydrateRequest(string? From, string? To);
 
     public sealed record SegmentStatusResponse(string Day, string Status);
@@ -37,7 +40,19 @@ public static class ArchiveEndpoints
             return BadRequest("to is required and must be a valid ISO-8601 timestamp.");
         }
 
-        foreach (var segment in await store.ListRangeAsync(fromDay, toDay, cancellationToken))
+        var inRange = await store.ListRangeAsync(fromDay, toDay, cancellationToken);
+        var cold = inRange.Count(segment => segment.Status == SegmentStatus.Cold);
+        // one request must not be able to decompress the whole archive back into SQLite: every
+        // hydrated day is real rows on the single writer, and eviction cannot reclaim them for
+        // at least HydrationKeepDays
+        if (cold > MaxSegmentsPerRequest)
+        {
+            return BadRequest(
+                $"That range holds {cold} archived days; at most {MaxSegmentsPerRequest} can be " +
+                "extracted per request. Narrow the range and repeat.");
+        }
+
+        foreach (var segment in inRange)
         {
             // claim atomically: two concurrent hydrate calls must not enqueue the same day twice
             if (segment.Status == SegmentStatus.Cold
