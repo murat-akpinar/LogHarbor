@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
 import { getEvents } from '../api/events'
+import { startHydration } from '../api/archive'
 import type { Event } from '../types'
 import { EventsPage } from './EventsPage'
 
@@ -26,6 +27,10 @@ vi.mock('../api/settings', () => ({
 }))
 vi.mock('../hooks/useSignals', () => ({
   useSignals: () => ({ data: [] }),
+}))
+vi.mock('../api/archive', () => ({
+  startHydration: vi.fn(async () => ({ segments: [] })),
+  getHydrationStatus: vi.fn(async () => ({ segments: [{ day: '2026-07-23', status: 'hydrated' }] })),
 }))
 vi.mock('../hooks/useLiveTail', () => ({
   useLiveTail: () => ({
@@ -97,6 +102,42 @@ it('keeps the normal empty state when a filter is active', async () => {
 
   expect(await screen.findByText('No events match this filter.')).toBeDefined()
   expect(screen.queryByText('Send your first log')).toBeNull()
+})
+
+// regression: the API reports which days of the range are in cold storage and the page
+// dropped the field, rendering an empty list with no explanation
+it('shows the archived-day banner instead of an unexplained empty list', async () => {
+  vi.mocked(getEvents).mockResolvedValue({ events: [], hasMore: false, archivedDays: ['2026-07-23'] })
+  renderPage()
+
+  expect(await screen.findByText(/1 day in this range is archived/)).toBeDefined()
+  expect(screen.getByText('2026-07-23')).toBeDefined()
+  // not the "no events yet, send your first log" story — the events exist
+  expect(screen.queryByText('Send your first log')).toBeNull()
+})
+
+it('extracts the archived range on demand', async () => {
+  vi.mocked(getEvents).mockResolvedValue({
+    events: [],
+    hasMore: false,
+    archivedDays: ['2026-07-23', '2026-07-21'],
+  })
+  renderPage()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Extract them' }))
+
+  await waitFor(() =>
+    // bounds come from the days themselves, so an open-ended range still works
+    expect(startHydration).toHaveBeenCalledWith('2026-07-21T00:00:00Z', '2026-07-23T23:59:59Z'),
+  )
+})
+
+it('keeps the banner hidden when the whole range is hot', async () => {
+  vi.mocked(getEvents).mockResolvedValue({ events: [SAMPLE_EVENT], hasMore: false, archivedDays: [] })
+  renderPage()
+
+  expect(await screen.findByText('hello there')).toBeDefined()
+  expect(screen.queryByText(/archived/)).toBeNull()
 })
 
 const TRACE = '0af7651916cd43dd8448eb211c80319c'

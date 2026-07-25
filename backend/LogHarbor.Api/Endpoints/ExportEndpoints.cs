@@ -58,6 +58,7 @@ public static class ExportEndpoints
         }
 
         var events = new List<Event>();
+        var archivedDays = new SortedSet<string>();
         long? afterId = null;
         while (events.Count < limit)
         {
@@ -65,11 +66,26 @@ public static class ExportEndpoints
             var page = await eventStore.QueryAsync(
                 new EventQuery(filterSql, fromUtc, toUtc, afterId, count), cancellationToken);
             events.AddRange(page.Events);
+            archivedDays.UnionWith(page.ArchivedDays);
             if (!page.HasMore || page.Events.Count == 0)
             {
                 break;
             }
             afterId = page.Events[^1].Id;
+        }
+
+        // a file leaves the system: someone attaches it to a ticket believing it covers the
+        // range. Days in cold storage would be missing with no visible seam — the surrounding
+        // days are all present — so refuse instead of writing a quietly incomplete export.
+        if (archivedDays.Count > 0)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Range contains archived days",
+                detail: $"{string.Join(", ", archivedDays)} " +
+                    $"{(archivedDays.Count == 1 ? "is" : "are")} compressed to cold storage and would be " +
+                    "missing from the export. Extract the range first (Events page, or " +
+                    "POST /api/archive/hydrate), then export again.");
         }
 
         var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");

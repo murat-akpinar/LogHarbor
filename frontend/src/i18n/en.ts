@@ -62,6 +62,13 @@ export const en = {
     newEvents: (count: number) => `${count} new event${count === 1 ? '' : 's'} — click to resume`,
     noEventsMatch: 'No events match this filter.',
     clearFilter: 'Clear the filter',
+    archivedDays: (count: number) =>
+      `${count} day${count === 1 ? '' : 's'} in this range ${count === 1 ? 'is' : 'are'} archived — ` +
+      'those events are compressed on disk and not searched.',
+    extractArchived: 'Extract them',
+    extractingArchived: 'Extracting…',
+    extractArchivedStarted: 'Extraction started — results will fill in as each day finishes.',
+    extractArchivedFailed: 'Extraction could not be started.',
     tailStatus: {
       connected: 'connected',
       connecting: 'connecting',

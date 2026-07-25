@@ -97,6 +97,9 @@ GET /api/events/export
   200: file download (Content-Disposition attachment), paged internally in the same
   order as the search. CSV cells that start with =, +, - or @ are prefixed with a
   leading ' to defuse spreadsheet formula injection from untrusted log content.
+  409: the range contains archived days, named in the detail. They would be missing
+  from the file with no visible gap, so the export refuses rather than writing a
+  quietly incomplete download — extract them first (POST /api/archive/hydrate).
 
 GET /api/search/suggest
   Query params: prefix (default ""), property (optional)
@@ -274,7 +277,10 @@ GET  /api/settings/archive                200: { compressAfterDays, hydrationKee
 PUT  /api/settings/archive                body same shape  200: saved settings | 400 validation
 
 Note: GET /api/events responses always include "archivedDays": [ "YYYY-MM-DD" ] — the
-cold (non-hydrated) archive days the requested range touches; empty when none.
+cold (non-hydrated) archive days the requested range touches; empty when none. The
+Events page turns a non-empty list into a banner offering to extract them, so a range
+whose data is all cold never renders as an unexplained empty result; /api/events/export
+refuses such a range outright (409) rather than writing an incomplete file.
 
 --- BACKUP (admin only) ---
 
