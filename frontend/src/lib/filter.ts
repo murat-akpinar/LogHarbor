@@ -30,6 +30,8 @@ export function quote(value: string): string {
 /**
  * Equality clause for a property value. Numeric ids compare as numbers in SQLite; strings need a
  * quoted literal, so emit the matching form whether the property holds "user-42" or 42.
+ * Negative numbers are emitted bare too — the query tokenizer reads a sign where a value is
+ * expected (docs/query-language.md LITERALS).
  */
 export function propertyEquals(property: string, value: string): string {
   return /^-?\d+(\.\d+)?$/.test(value) ? `${property} = ${value}` : `${property} = ${quote(value)}`

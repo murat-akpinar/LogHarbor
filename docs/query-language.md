@@ -6,7 +6,10 @@ and used for live-tail subscriptions. Parsed by LogHarbor.Core QueryParser into 
 --- LITERALS ---
 
 Strings:  'text' (single quotes; embedded quote doubled: 'O''Brien')
-Numbers:  42, 3.14
+Numbers:  42, 3.14, -42, -1.5, +7
+          (a sign is read only where a value is expected — at the start, after an
+          operator, after '(' or after and/or/not. `Delta-1` is still an error:
+          the language has no arithmetic)
 Booleans: true, false
 Null:     null
 
