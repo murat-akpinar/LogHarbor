@@ -91,7 +91,11 @@ Smoke test:
   curl -X POST "$LOGHARBOR_URL/api/events/raw" \
     -H "X-LogHarbor-ApiKey: $LOGHARBOR_API_KEY" \
     -H "Content-Type: application/vnd.serilog.clef" \
-    --data-binary '{"@t":"2026-07-14T09:12:03Z","@l":"Error","@mt":"Test from {Source}","Source":"curl"}'
+    --data-binary "{\"@t\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"@l\":\"Error\",\"@mt\":\"Test from {Source}\",\"Source\":\"curl\"}"
+
+  @t is stamped now on purpose: it is the event's own time and every time-ranged view is
+  a window over it, so a fixed date pasted from here would be accepted with a 201 and then
+  not show up on the Dashboard.
 
   201 accepted | 400 bad line (detail names the line) | 401 bad key
   413 over MaxBatchBytes/MaxEventBytes | 429 rate limited
