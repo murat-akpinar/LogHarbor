@@ -1,7 +1,7 @@
 namespace LogHarbor.Core.Storage;
 
-/// <summary>Why ingestion turned a client away. Stored as the wire reason rather than the
-/// status code so the UI can name it without a lookup table.</summary>
+/// <summary>Why ingestion did not keep a client's events. Stored as the wire reason rather
+/// than the status code so the UI can name it without a lookup table.</summary>
 public static class RejectionReasons
 {
     public const string Unauthorized = "unauthorized";
@@ -9,6 +9,11 @@ public static class RejectionReasons
     public const string InvalidPayload = "invalid_payload";
     public const string TooLarge = "too_large";
     public const string UnsupportedMediaType = "unsupported_media_type";
+
+    /// <summary>The batch was valid and we failed to store it — a full disk, a read-only
+    /// mount, a locked database. The graver half: the client did nothing wrong, so nothing
+    /// on its side will ever be corrected, and the events are simply gone.</summary>
+    public const string WriteFailed = "write_failed";
 }
 
 /// <summary>One (key, reason, day) bucket. ApiKeyTitle is null when the request had no valid

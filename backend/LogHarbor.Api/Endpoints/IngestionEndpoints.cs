@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using LogHarbor.Api;
 using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Events;
@@ -58,7 +59,23 @@ public static class IngestionEndpoints
             return await RejectAsync(request, rejections, failure, cancellationToken);
         }
 
-        var ids = await eventStore.WriteBatchAsync(events, cancellationToken);
+        IReadOnlyList<long> ids;
+        try
+        {
+            ids = await eventStore.WriteBatchAsync(events, cancellationToken);
+        }
+        catch (SqliteException exception)
+        {
+            // A full disk or a read-only mount loses a batch the client got right. It would
+            // otherwise leave nothing behind but a 500 the sink swallows, so it is recorded
+            // beside the 4xx rejections and the client still gets its 500 to retry against.
+            return await RejectAsync(request, rejections, new IngestFailure(
+                RejectionReasons.WriteFailed,
+                $"could not store {events.Count} event(s): {exception.Message}",
+                _ => Results.Problem(statusCode: StatusCodes.Status500InternalServerError,
+                    title: "Could not store the batch")), cancellationToken);
+        }
+
         LogHarborMetrics.CountIngested(events.Count, source);
         await tailBroadcaster.BroadcastAsync(ids, cancellationToken);
         LogHarborMetrics.RecordIngestDuration(

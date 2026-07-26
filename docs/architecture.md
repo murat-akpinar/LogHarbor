@@ -21,9 +21,10 @@ Ingestion API:
   POST /api/events/raw, accepts CLEF (newline-delimited JSON) and Seq's {"Events":[...]}
   envelope, sniffed from the body rather than Content-Type
   Validates API key, parses events, writes batch to store, broadcasts to live tail
-  Every rejected request (401/413/429/400) is counted, logged and stored as an
-  ingest_rejections bucket — otherwise a client that silently drops its events
-  leaves no trace anywhere on the server (docs/data-model.md)
+  Every request that does not end in stored events — 401/413/429/400 refusals and
+  500 write failures alike — is counted, logged and stored as an ingest_rejections
+  bucket; otherwise a client that silently drops its events leaves no trace anywhere
+  on the server (docs/data-model.md)
   Wire-compatible with Seq (same path, both bodies, X-Seq-ApiKey accepted as a header alias),
   so existing Seq sinks ingest into LogHarbor unchanged (docs/ingestion-app.md)
   POST /v1/logs accepts OTLP/HTTP (OpenTelemetry logs) in protobuf and JSON
@@ -143,5 +144,4 @@ Layered code (Api/Core + store interfaces) keeps a future split possible, not pl
 --- NON-GOALS (V1) ---
 
 Microservices / clustering / multi-node
-Multi-user accounts and roles (single admin password only)
 Log file tailing agents (HTTP ingestion only; use Vector, docs/ingestion-docker.md)

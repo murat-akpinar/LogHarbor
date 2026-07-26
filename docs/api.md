@@ -187,7 +187,9 @@ GET /api/stats/ingest-rejections
   were never stored are visible without reading server logs. Aggregated per (api key,
   reason, UTC day) rather than per request: a misconfigured client retries forever.
   reason is one of unauthorized | rate_limited | invalid_payload | too_large |
-  unsupported_media_type. apiKeyId 0 (apiKeyTitle null) means the request had no valid key.
+  unsupported_media_type | write_failed. write_failed is the 5xx half — the batch was
+  valid and storage failed (full disk, read-only mount), so unlike the others nothing
+  on the client side is wrong and nothing there will ever correct it. apiKeyId 0 (apiKeyTitle null) means the request had no valid key.
   lastDetail is the server's own message, capped at 200 chars, and can quote the client's
   payload. Buckets are kept 30 days, independent of RetentionDays.
   200: { "rejections": [ { apiKeyId, apiKeyTitle, reason, day, requestCount,
@@ -345,7 +347,15 @@ Only events matching the subscribed filter are pushed.
 
 --- HEALTH ---
 
-GET /healthz    200: { "status": "ok", "eventCount": n, "dbSizeBytes": n }
+GET /healthz    No auth. 200 when the server can still store events, 503 when it cannot.
+                { "status": "ok"|"degraded", "writable": bool, "eventCount": n,
+                  "dbSizeBytes": n, "freeDiskBytes": n|null }
+                writable is a real write inside a rolled-back transaction, not a read. A full
+                disk or a read-only mount leaves SELECT working, so a read-only check reports
+                a healthy server while every batch fails with a 500 — measured, and the reason
+                this endpoint stopped answering "ok" unconditionally. freeDiskBytes is null
+                where the platform will not report it. The Dockerfile HEALTHCHECK curls this
+                with -f, so a degraded container stops claiming to be healthy.
 
 --- SWAGGER (admin only) ---
 

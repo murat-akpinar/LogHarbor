@@ -81,6 +81,9 @@ export type RejectionReason =
   | 'invalid_payload'
   | 'too_large'
   | 'unsupported_media_type'
+  /** The batch was valid and the server could not store it — a full disk or a read-only
+   *  mount. The graver half: the client did nothing wrong. */
+  | 'write_failed'
 
 /** One (api key, reason, UTC day) bucket of turned-away ingestion requests.
  *  apiKeyTitle is null when the request carried no valid key. */

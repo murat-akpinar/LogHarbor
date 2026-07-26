@@ -166,6 +166,7 @@ export const en = {
       invalid_payload: 'Unparseable payload',
       too_large: 'Too large',
       unsupported_media_type: 'Unsupported content type',
+      write_failed: 'Could not be stored',
     },
     routes: 'Routes',
     servicesUsers: 'Services & users',

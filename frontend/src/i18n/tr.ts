@@ -167,6 +167,7 @@ export const tr: Messages = {
       invalid_payload: 'Çözülemeyen gövde',
       too_large: 'Fazla büyük',
       unsupported_media_type: 'Desteklenmeyen içerik tipi',
+      write_failed: 'Kaydedilemedi',
     },
     routes: 'Rotalar',
     servicesUsers: 'Servisler ve kullanıcılar',
