@@ -76,6 +76,10 @@ public interface IArchiveStore
     /// <summary>Retention for disabled archiving: deletes hot events older than the UTC timestamp.</summary>
     Task<long> DeleteHotEventsBeforeAsync(string cutoffTimestamp, CancellationToken cancellationToken = default);
 
+    /// <summary>The earliest UTC day still holding data, hot or archived, or null when there
+    /// is none. The size cap walks forward from here, dropping whole days oldest-first.</summary>
+    Task<string?> GetOldestDataDayAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Reclaims free pages after archive/evict/retention deletions.</summary>
     Task IncrementalVacuumAsync(CancellationToken cancellationToken = default);
 }

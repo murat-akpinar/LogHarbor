@@ -305,8 +305,15 @@ POST /api/archive/hydrate                 body { from, to } (both required, ISO-
                                           202: { segments: [ { day, status } ] }
                                           claims cold segments in range, hydrates in background
 GET  /api/archive/hydrate/status?from&to  200: { segments: [ { day, status } ] }
-GET  /api/settings/archive                200: { compressAfterDays, hydrationKeepDays, retentionDays }
+GET  /api/settings/archive                200: { compressAfterDays, hydrationKeepDays,
+                                                retentionDays, maxDatabaseBytes }
 PUT  /api/settings/archive                body same shape  200: saved settings | 400 validation
+                                          maxDatabaseBytes is optional and omitting it keeps the
+                                          stored value — it arrived after the other three, and a
+                                          client that predates it must not switch off a ceiling
+                                          someone set. 0 disables; anything positive must be at
+                                          least 64 MB, since a smaller cap would delete history
+                                          every pass and still never fit.
 
 Note: GET /api/events responses always include "archivedDays": [ "YYYY-MM-DD" ] — the
 cold (non-hydrated) archive days the requested range touches; empty when none. The

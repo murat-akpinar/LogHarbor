@@ -8,7 +8,7 @@ const t = en.settings.timeline
 describe('describeArchiveTimeline', () => {
   it('spells out the three phases in order', () => {
     const result = describeArchiveTimeline(
-      { compressAfterDays: '1', hydrationKeepDays: '1', retentionDays: '7' },
+      { compressAfterDays: '1', retentionDays: '7' },
       t,
     )
 
@@ -21,7 +21,7 @@ describe('describeArchiveTimeline', () => {
   // the exact misconfiguration the API rejects; the page should say so before the save round-trip
   it('warns when deletion comes before compression', () => {
     const result = describeArchiveTimeline(
-      { compressAfterDays: '90', hydrationKeepDays: '1', retentionDays: '30' },
+      { compressAfterDays: '90', retentionDays: '30' },
       t,
     )
 
@@ -31,7 +31,7 @@ describe('describeArchiveTimeline', () => {
 
   it('describes the archiving-off case instead of an empty middle phase', () => {
     const result = describeArchiveTimeline(
-      { compressAfterDays: '0', hydrationKeepDays: '1', retentionDays: '14' },
+      { compressAfterDays: '0', retentionDays: '14' },
       t,
     )
 
@@ -39,7 +39,7 @@ describe('describeArchiveTimeline', () => {
   })
 
   it('says nothing while a field is empty or unparseable', () => {
-    const base = { compressAfterDays: '1', hydrationKeepDays: '1', retentionDays: '7' }
+    const base = { compressAfterDays: '1', retentionDays: '7' }
 
     expect(describeArchiveTimeline({ ...base, retentionDays: '' }, t)).toBeNull()
     expect(describeArchiveTimeline({ ...base, compressAfterDays: 'abc' }, t)).toBeNull()

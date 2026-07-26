@@ -15,16 +15,18 @@ public sealed class ArchiveScheduler : BackgroundService
     private readonly ISpanStore _spans;
     private readonly ISettingsStore _settings;
     private readonly IIngestRejectionStore _rejections;
+    private readonly LogHarborDb _db;
     private readonly ILogger<ArchiveScheduler> _logger;
 
     public ArchiveScheduler(
         Archiver archiver, ISpanStore spans, ISettingsStore settings,
-        IIngestRejectionStore rejections, ILogger<ArchiveScheduler> logger)
+        IIngestRejectionStore rejections, LogHarborDb db, ILogger<ArchiveScheduler> logger)
     {
         _archiver = archiver;
         _spans = spans;
         _settings = settings;
         _rejections = rejections;
+        _db = db;
         _logger = logger;
     }
 
@@ -55,6 +57,16 @@ public sealed class ArchiveScheduler : BackgroundService
             if (evicted.Count > 0)
             {
                 _logger.LogInformation("Evicted {Count} hydrated segment(s)", evicted.Count);
+            }
+
+            // hourly, not daily: a volume filling up cannot wait until tomorrow, and running
+            // out of disk takes the server down (measured) while retention only prunes by age
+            var capped = await _archiver.RunSizeCapAsync(_db.GetDatabaseSizeBytes, stoppingToken);
+            if (capped.RemovedAnything)
+            {
+                _logger.LogWarning(
+                    "Size cap dropped {Days} oldest day(s), {Rows} hot row(s); database now {Bytes} bytes",
+                    capped.DaysDropped, capped.Rows, capped.DatabaseSizeBytes);
             }
 
             var today = DateOnly.FromDateTime(now.UtcDateTime);

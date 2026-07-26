@@ -4,7 +4,12 @@ namespace LogHarbor.Api.Endpoints;
 
 public static class SettingsEndpoints
 {
-    public sealed record ArchiveSettingsRequest(int? CompressAfterDays, int? HydrationKeepDays, int? RetentionDays);
+    public sealed record ArchiveSettingsRequest(
+        int? CompressAfterDays, int? HydrationKeepDays, int? RetentionDays, long? MaxDatabaseBytes);
+
+    /// <summary>Below this a cap would fight the ingestion limits rather than protect the disk:
+    /// one MaxBatchBytes batch has to fit with room to spare.</summary>
+    public const long MinimumSizeCapBytes = 64 * 1024 * 1024;
 
     public static void MapSettings(this IEndpointRouteBuilder app)
     {
@@ -39,16 +44,32 @@ public static class SettingsEndpoints
                     $"Must be at least the compression delay ({request.CompressAfterDays} days), " +
                     "otherwise days would be compressed and deleted on the same pass."];
             }
+            // Omitted means "leave it alone", not "disable it": the field arrived after the
+            // other three, and a client that does not know about it must not silently switch
+            // off a ceiling someone set deliberately.
+            if (request.MaxDatabaseBytes is < 0)
+            {
+                errors["maxDatabaseBytes"] = ["Must be 0 (disabled) or a positive size in bytes."];
+            }
+            // a tiny but non-zero cap would delete history on every pass and still never fit,
+            // so refuse it rather than let it quietly shred the data
+            else if (request.MaxDatabaseBytes is > 0 and < MinimumSizeCapBytes)
+            {
+                errors["maxDatabaseBytes"] = [
+                    $"Must be 0 (disabled) or at least {MinimumSizeCapBytes / (1024 * 1024)} MB."];
+            }
             if (errors.Count > 0)
             {
                 return Results.ValidationProblem(errors);
             }
 
+            var current = await store.GetArchiveSettingsAsync(cancellationToken);
             var settings = new ArchiveSettings
             {
                 CompressAfterDays = request.CompressAfterDays!.Value,
                 HydrationKeepDays = request.HydrationKeepDays!.Value,
                 RetentionDays = request.RetentionDays!.Value,
+                MaxDatabaseBytes = request.MaxDatabaseBytes ?? current.MaxDatabaseBytes,
             };
             await store.SaveArchiveSettingsAsync(settings, cancellationToken);
             return Results.Ok(settings);

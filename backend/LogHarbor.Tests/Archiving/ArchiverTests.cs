@@ -488,4 +488,84 @@ public sealed class ArchiverTests : IDisposable
         command.CommandText = sql;
         command.ExecuteNonQuery();
     }
+
+    private async Task SetSizeCapAsync(long maxBytes) =>
+        await _settingsStore.SaveArchiveSettingsAsync(new ArchiveSettings
+        {
+            CompressAfterDays = 30,
+            HydrationKeepDays = 1,
+            RetentionDays = 365,
+            MaxDatabaseBytes = maxBytes,
+        });
+
+    /// <summary>The cap is the brake behind the three time settings: RetentionDays is 365 here
+    /// and every event is far younger, so only the size ceiling can remove anything.</summary>
+    [Fact]
+    public async Task SizeCap_DropsOldestDaysUntilTheDatabaseFits()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await SetSizeCapAsync(1); // any real database exceeds one byte
+
+        var result = await _archiver.RunSizeCapAsync(() => _db.GetDatabaseSizeBytes());
+
+        Assert.True(result.DaysDropped >= 2, $"expected the old days to go, dropped {result.DaysDropped}");
+        var remaining = await _eventStore.QueryAsync(new EventQuery(null, null, null, null, 100));
+        Assert.DoesNotContain(remaining.Events, e => e.Timestamp.StartsWith("2026-05-01"));
+    }
+
+    [Fact]
+    public async Task SizeCap_DoesNothingWhenDisabled()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await SetSizeCapAsync(0);
+
+        var result = await _archiver.RunSizeCapAsync(() => _db.GetDatabaseSizeBytes());
+
+        Assert.Equal(0, result.DaysDropped);
+        var remaining = await _eventStore.QueryAsync(new EventQuery(null, null, null, null, 100));
+        Assert.Equal(6, remaining.Events.Count);
+    }
+
+    [Fact]
+    public async Task SizeCap_LeavesEverythingAloneWhenTheDatabaseFits()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        await SetSizeCapAsync(long.MaxValue);
+
+        var result = await _archiver.RunSizeCapAsync(() => _db.GetDatabaseSizeBytes());
+
+        Assert.False(result.RemovedAnything);
+        var remaining = await _eventStore.QueryAsync(new EventQuery(null, null, null, null, 100));
+        Assert.Equal(6, remaining.Events.Count);
+    }
+
+    /// <summary>An archived day exists only as a segment row plus a .br file, so the cap has to
+    /// remove both — a row without a file is the "file missing" state a restore produces.</summary>
+    [Fact]
+    public async Task SizeCap_RemovesArchivedDaysAndTheirFiles()
+    {
+        await SeedTwoOldDaysAndOneRecentAsync();
+        var segments = await _archiver.RunArchiveAsync(Now);
+        Assert.NotEmpty(segments);
+        var files = Directory.GetFiles(_archiveDir, "*.br");
+        Assert.NotEmpty(files);
+
+        await SetSizeCapAsync(1);
+        var result = await _archiver.RunSizeCapAsync(() => _db.GetDatabaseSizeBytes());
+
+        Assert.True(result.DaysDropped > 0);
+        Assert.Empty(await _archiveStore.ListAsync());
+        Assert.Empty(Directory.GetFiles(_archiveDir, "*.br"));
+    }
+
+    /// <summary>An empty database cannot be shrunk any further; the loop must end, not spin.</summary>
+    [Fact]
+    public async Task SizeCap_StopsWhenThereIsNothingLeftToDrop()
+    {
+        await SetSizeCapAsync(1);
+
+        var result = await _archiver.RunSizeCapAsync(() => _db.GetDatabaseSizeBytes());
+
+        Assert.Equal(0, result.DaysDropped);
+    }
 }

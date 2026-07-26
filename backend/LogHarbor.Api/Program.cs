@@ -36,6 +36,9 @@ var archiveDefaults = new ArchiveSettings
     CompressAfterDays = builder.Configuration.GetValue("LogHarbor:Archive:CompressAfterDays", 90),
     HydrationKeepDays = builder.Configuration.GetValue("LogHarbor:Archive:HydrationKeepDays", 1),
     RetentionDays = builder.Configuration.GetValue("LogHarbor:RetentionDays", 365),
+    // off by default: a ceiling that deletes history is not something to spring on someone
+    // who never asked for it. Opt in from the Settings page or appsettings.
+    MaxDatabaseBytes = builder.Configuration.GetValue<long>("LogHarbor:Archive:MaxDatabaseBytes", 0),
 };
 builder.Services.AddSingleton<ISettingsStore>(provider =>
     new SqliteSettingsStore(provider.GetRequiredService<LogHarborDb>(), archiveDefaults));

@@ -287,6 +287,9 @@ export interface ArchiveSettings {
   compressAfterDays: number
   hydrationKeepDays: number
   retentionDays: number
+  /** Hard ceiling on the database file; 0 disables it. The other three are time policies,
+   *  and time is the wrong unit for a disk that fills faster than it ages. */
+  maxDatabaseBytes: number
 }
 
 export interface HydrationStatus {

@@ -13,6 +13,17 @@ Hydrated: cold segments temporarily extracted into a cache table for reading
 
 [hot events] --after CompressAfterDays--> [daily .clef.br segment] --after RetentionDays--> deleted
 
+MaxDatabaseBytes is the brake behind all three. They are time policies, and time is the wrong
+unit for a disk: doubling the ingest rate fills the volume long before RetentionDays elapses,
+and the configuration that was right last month is wrong this month. Over the ceiling, the
+oldest days are dropped whatever their age — segment file, segment row and hot rows together —
+until the file fits. It runs on the scheduler's HOURLY tick, not the daily one, because a
+volume filling up cannot wait until tomorrow. 0 disables it, which is the default: a setting
+that deletes history should not arrive unannounced.
+
+Losing the oldest day is the better failure. Running out of disk was measured to stop every
+write while the server still reported itself healthy (fix.md item 1).
+
 Segments are files, not rows. archive_segments stores a day's file name, event count and
 status; the events themselves only exist inside the .br file on disk. That split is why
 GET /api/admin/backup ships a zip of the database AND the archive directory — a database

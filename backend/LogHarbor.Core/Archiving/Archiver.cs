@@ -15,6 +15,13 @@ public sealed record RetentionResult(int Segments, long Rows)
     public bool RemovedAnything => Segments > 0 || Rows > 0;
 }
 
+/// <summary>What one size-cap pass removed, and where the file ended up. DaysDropped counts
+/// whole UTC days, because that is the unit the cap deletes in.</summary>
+public sealed record SizeCapResult(int DaysDropped, long Rows, long DatabaseSizeBytes)
+{
+    public bool RemovedAnything => DaysDropped > 0;
+}
+
 /// <summary>
 /// Tiered-storage jobs (docs/archiving.md): compress old days to disk, hydrate them back
 /// on demand, evict stale cache rows, and apply retention. File paths are always built
@@ -154,6 +161,62 @@ public sealed class Archiver
             await _store.IncrementalVacuumAsync(cancellationToken);
         }
         return new RetentionResult(expired.Count, rows);
+    }
+
+    /// <summary>
+    /// Drops whole days oldest-first until the database fits under MaxDatabaseBytes.
+    /// </summary>
+    /// <remarks>
+    /// The emergency brake behind the three time settings. Those describe how long data
+    /// SHOULD be kept; this one is about the disk actually running out, which was measured to
+    /// take the server down while it still reported itself healthy. It deliberately overrides
+    /// RetentionDays: keeping the configured history is worth less than staying able to accept
+    /// the next event, and losing the oldest day is a better failure than losing all writes.
+    ///
+    /// Runs on the scheduler's hourly tick rather than the daily one — a volume filling up
+    /// cannot wait until tomorrow.
+    /// </remarks>
+    public async Task<SizeCapResult> RunSizeCapAsync(
+        Func<long> databaseSizeBytes, CancellationToken cancellationToken = default)
+    {
+        var settings = await _settings.GetArchiveSettingsAsync(cancellationToken);
+        if (!settings.SizeCapEnabled)
+        {
+            return new SizeCapResult(0, 0, databaseSizeBytes());
+        }
+
+        var daysDropped = 0;
+        long rowsDeleted = 0;
+        var size = databaseSizeBytes();
+        while (size > settings.MaxDatabaseBytes)
+        {
+            var oldest = await _store.GetOldestDataDayAsync(cancellationToken);
+            if (oldest is null)
+            {
+                break; // nothing left to drop; the file is as small as it gets
+            }
+
+            var segment = await _store.FindAsync(oldest, cancellationToken);
+            if (segment is not null)
+            {
+                await _store.DeleteSegmentAsync(oldest, cancellationToken);
+                File.Delete(SegmentPathOf(segment.FilePath));
+            }
+            // everything before the NEXT day, i.e. exactly this day and anything older that
+            // somehow survived — walking oldest-first means there should be nothing older
+            rowsDeleted += await _store.DeleteHotEventsBeforeAsync(
+                SqliteArchiveStore.DayStart(SqliteArchiveStore.NextDay(oldest)), cancellationToken);
+            daysDropped++;
+
+            await _store.IncrementalVacuumAsync(cancellationToken);
+            var next = databaseSizeBytes();
+            if (next >= size && await _store.GetOldestDataDayAsync(cancellationToken) == oldest)
+            {
+                break; // dropping that day changed nothing and it is still there: stop rather than spin
+            }
+            size = next;
+        }
+        return new SizeCapResult(daysDropped, rowsDeleted, size);
     }
 
     /// <summary>Null when the day turned out to hold no events — no segment row, no file.</summary>

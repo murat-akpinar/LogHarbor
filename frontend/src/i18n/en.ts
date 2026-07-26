@@ -351,6 +351,10 @@ export const en = {
     compressHint: '(0 disables archiving)',
     keepExtracted: 'Keep extracted data for',
     deleteArchives: 'Delete archives older than',
+    maxDatabase: 'Database size ceiling',
+    maxDatabaseHint:
+      'Drops the oldest days once the database passes this, whatever their age. 0 disables it. Retention keeps data for a set time; this keeps the disk from running out before that time is up.',
+    megabytes: 'MB',
     days: 'days',
     saveArchive: 'Save archive settings',
     saved: 'Saved',

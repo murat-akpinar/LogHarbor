@@ -125,6 +125,9 @@ appsettings.json keys:
   LogHarbor:LoginRateLimitPerMinute     -> per-IP login attempt limit (default: 10)
   LogHarbor:Archive:CompressAfterDays   -> compress events older than N days (default: 90, 0 = off)
   LogHarbor:Archive:HydrationKeepDays   -> evict extracted data after N days unused (default: 1)
+  LogHarbor:Archive:MaxDatabaseBytes    -> hard ceiling on the database file (default: 0 = off);
+                                       over it, the oldest days are dropped regardless of
+                                       RetentionDays, hourly (docs/archiving.md)
   LogHarbor:ArchivePath                 -> segment directory (default: archive/ next to the database)
   LogHarbor:SeedDefaultAdmin            -> seed the first admin account when the user table is
                                        empty (default: true; admin/admin, must-change)

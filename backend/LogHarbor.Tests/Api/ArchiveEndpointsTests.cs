@@ -295,4 +295,62 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
             await Task.Delay(50);
         }
     }
+
+    [Fact]
+    public async Task ArchiveSettings_RejectASizeCapTooSmallToBeUseful()
+    {
+        var response = await _client.PutAsJsonAsync("/api/settings/archive", new
+        {
+            compressAfterDays = 30,
+            hydrationKeepDays = 1,
+            retentionDays = 365,
+            maxDatabaseBytes = 1024,
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>The field arrived after the other three. A client that does not send it must
+    /// not switch off a ceiling someone set deliberately.</summary>
+    [Fact]
+    public async Task ArchiveSettings_OmittingTheSizeCap_KeepsTheStoredValue()
+    {
+        var cap = 128L * 1024 * 1024;
+        Assert.Equal(HttpStatusCode.OK, (await _client.PutAsJsonAsync("/api/settings/archive", new
+        {
+            compressAfterDays = 30,
+            hydrationKeepDays = 1,
+            retentionDays = 365,
+            maxDatabaseBytes = cap,
+        })).StatusCode);
+
+        Assert.Equal(HttpStatusCode.OK, (await _client.PutAsJsonAsync("/api/settings/archive", new
+        {
+            compressAfterDays = 45,
+            hydrationKeepDays = 1,
+            retentionDays = 365,
+        })).StatusCode);
+
+        var settings = await _client.GetFromJsonAsync<JsonElement>("/api/settings/archive");
+        Assert.Equal(45, settings.GetProperty("compressAfterDays").GetInt32());
+        Assert.Equal(cap, settings.GetProperty("maxDatabaseBytes").GetInt64());
+    }
+
+    [Fact]
+    public async Task ArchiveSettings_SizeCapCanBeDisabledExplicitly()
+    {
+        await _client.PutAsJsonAsync("/api/settings/archive", new
+        {
+            compressAfterDays = 30, hydrationKeepDays = 1, retentionDays = 365,
+            maxDatabaseBytes = 128L * 1024 * 1024,
+        });
+
+        Assert.Equal(HttpStatusCode.OK, (await _client.PutAsJsonAsync("/api/settings/archive", new
+        {
+            compressAfterDays = 30, hydrationKeepDays = 1, retentionDays = 365, maxDatabaseBytes = 0,
+        })).StatusCode);
+
+        var settings = await _client.GetFromJsonAsync<JsonElement>("/api/settings/archive");
+        Assert.Equal(0, settings.GetProperty("maxDatabaseBytes").GetInt64());
+    }
 }

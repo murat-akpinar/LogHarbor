@@ -350,6 +350,10 @@ export const tr: Messages = {
     compressHint: '(0 arşivlemeyi kapatır)',
     keepExtracted: 'Çıkarılan veriyi şu kadar tut',
     deleteArchives: 'Şundan eski arşivleri sil',
+    maxDatabase: 'Veritabanı boyut tavanı',
+    maxDatabaseHint:
+      'Veritabanı bunu aşınca en eski günler, yaşları ne olursa olsun silinir. 0 kapatır. Saklama süresi veriyi belirli bir süre tutar; bu ise o süre dolmadan diskin bitmesini engeller.',
+    megabytes: 'MB',
     days: 'gün',
     saveArchive: 'Arşiv ayarlarını kaydet',
     saved: 'Kaydedildi',

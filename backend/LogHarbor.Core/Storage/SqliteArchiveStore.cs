@@ -289,6 +289,21 @@ public sealed class SqliteArchiveStore : IArchiveStore
         return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<string?> GetOldestDataDayAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        // hot rows and segments both count: after archiving, a day exists only as a segment,
+        // and late arrivals can leave hot rows for a day that already has one
+        command.CommandText =
+            "SELECT MIN(day) FROM (" +
+            "  SELECT MIN(substr(timestamp, 1, 10)) AS day FROM events " +
+            "  UNION ALL " +
+            "  SELECT MIN(day) AS day FROM archive_segments);";
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value as string;
+    }
+
     public async Task IncrementalVacuumAsync(CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();

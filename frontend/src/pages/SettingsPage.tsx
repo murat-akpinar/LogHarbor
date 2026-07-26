@@ -151,6 +151,8 @@ interface ArchiveFormState {
   compressAfterDays: string
   hydrationKeepDays: string
   retentionDays: string
+  /** Megabytes in the form; the API speaks bytes. "0" or "" disables the ceiling. */
+  maxDatabaseMb: string
 }
 
 /**
@@ -162,7 +164,9 @@ interface ArchiveFormState {
  * Returns null while the form holds anything unparseable.
  */
 export function describeArchiveTimeline(
-  form: ArchiveFormState,
+  // only the two fields it reads: the size ceiling is a separate policy, not part of the
+  // time story this line tells
+  form: Pick<ArchiveFormState, 'compressAfterDays' | 'retentionDays'>,
   t: {
     hot: (days: string) => string
     compressed: (from: string, to: string) => string
@@ -243,6 +247,9 @@ function ArchiveCard() {
         compressAfterDays: String(settings.compressAfterDays),
         hydrationKeepDays: String(settings.hydrationKeepDays),
         retentionDays: String(settings.retentionDays),
+        maxDatabaseMb: settings.maxDatabaseBytes > 0
+          ? String(Math.round(settings.maxDatabaseBytes / (1024 * 1024)))
+          : '0',
       })
     }
   }, [settings])
@@ -259,6 +266,7 @@ function ArchiveCard() {
       compressAfterDays: Number(form.compressAfterDays),
       hydrationKeepDays: Number(form.hydrationKeepDays),
       retentionDays: Number(form.retentionDays),
+      maxDatabaseBytes: Number(form.maxDatabaseMb) * 1024 * 1024,
     })
   }
 
@@ -293,6 +301,14 @@ function ArchiveCard() {
           unit={t.settings.days}
           value={form?.retentionDays ?? ''}
           onChange={(value) => setForm((current) => current && { ...current, retentionDays: value })}
+          disabled={!isAdmin}
+        />
+        <ArchiveField
+          label={t.settings.maxDatabase}
+          hint={t.settings.maxDatabaseHint}
+          unit={t.settings.megabytes}
+          value={form?.maxDatabaseMb ?? ''}
+          onChange={(value) => setForm((current) => current && { ...current, maxDatabaseMb: value })}
           disabled={!isAdmin}
         />
         {timeline && (
