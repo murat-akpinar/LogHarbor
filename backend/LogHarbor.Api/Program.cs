@@ -159,9 +159,20 @@ if (!string.IsNullOrEmpty(otlpMetricsEndpoint))
 
 var app = builder.Build();
 
+var migrationLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("LogHarbor.Migrations");
+var appliedMigrations = 0;
 MigrationRunner.Apply(
     app.Services.GetRequiredService<LogHarborDb>(),
-    Path.Combine(AppContext.BaseDirectory, "Migrations"));
+    Path.Combine(AppContext.BaseDirectory, "Migrations"),
+    name =>
+    {
+        appliedMigrations++;
+        migrationLogger.LogInformation("Applied migration {Migration}", name);
+    });
+if (appliedMigrations > 0)
+{
+    migrationLogger.LogInformation("Schema upgraded: {Count} migration(s) applied", appliedMigrations);
+}
 
 // First start with an empty user table seeds the admin account, so LogHarbor is never reachable
 // without a login. LOGHARBOR_ADMIN_PASSWORD sets that password (secrets come from the environment,

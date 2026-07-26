@@ -50,6 +50,21 @@ public sealed class MigrationRunnerTests : IDisposable
     }
 
     [Fact]
+    public void Apply_ReportsEveryMigrationItApplies_AndNothingOnASecondRun()
+    {
+        var first = new List<string>();
+        MigrationRunner.Apply(_db, MigrationsDir, first.Add);
+
+        var second = new List<string>();
+        MigrationRunner.Apply(_db, MigrationsDir, second.Add);
+
+        Assert.Equal(
+            Directory.GetFiles(MigrationsDir, "*.sql").Select(Path.GetFileName).OrderBy(name => name, StringComparer.Ordinal),
+            first);
+        Assert.Empty(second);
+    }
+
+    [Fact]
     public void FtsTriggers_KeepIndexInSyncOnInsertAndDelete()
     {
         MigrationRunner.Apply(_db, MigrationsDir);

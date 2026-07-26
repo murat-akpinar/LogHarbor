@@ -5,7 +5,10 @@ namespace LogHarbor.Core.Storage;
 /// <summary>Applies numbered .sql files in filename order, once each, tracked in schema_migrations.</summary>
 public static class MigrationRunner
 {
-    public static void Apply(LogHarborDb db, string migrationsDirectory)
+    /// <param name="onApplied">Called with the file name of each migration that was applied. An
+    /// upgrade is otherwise invisible: the server starts the same whether it moved the schema
+    /// forward by seven migrations or by none, so the operator has nothing to check against.</param>
+    public static void Apply(LogHarborDb db, string migrationsDirectory, Action<string>? onApplied = null)
     {
         using var connection = db.OpenConnection();
 
@@ -48,6 +51,7 @@ public static class MigrationRunner
                 record.ExecuteNonQuery();
             }
             transaction.Commit();
+            onApplied?.Invoke(name);
         }
     }
 
