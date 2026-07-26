@@ -30,7 +30,10 @@ container, sign in, create a key, see your first log line on screen.
 - **Alerts**: webhook when a signal matches N events — or a dead man's switch when one
   goes silent; Slack / Discord / generic payloads
 - **Archive**: old events compressed to daily Brotli segments, hydrated back on demand
-- **Seq wire-compatible**: existing Seq sinks ingest into LogHarbor unchanged
+- **Seq wire-compatible**: existing Seq sinks ingest into LogHarbor unchanged — both of
+  Seq's body formats, verified against the real Serilog, winston-seq and seqlog clients
+- **No silent drops**: every ingestion request LogHarbor refuses is counted, logged and
+  shown, so a misconfigured client cannot lose events unnoticed
 - Single process, single container, one SQLite file
 
 ---
@@ -142,6 +145,10 @@ heatmap** that shows when your system is actually busy.
 
 Click a histogram bar to open Events for that slice; drag across the histogram to zoom into a
 narrower window (that also pauses Live). Every card links to the page it summarises.
+
+One panel appears only when it has something to say: **Ingestion rejected**, at the top, for
+requests LogHarbor turned away in the last 7 days. Those events are not in any chart below —
+they were never stored — so this is the one place they show up.
 
 ### Events (`/events`)
 
@@ -268,11 +275,40 @@ Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 `OrderId` and `Customer` become queryable fields, and every `Order {OrderId} failed` event
 groups as one error on the Analysis page regardless of the id.
 
-`seqlog` (Python) and `@datalust/winston-seq` (Node) work the same way, and their snippets
-in [docs/ingestion-app.md](docs/ingestion-app.md) were run end to end against a live server —
-read them rather than guessing, because both have gotchas that lose events silently (named
-logger, ESM import, and a flush that a short-lived script has to outlive). `NLog.Targets.Seq`
-takes the same serverUrl + apiKey settings but has not been tested here.
+`seqlog` (Python) and `@datalust/winston-seq` (Node) work the same way. Their snippets live
+in [docs/ingestion-app.md](docs/ingestion-app.md) — read them rather than guessing, because
+both have gotchas that lose events silently.
+
+#### What is actually verified
+
+Each sink below was pointed at a running LogHarbor, sent one structured event, and the
+stored row read back. Repeatedly, on purpose: a batching sink that delivers once and drops
+the next four is the failure mode here, and a single green run does not distinguish the two.
+
+| SDK | Sends | Verified | Watch out for |
+|---|---|---|---|
+| `Serilog.Sinks.Seq` (.NET) | CLEF | 3 / 3 | `Log.CloseAndFlush()` before a short process exits |
+| `@datalust/winston-seq` (Node) | `Events` envelope | 5 / 5 | ESM only — `import`, not `require`; `logger.close()` does **not** drain the transport, `await transport.flush()` does |
+| `seqlog` (Python) | `Events` envelope | 5 / 5 | needs a named `getLogger()`, not `logging.error()`; the flush is async, so the process must outlive it (`logging.shutdown()` alone loses the event) |
+| `NLog.Targets.Seq` (.NET) | CLEF | not tested | same `serverUrl` + `apiKey` settings; expected to work, but that is reasoning, not a result |
+
+All three verified sinks produce the same row: level `Error`, the template preserved for
+grouping, and `OrderId` / `Customer` as queryable properties.
+
+#### When nothing arrives
+
+A rejected sink looks exactly like a sink with nothing to say. Most of them swallow the
+error — that is correct, logging must not throw into your app — so the app runs fine and the
+events simply are not there.
+
+LogHarbor records every ingestion request it turns away, so there is somewhere to look:
+a red panel at the top of the Dashboard (shown only when there is something to show), the
+same data at `GET /api/stats/ingest-rejections`, and a warning per rejection in the server
+log. It names the API key, the reason, how many requests, and the last error — usually
+enough to identify the broken client without touching it.
+
+Nothing there at all means the requests never reached LogHarbor: wrong URL or port, a proxy
+in between, or the sink never flushed.
 
 Anything else: POST newline-delimited CLEF yourself.
 

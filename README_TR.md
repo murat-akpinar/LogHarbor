@@ -31,7 +31,10 @@ başlat, giriş yap, anahtar oluştur, ilk log satırını ekranda gör.
 - **Uyarı**: bir signal belirlenen sürede N olayı yakalarsa webhook — ya da bir signal
   sustuğunda dead man's switch; Slack / Discord / generic gövde
 - **Arşiv**: eski olaylar günlük Brotli parçalarına sıkıştırılır, istendiğinde geri açılır
-- **Seq uyumlu**: mevcut Seq sink'leri LogHarbor'a olduğu gibi log gönderebilir
+- **Seq uyumlu**: mevcut Seq sink'leri LogHarbor'a olduğu gibi log gönderebilir — Seq'in
+  her iki gövde formatı da, gerçek Serilog, winston-seq ve seqlog istemcileriyle doğrulandı
+- **Sessiz kayıp yok**: LogHarbor'un reddettiği her toplama isteği sayılır, loglanır ve
+  gösterilir; yanlış yapılandırılmış bir istemci olayları fark edilmeden kaybedemez
 - Tek süreç, tek container, tek SQLite dosyası
 
 ---
@@ -147,6 +150,10 @@ yoğun olduğunu gösteren **saat × haftanın günü yoğunluk haritası**.
 Histogramda bir çubuğa tıklayınca o dilim Olaylar'da açılır; histogram üzerinde sürükleyerek
 daha dar bir pencereye yakınlaşırsın (bu aynı zamanda Canlı'yı durdurur). Her kart özetlediği
 sayfaya bağlanır.
+
+Bir panel yalnızca söyleyecek sözü varken çıkar: en üstteki **Reddedilen toplama**, son 7
+günde LogHarbor'un geri çevirdiği istekler için. O olaylar aşağıdaki hiçbir grafikte yok —
+hiç kaydedilmediler — dolayısıyla görünecekleri tek yer burası.
 
 ### Olaylar (`/events`)
 
@@ -275,12 +282,41 @@ Log.Error(ex, "Order {OrderId} failed for {Customer}", 123, "acme");
 `OrderId` ve `Customer` artık sorgulanabilir birer alan; ayrıca `Order {OrderId} failed`
 olaylarının hepsi, id'si ne olursa olsun, Analiz sayfasında tek bir hata olarak gruplanır.
 
-`seqlog` (Python) ve `@datalust/winston-seq` (Node) da aynı şekilde çalışır;
-[docs/ingestion-app.md](docs/ingestion-app.md) içindeki örnekleri canlı bir sunucuya karşı
-uçtan uca denedik — tahmin etmek yerine oradan bak, çünkü ikisinde de olayı sessizce
-kaybettiren tuzaklar var (adlandırılmış logger, ESM import, ve kısa ömürlü bir script'in
-beklemesi gereken flush). `NLog.Targets.Seq` aynı serverUrl + apiKey ayarlarını alır ama
-burada test edilmedi.
+`seqlog` (Python) ve `@datalust/winston-seq` (Node) da aynı şekilde çalışır. Örnekleri
+[docs/ingestion-app.md](docs/ingestion-app.md) içinde — tahmin etmek yerine oradan bak,
+çünkü ikisinde de olayı sessizce kaybettiren tuzaklar var.
+
+#### Gerçekten doğrulanan ne
+
+Aşağıdaki sink'lerin her biri çalışan bir LogHarbor'a yönlendirildi, bir yapısal olay
+gönderildi ve kaydedilen satır geri okundu. Bilerek tekrar tekrar: burada asıl arıza türü,
+bir kez teslim edip sonraki dördünü düşüren sink — ve tek bir yeşil çalıştırma bu ikisini
+birbirinden ayırmıyor.
+
+| SDK | Gönderdiği | Doğrulama | Dikkat |
+|---|---|---|---|
+| `Serilog.Sinks.Seq` (.NET) | CLEF | 3 / 3 | kısa ömürlü process çıkmadan `Log.CloseAndFlush()` |
+| `@datalust/winston-seq` (Node) | `Events` zarfı | 5 / 5 | yalnızca ESM — `require` değil `import`; `logger.close()` transport'u **boşaltmaz**, `await transport.flush()` boşaltır |
+| `seqlog` (Python) | `Events` zarfı | 5 / 5 | `logging.error()` değil, adlandırılmış `getLogger()`; flush asenkron, process onu geçirmeli (tek başına `logging.shutdown()` olayı kaybediyor) |
+| `NLog.Targets.Seq` (.NET) | CLEF | test edilmedi | aynı `serverUrl` + `apiKey` ayarları; çalışması beklenir ama bu çıkarım, sonuç değil |
+
+Doğrulanan üç sink de aynı satırı üretiyor: `Error` seviyesi, gruplama için korunmuş
+şablon, ve sorgulanabilir `OrderId` / `Customer` alanları.
+
+#### Hiçbir şey gelmiyorsa
+
+Reddedilen bir sink ile söyleyecek sözü olmayan sink birbirinin aynısı görünür. Çoğu hatayı
+yutar — ki doğrusu budur, loglama uygulamanın içine hata fırlatmamalı — yani uygulama
+sorunsuz çalışır, olaylar da ortada yoktur.
+
+LogHarbor geri çevirdiği her toplama isteğini kaydediyor, yani bakılacak bir yer var:
+Dashboard'un tepesinde kırmızı panel (sadece gösterecek bir şey varken çıkar), aynı veri
+`GET /api/stats/ingest-rejections` ucunda, ve her reddediş için sunucu log'unda bir uyarı.
+API anahtarını, sebebi, kaç isteği ve son hatayı söyler — genelde bozuk istemciyi ona
+dokunmadan teşhis etmeye yeter.
+
+Orada da hiçbir şey yoksa istekler LogHarbor'a hiç ulaşmıyordur: yanlış URL veya port,
+araya giren bir proxy, ya da hiç flush etmemiş bir sink.
 
 Başka bir dil/kütüphane kullanıyorsan CLEF'i kendin gönder (satır satır, JSON dizisi değil):
 
