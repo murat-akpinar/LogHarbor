@@ -399,25 +399,41 @@ Archive settings are also editable at runtime on the Settings page, which takes 
 
 ## Backup & restore
 
-The whole server is one SQLite file, and `GET /api/admin/backup` (admin only —
-also linked on the Settings page) streams a consistent snapshot of it, taken
-with `VACUUM INTO` so it is safe while the server keeps ingesting.
+`GET /api/admin/backup` (admin only — also linked on the Settings page) streams
+one zip holding everything an instance needs:
 
-Restore:
+```
+logharbor-backup-YYYYMMDD-HHmmss.zip
+├── logharbor.db          the database, snapshotted with VACUUM INTO
+└── archive/              the compressed daily segments, when archiving has run
+    └── events-YYYY-MM-DD.jsonl.br
+```
+
+Both parts matter. Once archiving has run, the database holds recent events plus
+the *file names* of the archived days — the history itself lives in `archive/`.
+A backup of the database alone restores an instance that lists days it can no
+longer produce.
+
+Restore — unzip into the data volume:
 
 ```bash
 docker compose stop logharbor
-# replace the database inside the data volume with the downloaded snapshot
 docker run --rm -v logharbor_logharbor-data:/data -v "$PWD":/backup alpine \
-  cp /backup/logharbor-backup-YYYYMMDD-HHmmss.db /data/logharbor.db
+  sh -c "apk add --no-cache unzip >/dev/null && \
+         unzip -o /backup/logharbor-backup-YYYYMMDD-HHmmss.zip -d /data"
 docker compose start logharbor
 ```
 
 The volume name carries your compose project as a prefix (`logharbor_...` when
 the project directory is `logharbor`); `docker volume ls` shows the exact name.
 
-Running from source: stop the backend and replace the file at
-`LogHarbor__DatabasePath` (default `data/logharbor.db`), then start again.
+Running from source: stop the backend, unzip over the directory holding
+`LogHarbor__DatabasePath` (default `data/`), then start again.
+
+An older `.db`-only backup still restores — put it in place as `logharbor.db`.
+Any archived day whose file is then missing is shown as **file missing** on the
+Settings page instead of being offered for extraction, so the gap is visible
+rather than silent.
 
 ---
 

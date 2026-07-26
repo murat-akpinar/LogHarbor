@@ -406,27 +406,41 @@ Arşiv ayarları Settings sayfasından da değiştirilebilir; oradaki değerler 
 
 ## Yedekleme ve geri yükleme
 
-Sunucunun tamamı tek bir SQLite dosyası; `GET /api/admin/backup` (yalnızca
-admin — Settings sayfasında da bağlantısı var) bu dosyanın tutarlı bir anlık
-görüntüsünü indirir. Görüntü `VACUUM INTO` ile alınır, yani sunucu log almaya
-devam ederken bile güvenlidir.
+`GET /api/admin/backup` (yalnızca admin — Settings sayfasında da bağlantısı
+var) bir instance'ın ihtiyaç duyduğu her şeyi tek bir zip olarak indirir:
 
-Geri yükleme:
+```
+logharbor-backup-YYYYMMDD-HHmmss.zip
+├── logharbor.db          veritabanı, VACUUM INTO ile alınmış anlık görüntü
+└── archive/              arşivleme çalıştıysa sıkıştırılmış günlük parçalar
+    └── events-YYYY-MM-DD.jsonl.br
+```
+
+İkisi de gerekli. Arşivleme bir kez çalıştıktan sonra veritabanında yakın
+tarihli olaylar ve arşivlenmiş günlerin yalnızca *dosya adları* bulunur —
+geçmişin kendisi `archive/` içindedir. Sadece veritabanını yedeklemek, üretemediği
+günleri listeleyen bir instance geri getirir.
+
+Geri yükleme — zip'i veri volume'üne aç:
 
 ```bash
 docker compose stop logharbor
-# veri volume'ündeki veritabanını indirilen anlık görüntüyle değiştir
 docker run --rm -v logharbor_logharbor-data:/data -v "$PWD":/backup alpine \
-  cp /backup/logharbor-backup-YYYYMMDD-HHmmss.db /data/logharbor.db
+  sh -c "apk add --no-cache unzip >/dev/null && \
+         unzip -o /backup/logharbor-backup-YYYYMMDD-HHmmss.zip -d /data"
 docker compose start logharbor
 ```
 
 Volume adının başında compose projesinin adı bulunur (proje klasörü
 `logharbor` ise `logharbor_...`); tam adı `docker volume ls` gösterir.
 
-Kaynaktan çalıştırıyorsan: backend'i durdur, `LogHarbor__DatabasePath`
-konumundaki dosyayı (varsayılan `data/logharbor.db`) indirilen dosyayla
-değiştir, yeniden başlat.
+Kaynaktan çalıştırıyorsan: backend'i durdur, zip'i `LogHarbor__DatabasePath`
+konumunun bulunduğu dizine (varsayılan `data/`) aç, yeniden başlat.
+
+Eski, yalnızca `.db` içeren bir yedek de geri yüklenir — dosyayı
+`logharbor.db` olarak yerine koy. Dosyası eksik kalan arşiv günü, Settings
+sayfasında çıkarılmak üzere sunulmak yerine **dosya yok** olarak görünür; yani
+boşluk sessiz kalmaz.
 
 ---
 

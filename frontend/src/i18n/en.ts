@@ -373,6 +373,9 @@ export const en = {
     colEvents: 'Events',
     colSize: 'Size',
     segmentStatus: { cold: 'Archived', hydrating: 'Extracting…', hydrated: 'Searchable' },
+    segmentFileMissing: 'file missing',
+    segmentFileMissingHint:
+      'The segment file is not in the archive directory. This day was restored from a backup that did not include archive/, so its events cannot be extracted.',
     extract: 'Extract',
     extracting: 'Extracting…',
     extractionFailed: 'Extraction failed; the archive segment was left untouched. Try again.',

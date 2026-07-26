@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
@@ -22,6 +22,7 @@ function makeSegment(overrides: Partial<ArchiveSegment> = {}): ArchiveSegment {
     status: 'cold',
     hydratedAt: null,
     lastAccessedAt: null,
+    fileMissing: false,
     ...overrides,
   }
 }
@@ -76,4 +77,19 @@ it('says so when nothing is archived', () => {
   renderList([])
 
   expect(screen.getByText('No archived days yet.')).toBeDefined()
+})
+
+describe('a segment whose file is gone', () => {
+  it('says the file is missing instead of offering to extract it', () => {
+    renderList([makeSegment({ fileMissing: true })])
+
+    expect(screen.getByText('file missing')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /extract/i })).toBeNull()
+  })
+
+  it('still shows how many events the day claimed, so the loss is legible', () => {
+    renderList([makeSegment({ fileMissing: true })])
+
+    expect(screen.getByText('1200')).toBeTruthy()
+  })
 })

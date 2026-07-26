@@ -294,7 +294,11 @@ GET /api/traces/{traceId}
 
 GET  /api/archive/segments                200: [ { day, filePath, eventCount, sizeBytes,
                                                    uncompressedBytes, status, hydratedAt,
-                                                   lastAccessedAt } ]  newest day first
+                                                   lastAccessedAt, fileMissing } ]  newest day first
+                                          fileMissing: the row is there but its .br file is not
+                                          (a database restored without its archive directory).
+                                          Those events cannot be produced; the UI shows the day
+                                          as missing rather than offering to extract it.
 POST /api/archive/hydrate                 body { from, to } (both required, ISO-8601)
                                           202: { segments: [ { day, status } ] }
                                           claims cold segments in range, hydrates in background
@@ -310,12 +314,16 @@ refuses such a range outright (409) rather than writing an incomplete file.
 
 --- BACKUP (admin only) ---
 
-GET /api/admin/backup    200: application/octet-stream, a consistent snapshot of the
-                         whole SQLite database (VACUUM INTO, safe while the server runs;
-                         WAL folded in, output compacted); Content-Disposition names it
-                         logharbor-backup-YYYYMMDD-HHmmss.db. Everything under /api/admin
-                         is admin-only even for GET (AuthPolicy.RequiresAdmin).
-                         Restore steps: README "Backup & restore".
+GET /api/admin/backup    200: application/zip, named logharbor-backup-YYYYMMDD-HHmmss.zip,
+                         holding logharbor.db (VACUUM INTO, safe while the server runs; WAL
+                         folded in, output compacted) plus archive/<segment>.br for every
+                         archive segment on disk.
+                         Both parts are required: the database stores only the segments' file
+                         names, so a database-only backup restores an instance that lists days
+                         it cannot produce. Segments are already Brotli-compressed and are
+                         stored in the zip without deflating them again.
+                         Everything under /api/admin is admin-only even for GET
+                         (AuthPolicy.RequiresAdmin). Restore steps: README "Backup & restore".
 
 --- NOT FOUND ---
 

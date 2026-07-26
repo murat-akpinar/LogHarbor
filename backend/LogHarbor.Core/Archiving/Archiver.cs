@@ -85,7 +85,7 @@ public sealed class Archiver
         var segment = await _store.FindAsync(day, cancellationToken)
             ?? throw new InvalidOperationException($"no archive segment for day {day}");
 
-        var events = ReadSegmentFile(SegmentPath(segment.FilePath));
+        var events = ReadSegmentFile(SegmentPathOf(segment.FilePath));
         if (events.Count != segment.EventCount)
         {
             throw new ArchiveVerificationException(
@@ -143,7 +143,7 @@ public sealed class Archiver
             // row first: if we crash before the file delete, the orphan file is
             // harmless and replaced on a future archive run; a row without a file is not
             await _store.DeleteSegmentAsync(segment.Day, cancellationToken);
-            File.Delete(SegmentPath(segment.FilePath));
+            File.Delete(SegmentPathOf(segment.FilePath));
         }
 
         var rows = await _store.DeleteHotEventsBeforeAsync(
@@ -251,7 +251,7 @@ public sealed class Archiver
     private static long CountVerifiedEvents(string path) => ReadSegment(path).LongCount();
 
     /// <summary>file_path is stored as a bare file name; strip any directories as defense in depth.</summary>
-    private string SegmentPath(string filePath) =>
+    public string SegmentPathOf(string filePath) =>
         Path.Combine(ArchiveDirectory, Path.GetFileName(filePath));
 
     private static string ToDay(DateTime date) => date.ToString("yyyy-MM-dd");

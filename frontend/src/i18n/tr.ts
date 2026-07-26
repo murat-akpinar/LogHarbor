@@ -370,6 +370,9 @@ export const tr: Messages = {
     colEvents: 'Olay',
     colSize: 'Boyut',
     segmentStatus: { cold: 'Arşivde', hydrating: 'Çıkarılıyor…', hydrated: 'Aranabilir' },
+    segmentFileMissing: 'dosya yok',
+    segmentFileMissingHint:
+      'Parça dosyası arşiv dizininde bulunamadı. Bu gün, archive/ dizinini içermeyen bir yedekten geri yüklenmiş; olayları geri getirilemez.',
     extract: 'Çıkar',
     extracting: 'Çıkarılıyor…',
     extractionFailed: 'Çıkarma başarısız; arşiv segmentine dokunulmadı. Tekrar dene.',

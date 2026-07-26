@@ -12,6 +12,12 @@ Hydrated: cold segments temporarily extracted into a cache table for reading
 --- LIFECYCLE ---
 
 [hot events] --after CompressAfterDays--> [daily .clef.br segment] --after RetentionDays--> deleted
+
+Segments are files, not rows. archive_segments stores a day's file name, event count and
+status; the events themselves only exist inside the .br file on disk. That split is why
+GET /api/admin/backup ships a zip of the database AND the archive directory — a database
+restored on its own lists days it cannot produce, and the Settings page marks such a day
+"file missing" rather than offering to extract it (docs/api.md).
                                                 |
                                      user opens old range
                                                 |

@@ -275,6 +275,9 @@ export interface ArchiveSegment {
   status: SegmentStatus
   hydratedAt: string | null
   lastAccessedAt: string | null
+  /** The segment row survived but its .br file did not — a database restored without its
+   *  archive directory. The events it claims cannot be produced. */
+  fileMissing: boolean
 }
 
 export interface ArchiveSettings {

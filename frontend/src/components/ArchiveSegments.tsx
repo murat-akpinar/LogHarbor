@@ -93,12 +93,18 @@ export function ArchiveSegments({ segments, canExtract }: ArchiveSegmentsProps) 
               <td className={`${TD_CLASS} tabular`}>{segment.eventCount}</td>
               <td className={`${TD_CLASS} tabular`}>{formatBytes(segment.sizeBytes)}</td>
               <td className="py-2">
-                <span className={segment.status === 'hydrated' ? 'text-accent' : 'text-fg-muted'}>
-                  {t.settings.segmentStatus[segment.status]}
-                </span>
+                {segment.fileMissing ? (
+                  <span className="text-level-error" title={t.settings.segmentFileMissingHint}>
+                    {t.settings.segmentFileMissing}
+                  </span>
+                ) : (
+                  <span className={segment.status === 'hydrated' ? 'text-accent' : 'text-fg-muted'}>
+                    {t.settings.segmentStatus[segment.status]}
+                  </span>
+                )}
               </td>
               <td className="py-2 text-right">
-                {canExtract && segment.status === 'cold' && (
+                {canExtract && segment.status === 'cold' && !segment.fileMissing && (
                   <Button
                     variant="primary"
                     onClick={() => void extract(segment.day)}

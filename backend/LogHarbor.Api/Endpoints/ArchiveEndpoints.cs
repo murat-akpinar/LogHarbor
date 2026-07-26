@@ -1,4 +1,5 @@
 using LogHarbor.Api.Archiving;
+using LogHarbor.Core.Archiving;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Storage;
 
@@ -13,12 +14,37 @@ public static class ArchiveEndpoints
 
     public sealed record SegmentStatusResponse(string Day, string Status);
 
+    /// <summary>A segment plus whether its file is actually on disk. The row and the file are
+    /// separate things — a database restored without its archive directory lists days it can
+    /// no longer produce, and without this the UI would keep advertising them as available.</summary>
+    public sealed record SegmentResponse(
+        string Day,
+        string FilePath,
+        long EventCount,
+        long SizeBytes,
+        long UncompressedBytes,
+        string Status,
+        string? HydratedAt,
+        string? LastAccessedAt,
+        bool FileMissing)
+    {
+        public static SegmentResponse From(ArchiveSegment segment, bool fileMissing) =>
+            new(segment.Day, segment.FilePath, segment.EventCount, segment.SizeBytes,
+                segment.UncompressedBytes, segment.Status, segment.HydratedAt,
+                segment.LastAccessedAt, fileMissing);
+    }
+
     public static void MapArchive(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/archive");
 
-        group.MapGet("/segments", async (IArchiveStore store, CancellationToken cancellationToken) =>
-            Results.Ok(await store.ListAsync(cancellationToken)));
+        group.MapGet("/segments", async (
+            IArchiveStore store, Archiver archiver, CancellationToken cancellationToken) =>
+        {
+            var segments = await store.ListAsync(cancellationToken);
+            return Results.Ok(segments.Select(segment => SegmentResponse.From(
+                segment, fileMissing: !File.Exists(archiver.SegmentPathOf(segment.FilePath)))));
+        });
 
         group.MapPost("/hydrate", HydrateAsync);
 

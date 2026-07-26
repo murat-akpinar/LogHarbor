@@ -55,6 +55,23 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
         Assert.Equal(2, segment.GetProperty("eventCount").GetInt64());
         Assert.True(segment.GetProperty("sizeBytes").GetInt64() > 0);
         Assert.True(segment.GetProperty("uncompressedBytes").GetInt64() > 0);
+        Assert.False(segment.GetProperty("fileMissing").GetBoolean());
+    }
+
+    /// <summary>What a database restored without its archive directory looks like. The row
+    /// survives and claims its events, so the listing has to admit the file is gone — otherwise
+    /// the UI advertises history that no hydration can ever produce.</summary>
+    [Fact]
+    public async Task Segments_ReportFileMissing_WhenTheSegmentFileIsGone()
+    {
+        var archived = Assert.Single(await RunArchiveAsync());
+        File.Delete(_factory.Services.GetRequiredService<Archiver>().SegmentPathOf(archived.FilePath));
+
+        var segments = await _client.GetFromJsonAsync<JsonElement>("/api/archive/segments");
+
+        var segment = segments.EnumerateArray().Single();
+        Assert.True(segment.GetProperty("fileMissing").GetBoolean());
+        Assert.Equal(2, segment.GetProperty("eventCount").GetInt64());
     }
 
     [Fact]
