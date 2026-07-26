@@ -452,6 +452,50 @@ boşluk sessiz kalmaz.
 
 ---
 
+## Sürüm yükseltme
+
+Yeni kod, aynı veri volume'ü. Şema değişiklikleri numaralı SQL dosyaları
+hâlinde açılışta, sırayla, her biri kendi transaction'ında uygulanır ve
+`schema_migrations` tablosuna yazılır. Yani yükseltme, yeniden derleyip
+yeniden başlatmaktan ibarettir:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+Kaynaktan çalıştırıyorsan: `git pull`, ardından backend'i aynı
+`LogHarbor__DatabasePath` ile yeniden çalıştır.
+
+Maliyeti yoksa önce yedek al — Settings sayfasındaki indirme bağlantısı ya da
+yönetici oturumuyla `GET /api/admin/backup`.
+
+Açılış logu uygulanan her migration'ı ve toplam sayısını yazar:
+
+```
+info: LogHarbor.Migrations[0]
+      Applied migration 014_ingest_rejections.sql
+info: LogHarbor.Migrations[0]
+      Schema upgraded: 7 migration(s) applied
+```
+
+Sıradan bir yeniden başlatmada bunların hiçbiri çıkmaz. Yeniden derledikten
+sonra bakılacak fark budur: sessizlik, migration adımının atlandığı değil,
+şemanın zaten güncel olduğu anlamına gelir. Başarısız olan bir migration tüm
+açılışı beraberinde götürür (transaction geri alınır, süreç kapanır); dolayısıyla
+`/healthz` cevaplıyorsa şema, o derlemenin beklediği şemadır.
+
+**Geri dönüş.** Migration'lar tek yönlüdür ve dosya adına göre izlenir; bu yüzden
+yeni bir veritabanına karşı başlatılan eski bir derleme hiçbir şeyi geri almaya
+çalışmaz, bildiği tüm migration'ları atlayıp çalışır. Ölçüldü: 001–007 şemasıyla
+doldurulmuş bir veritabanı 014'e yükseltildi ve sonra eski derlemeye geri
+verildi — sorunsuz açıldı, sıcak olayları, yeni derlemenin yazdığı olayı ve
+arşivlenmiş günleri okudu. Bu tek bir ölçüm, her sürüm çifti için garanti değil:
+veriyi *yeniden yazan* bir migration'ın üzerinden geri dönmek yine yedeği
+gerektirir. Daha önce çalıştırmadığın bir sürüme geçiyorsan önce yedek al.
+
+---
+
 ## Dokümanlar
 
 Dokümanlar İngilizcedir (rules.md).

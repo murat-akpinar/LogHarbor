@@ -445,6 +445,49 @@ rather than silent.
 
 ---
 
+## Upgrading
+
+New code, same data volume. Schema changes are numbered SQL files applied at
+startup, in order, each in its own transaction and recorded in
+`schema_migrations`, so upgrading is a rebuild and a restart:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+From source: `git pull`, then run the backend again against the same
+`LogHarbor__DatabasePath`.
+
+Take a backup first when it costs you nothing — the download link on the
+Settings page, or `GET /api/admin/backup` with an admin session.
+
+The startup log names every migration it applies and how many there were:
+
+```
+info: LogHarbor.Migrations[0]
+      Applied migration 014_ingest_rejections.sql
+info: LogHarbor.Migrations[0]
+      Schema upgraded: 7 migration(s) applied
+```
+
+An ordinary restart prints none of this. That is the difference to check for
+after a rebuild — silence means the schema was already current, not that the
+migration step was skipped. A migration that fails takes the whole startup with
+it (the transaction rolls back and the process exits), so a server that answers
+`/healthz` has the schema the build expects.
+
+**Rolling back.** Migrations are forward-only and tracked by file name, so an
+older build started against a newer database does not try to undo anything: it
+skips every migration it knows about and runs. Measured on a database seeded by
+the 001–007 schema, upgraded to 014 and then handed back to the old build — it
+started clean, read the hot events, the events the new build had ingested, and
+the archived days. That is one measurement, not a guarantee for every future
+pair of versions: a rollback across a migration that *rewrites* data would still
+need the backup. Take one first if the upgrade spans a release you have not run.
+
+---
+
 ## Docs
 
 | File | Contents |
