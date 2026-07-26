@@ -305,6 +305,18 @@ POST /api/archive/hydrate                 body { from, to } (both required, ISO-
                                           202: { segments: [ { day, status } ] }
                                           claims cold segments in range, hydrates in background
 GET  /api/archive/hydrate/status?from&to  200: { segments: [ { day, status } ] }
+GET  /api/archive/forecast                200: { databaseBytes, maxDatabaseBytes, sampleCount,
+                                                observedHours, dailyGrowthBytes, daysUntilFull,
+                                                oldestDay, status }
+                                          Where the database file is heading, fitted over the
+                                          sizes the hourly maintenance pass records.
+                                          status: measuring (too little history; growth null) |
+                                          steady (flat or shrinking; no date) | growing |
+                                          at-ceiling (the size cap is dropping days now).
+                                          daysUntilFull is null without a ceiling or when not
+                                          growing. oldestDay is the day the cap would drop
+                                          first. Read-only: it never takes a reading of its
+                                          own, so polling cannot change the series.
 GET  /api/settings/archive                200: { compressAfterDays, hydrationKeepDays,
                                                 retentionDays, maxDatabaseBytes }
 PUT  /api/settings/archive                body same shape  200: saved settings | 400 validation

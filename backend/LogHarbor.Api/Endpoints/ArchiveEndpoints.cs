@@ -10,6 +10,11 @@ public static class ArchiveEndpoints
     /// <summary>About a month of days per extraction request (see HydrateAsync).</summary>
     private const int MaxSegmentsPerRequest = 31;
 
+    /// <summary>How much of the recorded size history the forecast fits. A week covers a
+    /// weekly traffic rhythm; older readings describe a server that has since been
+    /// reconfigured more often than they describe the disk.</summary>
+    private const int ForecastWindowDays = 7;
+
     public sealed record HydrateRequest(string? From, string? To);
 
     public sealed record SegmentStatusResponse(string Day, string Status);
@@ -46,9 +51,30 @@ public static class ArchiveEndpoints
                 segment, fileMissing: !File.Exists(archiver.SegmentPathOf(segment.FilePath)))));
         });
 
+        group.MapGet("/forecast", ForecastAsync);
+
         group.MapPost("/hydrate", HydrateAsync);
 
         group.MapGet("/hydrate/status", StatusAsync);
+    }
+
+    /// <summary>Where the database file is heading, from the sizes the maintenance pass has
+    /// been recording. Read-only: it never takes a reading of its own, so refreshing the
+    /// Settings page cannot change the series it reports on.</summary>
+    private static async Task<IResult> ForecastAsync(
+        IDatabaseSizeStore sizes,
+        IArchiveStore archive,
+        ISettingsStore settings,
+        LogHarborDb db,
+        CancellationToken cancellationToken)
+    {
+        var samples = await sizes.ListSinceAsync(
+            DateTimeOffset.UtcNow.AddDays(-ForecastWindowDays), cancellationToken);
+        var archiveSettings = await settings.GetArchiveSettingsAsync(cancellationToken);
+        var oldestDay = await archive.GetOldestDataDayAsync(cancellationToken);
+
+        return Results.Ok(StorageForecast.Estimate(
+            samples, db.GetDatabaseSizeBytes(), archiveSettings.MaxDatabaseBytes, oldestDay));
     }
 
     private static async Task<IResult> HydrateAsync(

@@ -1,8 +1,12 @@
 import { api } from './client'
-import type { ArchiveSegment, ArchiveSettings, HydrationStatus } from '../types'
+import type { ArchiveSegment, ArchiveSettings, HydrationStatus, StorageForecast } from '../types'
 
 export function getArchiveSegments(): Promise<ArchiveSegment[]> {
   return api.get<ArchiveSegment[]>('/api/archive/segments')
+}
+
+export function getStorageForecast(): Promise<StorageForecast> {
+  return api.get<StorageForecast>('/api/archive/forecast')
 }
 
 export function startHydration(from: string, to: string): Promise<HydrationStatus> {

@@ -255,6 +255,12 @@ sıkıştırılsın, çıkarılmış veri ne kadar tutulsun, arşivler ne zaman 
 arşivlenmiş günlerin listesi ve her birinde bir **Çıkar** düğmesi; sıkıştırılmış bir günü
 aramaya geri getirmenin yolu budur.
 
+Bu alanların altında iki türetilmiş satır var. Biri zaman politikasını cümleye çeviriyor
+(`0-1 gün sıcak → 1-7 gün sıkıştırılmış → 7 gün sonra silinir`). Diğeri boyut tavanını tarihe
+çeviriyor: saatlik bakım geçişi veritabanı boyutunu kaydediyor, sayfa da dosyanın ne hızla
+büyüdüğünü ve en eski gün silinmeye başlamadan önce kaç günlük yer kaldığını söylüyor. Yeni
+bir kurulum, tek ölçümden tahmin yürütmek yerine hâlâ ölçtüğünü söyler.
+
 Tam UI referansı: [docs/frontend.md](docs/frontend.md).
 ---
 

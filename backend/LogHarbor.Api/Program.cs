@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IIngestRejectionStore, SqliteIngestRejectionStore>
 builder.Services.AddSingleton<IngestRejectionRecorder>();
 builder.Services.AddSingleton<ISignalStore, SqliteSignalStore>();
 builder.Services.AddSingleton<IArchiveStore, SqliteArchiveStore>();
+builder.Services.AddSingleton<IDatabaseSizeStore, SqliteDatabaseSizeStore>();
 builder.Services.AddSingleton<ISpanStore, SqliteSpanStore>();
 
 // appsettings values are only defaults: values saved from the Settings page win (docs/archiving.md)

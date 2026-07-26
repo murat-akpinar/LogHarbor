@@ -367,6 +367,19 @@ export const tr: Messages = {
         'Arşivleri sıkıştırıldıklarından daha erken silmek, her günü diske yazıp aynı geçişte ' +
         'silmek demek. Silme süresini en az sıkıştırma gecikmesi kadar yap.',
     },
+    forecast: {
+      measuring:
+        'Büyüme henüz ölçülüyor: saatlik bakım geçişi veritabanı boyutunu kaydediyor, bir ' +
+        'eğilimden söz edebilmek için birkaç saatlik ölçüm gerekiyor.',
+      steady: (window: string) => `Son ${window} kayıtlı ölçümde büyüme yok.`,
+      growing: (perDay: string, window: string) => `Son ${window} içinde günde ${perDay} büyüyor.`,
+      untilFull: (days: string) => `Tavana yaklaşık ${days} sonra ulaşır.`,
+      firstToGo: (day: string) => `İlk silinecek gün ${day} olur.`,
+      atCeiling: 'Tavanda: dosya tavanı her aştığında en eski gün siliniyor.',
+      days: (value: string) => `${value} gün`,
+      underADay: 'bir günden az',
+      hours: (value: string) => `${value} sa`,
+    },
     archivedDays: 'Arşivlenmiş günler',
     archivedDaysHint:
       'Arşivlenmiş günler diskte sıkıştırılmış durur; çıkarılana kadar arama sonuçlarına girmez.',

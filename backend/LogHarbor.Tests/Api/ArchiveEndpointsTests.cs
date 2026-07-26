@@ -337,6 +337,50 @@ public sealed class ArchiveEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Forecast_WithoutHistory_SaysItIsStillMeasuring()
+    {
+        var forecast = await _client.GetFromJsonAsync<JsonElement>("/api/archive/forecast");
+
+        Assert.Equal("measuring", forecast.GetProperty("status").GetString());
+        Assert.Equal(0, forecast.GetProperty("sampleCount").GetInt32());
+        Assert.True(forecast.GetProperty("databaseBytes").GetInt64() > 0);
+        Assert.Equal(JsonValueKind.Null, forecast.GetProperty("dailyGrowthBytes").ValueKind);
+    }
+
+    [Fact]
+    public async Task Forecast_ReadsTheRecordedSizes_AndCountsDownToTheCeiling()
+    {
+        var sizes = _factory.Services.GetRequiredService<IDatabaseSizeStore>();
+        var now = DateTimeOffset.UtcNow;
+        for (var hoursAgo = 24; hoursAgo >= 0; hoursAgo--)
+        {
+            await sizes.RecordAsync((100 - hoursAgo) * 1024L * 1024, now.AddHours(-hoursAgo));
+        }
+        await _client.PutAsJsonAsync("/api/settings/archive", new
+        {
+            compressAfterDays = 30, hydrationKeepDays = 1, retentionDays = 365,
+            maxDatabaseBytes = 1024L * 1024 * 1024,
+        });
+
+        var forecast = await _client.GetFromJsonAsync<JsonElement>("/api/archive/forecast");
+
+        Assert.Equal("growing", forecast.GetProperty("status").GetString());
+        Assert.Equal(25, forecast.GetProperty("sampleCount").GetInt32());
+        Assert.Equal(24 * 1024L * 1024, forecast.GetProperty("dailyGrowthBytes").GetInt64());
+        Assert.True(forecast.GetProperty("daysUntilFull").GetDouble() > 0);
+    }
+
+    [Fact]
+    public async Task Forecast_DoesNotRecordAReadingOfItsOwn()
+    {
+        await _client.GetFromJsonAsync<JsonElement>("/api/archive/forecast");
+        await _client.GetFromJsonAsync<JsonElement>("/api/archive/forecast");
+
+        var sizes = _factory.Services.GetRequiredService<IDatabaseSizeStore>();
+        Assert.Empty(await sizes.ListSinceAsync(DateTimeOffset.UtcNow.AddDays(-30)));
+    }
+
+    [Fact]
     public async Task ArchiveSettings_SizeCapCanBeDisabledExplicitly()
     {
         await _client.PutAsJsonAsync("/api/settings/archive", new

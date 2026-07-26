@@ -15,17 +15,20 @@ public sealed class ArchiveScheduler : BackgroundService
     private readonly ISpanStore _spans;
     private readonly ISettingsStore _settings;
     private readonly IIngestRejectionStore _rejections;
+    private readonly IDatabaseSizeStore _sizes;
     private readonly LogHarborDb _db;
     private readonly ILogger<ArchiveScheduler> _logger;
 
     public ArchiveScheduler(
         Archiver archiver, ISpanStore spans, ISettingsStore settings,
-        IIngestRejectionStore rejections, LogHarborDb db, ILogger<ArchiveScheduler> logger)
+        IIngestRejectionStore rejections, IDatabaseSizeStore sizes, LogHarborDb db,
+        ILogger<ArchiveScheduler> logger)
     {
         _archiver = archiver;
         _spans = spans;
         _settings = settings;
         _rejections = rejections;
+        _sizes = sizes;
         _db = db;
         _logger = logger;
     }
@@ -69,6 +72,10 @@ public sealed class ArchiveScheduler : BackgroundService
                     capped.DaysDropped, capped.Rows, capped.DatabaseSizeBytes);
             }
 
+            // recorded after the cap has run, so the series follows the file the operator
+            // actually has rather than the peak it reached before maintenance cut it back
+            await _sizes.RecordAsync(capped.DatabaseSizeBytes, now, stoppingToken);
+
             var today = DateOnly.FromDateTime(now.UtcDateTime);
             if (today != lastArchiveDate)
             {
@@ -103,6 +110,10 @@ public sealed class ArchiveScheduler : BackgroundService
                     _logger.LogInformation(
                         "Retention removed {Count} ingest rejection bucket(s)", rejectionsRemoved);
                 }
+
+                // same reasoning as the rejection buckets: the size series is an operational
+                // trail, so it keeps its own window rather than following RetentionDays
+                await _sizes.PruneAsync(SqliteDatabaseSizeStore.DefaultKeepDays, stoppingToken);
                 lastArchiveDate = today;
             }
         }

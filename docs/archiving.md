@@ -24,6 +24,23 @@ that deletes history should not arrive unannounced.
 Losing the oldest day is the better failure. Running out of disk was measured to stop every
 write while the server still reported itself healthy (fix.md item 1).
 
+--- WHERE THE FILE IS HEADING ---
+
+The ceiling says when the server starts dropping days; on its own it does not say when that
+will first happen, so the operator sets a number and waits to be surprised by it. The hourly
+pass already measures the database length to decide on the cap, and now keeps the reading in
+db_size_samples (one row per pass, kept 14 days, pruned on the daily tick).
+
+GET /api/archive/forecast fits a least-squares line over the last 7 days of those readings and
+reports bytes per day plus, when a ceiling is set, how many days of room are left. Settings
+renders it as one line under the ceiling field.
+
+A fit, not last-minus-first: the size cap and the daily archive pass both cut the file back, so
+a window starting or ending next to one of those steps would report a slope the disk never had.
+A flat or falling fit is reported as "steady" rather than as negative growth — the question is
+when the disk runs out, and "never, at this rate" is the whole answer. Below four readings or
+three hours it says it is still measuring instead of extrapolating from one point.
+
 Segments are files, not rows. archive_segments stores a day's file name, event count and
 status; the events themselves only exist inside the .br file on disk. That split is why
 GET /api/admin/backup ships a zip of the database AND the archive directory — a database

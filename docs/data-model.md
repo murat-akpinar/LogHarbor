@@ -210,11 +210,26 @@ last_accessed_at   TEXT      nullable
 events_cache: same columns as events (including trace_id/span_id) + segment_day TEXT (hydrated data, transient);
 has its own FTS table events_cache_fts so free-text search covers hydrated data
 
+--- DATABASE SIZE SAMPLE ---
+
+One reading of the database file length, written by the hourly maintenance pass
+after the size cap has run — so the series follows the file the operator actually
+has, not the peak before maintenance cut it back.
+
+Field       Type      Notes
+taken_at    TEXT      UTC ISO-8601, primary key
+size_bytes  INTEGER
+
+Kept 14 days (pruned on the daily tick, independent of RetentionDays: the series is
+an operational trail, and shortening retention to save disk must not erase the
+evidence of what the disk has been doing). GET /api/archive/forecast fits the last
+7 days of it (docs/archiving.md).
+
 --- SETTINGS ---
 
 Key/value store for runtime-changeable settings; value is JSON.
 Today only the 'archive' key exists (compressAfterDays, hydrationKeepDays,
-retentionDays); saved values override appsettings.json defaults.
+retentionDays, maxDatabaseBytes); saved values override appsettings.json defaults.
 
 --- RETENTION & ARCHIVING ---
 

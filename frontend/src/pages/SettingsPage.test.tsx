@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { expect, it, describe } from 'vitest'
 import { en } from '../i18n/en'
-import { describeArchiveTimeline } from './SettingsPage'
+import type { StorageForecast } from '../types'
+import { describeArchiveTimeline, describeStorageForecast } from './SettingsPage'
 
 const t = en.settings.timeline
 
@@ -43,5 +44,91 @@ describe('describeArchiveTimeline', () => {
 
     expect(describeArchiveTimeline({ ...base, retentionDays: '' }, t)).toBeNull()
     expect(describeArchiveTimeline({ ...base, compressAfterDays: 'abc' }, t)).toBeNull()
+  })
+})
+
+const MB = 1024 * 1024
+const forecastText = en.settings.forecast
+
+function forecast(overrides: Partial<StorageForecast> = {}): StorageForecast {
+  return {
+    databaseBytes: 100 * MB,
+    maxDatabaseBytes: 0,
+    sampleCount: 24,
+    observedHours: 23,
+    dailyGrowthBytes: 24 * MB,
+    daysUntilFull: null,
+    oldestDay: '2026-07-19',
+    status: 'growing',
+    ...overrides,
+  }
+}
+
+describe('describeStorageForecast', () => {
+  it('admits it has no trend yet instead of extrapolating from one reading', () => {
+    const result = describeStorageForecast(
+      forecast({ status: 'measuring', sampleCount: 1, observedHours: 0, dailyGrowthBytes: null }),
+      forecastText,
+    )
+
+    expect(result).toEqual({ text: forecastText.measuring, warning: false })
+  })
+
+  it('gives a rate but no date when no ceiling is configured', () => {
+    const result = describeStorageForecast(forecast(), forecastText)
+
+    expect(result.text).toBe('Growing 24.0 MB/day over the last 23 h.')
+    expect(result.warning).toBe(false)
+  })
+
+  it('counts down to the ceiling and names the day that goes first', () => {
+    const result = describeStorageForecast(
+      forecast({ maxDatabaseBytes: 340 * MB, daysUntilFull: 10, observedHours: 72 }),
+      forecastText,
+    )
+
+    expect(result.text).toBe(
+      'Growing 24.0 MB/day over the last 3 days. Reaches the ceiling in about 10 days. ' +
+      '2026-07-19 would be the first day dropped.',
+    )
+    expect(result.warning).toBe(false)
+  })
+
+  it('warns once the ceiling is within a week', () => {
+    const result = describeStorageForecast(
+      forecast({ maxDatabaseBytes: 200 * MB, daysUntilFull: 4 }),
+      forecastText,
+    )
+
+    expect(result.warning).toBe(true)
+  })
+
+  it('does not round a countdown of hours down to "0 days"', () => {
+    const result = describeStorageForecast(
+      forecast({ maxDatabaseBytes: 105 * MB, daysUntilFull: 0.2 }),
+      forecastText,
+    )
+
+    expect(result.text).toContain('under a day')
+    expect(result.text).not.toContain('0 days')
+  })
+
+  it('reports a flat file as steady rather than as a date', () => {
+    const result = describeStorageForecast(
+      forecast({ status: 'steady', dailyGrowthBytes: 0, maxDatabaseBytes: 200 * MB }),
+      forecastText,
+    )
+
+    expect(result).toEqual({ text: 'Not growing over the last 23 h of recorded sizes.', warning: false })
+  })
+
+  it('warns while the cap is actively dropping days', () => {
+    const result = describeStorageForecast(
+      forecast({ status: 'at-ceiling', maxDatabaseBytes: 100 * MB, daysUntilFull: 0 }),
+      forecastText,
+    )
+
+    expect(result.warning).toBe(true)
+    expect(result.text).toContain('2026-07-19 would be the first day dropped.')
   })
 })

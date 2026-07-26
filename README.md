@@ -248,6 +248,12 @@ database backup, and the archive section: how long before events are compressed,
 extracted data is kept, when archives are deleted — plus the list of archived days with an
 **Extract** button on each, which is how you bring a compressed day back into search.
 
+Two derived lines sit under those fields. One spells out the time policy as a sentence
+(`hot 0–1 d → compressed 1–7 d → deleted after 7 d`). The other turns the size ceiling into
+a date: the hourly maintenance pass records the database size, and the page reports how fast
+the file is growing and how many days of room are left before the oldest day starts being
+dropped. A new install says it is still measuring rather than guessing from one reading.
+
 Full UI reference: [docs/frontend.md](docs/frontend.md).
 ---
 

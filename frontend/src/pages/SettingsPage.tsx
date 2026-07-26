@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { getArchiveSegments, getArchiveSettings, saveArchiveSettings } from '../api/archive'
+import {
+  getArchiveSegments,
+  getArchiveSettings,
+  getStorageForecast,
+  saveArchiveSettings,
+} from '../api/archive'
 import { createApiKey, getApiKeys, getHealth, revokeApiKey } from '../api/settings'
 import { useAuthStatus, useIsAdmin, useLogout } from '../hooks/useAuth'
 import { useCreateUser, useDeleteUser, useUsers } from '../hooks/useUsers'
 import { formatBytes } from '../lib/bytes'
 import { formatTimestamp } from '../lib/dates'
-import type { CreatedApiKey, UserRole } from '../types'
+import type { CreatedApiKey, StorageForecast, UserRole } from '../types'
 import { ArchiveSegments } from '../components/ArchiveSegments'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -18,6 +23,7 @@ import { useI18n } from '../i18n'
 const API_KEYS_KEY = ['apikeys']
 const ARCHIVE_SETTINGS_KEY = ['archive-settings']
 const ARCHIVE_SEGMENTS_KEY = ['archive-segments']
+const STORAGE_FORECAST_KEY = ['storage-forecast']
 
 const TH_CLASS = 'pb-2 font-medium'
 const TD_CLASS = 'py-2 text-fg'
@@ -196,6 +202,61 @@ export function describeArchiveTimeline(
   }
 }
 
+/** Below this many days left, the countdown stops being background information. */
+const FORECAST_WARNING_DAYS = 7
+
+/**
+ * The size ceiling as a date rather than a number.
+ *
+ * MaxDatabaseBytes says when the server starts dropping the oldest day; without this line the
+ * operator sets a ceiling and then waits to be surprised by it. Everything here comes from the
+ * sizes the hourly maintenance pass has already been recording, so a fresh install honestly
+ * says it is still measuring instead of extrapolating from one reading.
+ */
+export function describeStorageForecast(
+  forecast: StorageForecast,
+  t: {
+    measuring: string
+    steady: (window: string) => string
+    growing: (perDay: string, window: string) => string
+    untilFull: (days: string) => string
+    firstToGo: (day: string) => string
+    atCeiling: string
+    days: (value: string) => string
+    underADay: string
+    hours: (value: string) => string
+  },
+): { text: string; warning: boolean } {
+  const window = forecast.observedHours >= 48
+    ? t.days(String(Math.round(forecast.observedHours / 24)))
+    : t.hours(String(Math.round(forecast.observedHours)))
+
+  if (forecast.status === 'measuring' || forecast.dailyGrowthBytes === null) {
+    return { text: t.measuring, warning: false }
+  }
+  if (forecast.status === 'at-ceiling') {
+    const dropped = forecast.oldestDay ? ` ${t.firstToGo(forecast.oldestDay)}` : ''
+    return { text: `${t.atCeiling}${dropped}`, warning: true }
+  }
+  if (forecast.status === 'steady') {
+    return { text: t.steady(window), warning: false }
+  }
+
+  const sentences = [t.growing(formatBytes(forecast.dailyGrowthBytes), window)]
+  if (forecast.daysUntilFull !== null) {
+    sentences.push(t.untilFull(
+      forecast.daysUntilFull < 1 ? t.underADay : t.days(String(Math.round(forecast.daysUntilFull))),
+    ))
+    if (forecast.oldestDay) {
+      sentences.push(t.firstToGo(forecast.oldestDay))
+    }
+  }
+  return {
+    text: sentences.join(' '),
+    warning: forecast.daysUntilFull !== null && forecast.daysUntilFull < FORECAST_WARNING_DAYS,
+  }
+}
+
 function ArchiveField({
   label,
   hint,
@@ -238,6 +299,7 @@ function ArchiveCard() {
   const queryClient = useQueryClient()
   const { data: settings, error } = useQuery({ queryKey: ARCHIVE_SETTINGS_KEY, queryFn: getArchiveSettings })
   const { data: segments } = useQuery({ queryKey: ARCHIVE_SEGMENTS_KEY, queryFn: getArchiveSegments })
+  const { data: forecast } = useQuery({ queryKey: STORAGE_FORECAST_KEY, queryFn: getStorageForecast })
   const [form, setForm] = useState<ArchiveFormState | null>(null)
 
   // the form is editable state seeded from the server value once it arrives
@@ -274,6 +336,7 @@ function ArchiveCard() {
   const totalUncompressed = (segments ?? []).reduce((sum, segment) => sum + segment.uncompressedBytes, 0)
   const ratio = totalSize > 0 ? totalUncompressed / totalSize : undefined
   const timeline = form ? describeArchiveTimeline(form, t.settings.timeline) : null
+  const trend = forecast ? describeStorageForecast(forecast, t.settings.forecast) : null
 
   if (error) {
     return <p className="text-sm text-level-error">{error.message}</p>
@@ -314,6 +377,11 @@ function ArchiveCard() {
         {timeline && (
           <p className={`text-xs ${timeline.warning ? 'text-level-warning' : 'text-fg-muted'}`}>
             {timeline.text}
+          </p>
+        )}
+        {trend && (
+          <p className={`text-xs ${trend.warning ? 'text-level-warning' : 'text-fg-muted'}`}>
+            {trend.text}
           </p>
         )}
         {isAdmin && (

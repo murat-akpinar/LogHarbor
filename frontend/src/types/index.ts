@@ -295,3 +295,18 @@ export interface ArchiveSettings {
 export interface HydrationStatus {
   segments: { day: string; status: SegmentStatus }[]
 }
+
+export type StorageTrend = 'measuring' | 'steady' | 'growing' | 'at-ceiling'
+
+/** Where the database file is heading, fitted over the sizes the hourly maintenance pass
+ *  records. `dailyGrowthBytes` is null while there is too little history to claim a trend. */
+export interface StorageForecast {
+  databaseBytes: number
+  maxDatabaseBytes: number
+  sampleCount: number
+  observedHours: number
+  dailyGrowthBytes: number | null
+  daysUntilFull: number | null
+  oldestDay: string | null
+  status: StorageTrend
+}

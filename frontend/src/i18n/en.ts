@@ -368,6 +368,19 @@ export const en = {
         'Deleting archives sooner than they are compressed would write each day to disk and ' +
         'delete it on the same pass. Set deletion to at least the compression delay.',
     },
+    forecast: {
+      measuring:
+        'Still measuring growth: the hourly maintenance pass records the database size, and a ' +
+        'few hours of readings are needed before there is a trend worth reporting.',
+      steady: (window: string) => `Not growing over the last ${window} of recorded sizes.`,
+      growing: (perDay: string, window: string) => `Growing ${perDay}/day over the last ${window}.`,
+      untilFull: (days: string) => `Reaches the ceiling in about ${days}.`,
+      firstToGo: (day: string) => `${day} would be the first day dropped.`,
+      atCeiling: 'At the ceiling: the oldest day is dropped whenever the file goes over it.',
+      days: (value: string) => `${value} days`,
+      underADay: 'under a day',
+      hours: (value: string) => `${value} h`,
+    },
     archivedDays: 'Archived days',
     compressedSize: 'Compressed size',
     compressionRatio: 'Compression ratio',
