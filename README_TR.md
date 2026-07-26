@@ -101,12 +101,22 @@ kurulumda kullanma.
 .NET 8 SDK ve Node 22+ gerekir.
 
 ```bash
-# terminal 1 — backend :5000 (Swagger arayüzü /swagger)
+# terminal 1 — backend :5000 (Swagger arayüzü /swagger, yönetici oturumunun arkasında)
 dotnet run --project backend/LogHarbor.Api
 
 # terminal 2 — frontend geliştirme sunucusu :5173, /api ve /hubs'ı backend'e yönlendirir
 cd frontend && npm install && npm run dev
 ```
+
+**http://localhost:5173** adresini aç — :5000'i değil. Backend, SPA'yı
+`backend/LogHarbor.Api/wwwroot` altında commit'lenmiş paketten sunar; o paket en son ne zaman
+yeniden derlendiyse o kadar günceldir, yani :5000 sana az önce klonladığın koddan daha eski
+bir arayüz gösterebilir. Docker imajında bu sorun yok: frontend'i kendi aşamasında derliyor.
+`LogHarbor__DatabasePath` başka bir şey söylemedikçe veritabanı
+`backend/LogHarbor.Api/data/` altına düşer.
+
+**admin / admin** ile giriş yap ve istendiğinde yeni bir parola belirle — yukarıdaki Docker
+yolundaki gibi.
 
 Testler:
 
@@ -330,8 +340,13 @@ Başka bir dil/kütüphane kullanıyorsan CLEF'i kendin gönder (satır satır, 
 curl -X POST http://localhost:5000/api/events/raw \
   -H "X-LogHarbor-ApiKey: logharbor_token_buraya" \
   -H "Content-Type: application/vnd.serilog.clef" \
-  --data-binary '{"@t":"2026-07-13T10:00:00Z","@l":"Error","@mt":"Order {OrderId} failed","OrderId":123}'
+  --data-binary "{\"@t\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"@l\":\"Error\",\"@mt\":\"Order {OrderId} failed\",\"OrderId\":123}"
 ```
+
+`@t`'yi yukarıdaki gibi o anın zamanıyla damgala. Bu, olayın kendi zaman damgası ve zamana
+bağlı her görünüm onun üzerinde bir pencere; buradaki gibi bir sayfadan kopyalanmış sabit bir
+tarih `201` ile kabul edilir ama arayüzün açıldığı son bir saatlik pencerenin dışına düşer —
+olay kaydedilmiş ama görünmez olur, başlangıç için kafa karıştırıcı bir durum.
 
 ### OpenTelemetry (OTLP)
 
@@ -401,6 +416,9 @@ Ortam değişkenleri (ya da `appsettings.json` içinde `LogHarbor:` altında):
 | `LogHarbor__LoginRateLimitPerMinute` | 10 | IP başına dakikalık giriş denemesi sınırı |
 | `LogHarbor__RetentionDays` | 365 | N günden eski arşivlenmiş veriyi sil |
 | `LogHarbor__Archive__CompressAfterDays` | 90 | N günden eski olayları sıkıştır (0 = kapalı) |
+| `LogHarbor__Archive__HydrationKeepDays` | 1 | Çıkarılan arşiv gününü önbellekte N gün tut |
+| `LogHarbor__Archive__MaxDatabaseBytes` | 0 (kapalı) | Veritabanı dosyası için sert tavan; aşılınca en eski günler yaşlarına bakılmadan silinir. Pozitif bir değer en az 64 MB olmalı |
+| `LogHarbor__ArchivePath` | veritabanının yanında `archive/` | Sıkıştırılmış günlük parçaların yazıldığı yer |
 | `LogHarbor__SeedDefaultAdmin` | `true` | Kullanıcı tablosu boşsa admin hesabını oluştur |
 | `LogHarbor__AllowInsecureCookie` | `false` | Oturum çerezini `Secure` olmadan ver, böylece düz HTTP üzerinde giriş çalışır (yalnızca test/yerel ağ; HTTPS proxy arkasında `false` bırak) |
 | `LOGHARBOR_ADMIN_PASSWORD` | *(boş)* | Oluşturulan admin'in parolası; boşsa admin/admin ve ilk girişte değiştirilir |

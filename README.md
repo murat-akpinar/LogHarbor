@@ -98,12 +98,21 @@ stay `Secure` there. It is a testing convenience, not for anything exposed beyon
 Requires .NET 8 SDK and Node 22+.
 
 ```bash
-# terminal 1 — backend on :5000 (Swagger UI at /swagger)
+# terminal 1 — backend on :5000 (Swagger UI at /swagger, behind the admin session)
 dotnet run --project backend/LogHarbor.Api
 
 # terminal 2 — frontend dev server on :5173, proxies /api and /hubs to the backend
 cd frontend && npm install && npm run dev
 ```
+
+Open **http://localhost:5173** — not :5000. The backend serves the SPA bundle committed
+under `backend/LogHarbor.Api/wwwroot`, which is only as new as the last time someone
+rebuilt it, so :5000 can show you an older UI than the source you just cloned. The Docker
+image has no such problem: it builds the frontend in its own stage. The database lands in
+`backend/LogHarbor.Api/data/` unless `LogHarbor__DatabasePath` says otherwise.
+
+Sign in with **admin / admin** and set a new password when prompted, exactly as in the
+Docker path above.
 
 Tests:
 
@@ -322,8 +331,13 @@ Anything else: POST newline-delimited CLEF yourself.
 curl -X POST http://localhost:5000/api/events/raw \
   -H "X-LogHarbor-ApiKey: logharbor_your_token_here" \
   -H "Content-Type: application/vnd.serilog.clef" \
-  --data-binary '{"@t":"2026-07-13T10:00:00Z","@l":"Error","@mt":"Order {OrderId} failed","OrderId":123}'
+  --data-binary "{\"@t\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"@l\":\"Error\",\"@mt\":\"Order {OrderId} failed\",\"OrderId\":123}"
 ```
+
+Stamp `@t` with the current time, as above. It is the event's own timestamp and every
+time-ranged view is a window over it, so a fixed date pasted from a page like this one is
+accepted with `201` and then sits outside the rolling last hour the UI opens on — the event
+is stored and invisible, which is a confusing way to start.
 
 ### OpenTelemetry (OTLP)
 
@@ -394,6 +408,9 @@ Environment variables (or `appsettings.json` under `LogHarbor:`):
 | `LogHarbor__LoginRateLimitPerMinute` | 10 | Per-IP login attempt limit |
 | `LogHarbor__RetentionDays` | 365 | Delete archived data older than N days |
 | `LogHarbor__Archive__CompressAfterDays` | 90 | Compress events older than N days (0 = off) |
+| `LogHarbor__Archive__HydrationKeepDays` | 1 | Keep an extracted archive day in the cache for N days |
+| `LogHarbor__Archive__MaxDatabaseBytes` | 0 (off) | Hard ceiling on the database file; over it the oldest days are dropped whatever their age. Any positive value must be at least 64 MB |
+| `LogHarbor__ArchivePath` | `archive/` next to the database | Where compressed daily segments are written |
 | `LogHarbor__SeedDefaultAdmin` | `true` | Seed the admin account on an empty user table |
 | `LogHarbor__AllowInsecureCookie` | `false` | Issue the session cookie without `Secure` so login works over plain HTTP (testing/LAN only; leave `false` behind an HTTPS proxy) |
 | `LOGHARBOR_ADMIN_PASSWORD` | *(unset)* | Password for the seeded admin; unset means admin/admin, changed at first login |
