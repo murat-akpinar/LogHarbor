@@ -68,6 +68,18 @@ public sealed class SqliteIngestRejectionStore : IIngestRejectionStore
         return rejections;
     }
 
+    public async Task<string?> GetLastSeenAsync(
+        string reason, CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT MAX(last_seen) FROM ingest_rejections WHERE reason = @reason;";
+        command.Parameters.AddWithValue("@reason", reason);
+        var value = await command.ExecuteScalarAsync(cancellationToken);
+        return value as string;
+    }
+
     public async Task<int> PruneAsync(int keepDays, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();

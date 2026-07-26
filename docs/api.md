@@ -348,14 +348,22 @@ Only events matching the subscribed filter are pushed.
 --- HEALTH ---
 
 GET /healthz    No auth. 200 when the server can still store events, 503 when it cannot.
-                { "status": "ok"|"degraded", "writable": bool, "eventCount": n,
-                  "dbSizeBytes": n, "freeDiskBytes": n|null }
-                writable is a real write inside a rolled-back transaction, not a read. A full
-                disk or a read-only mount leaves SELECT working, so a read-only check reports
-                a healthy server while every batch fails with a 500 — measured, and the reason
-                this endpoint stopped answering "ok" unconditionally. freeDiskBytes is null
-                where the platform will not report it. The Dockerfile HEALTHCHECK curls this
-                with -f, so a degraded container stops claiming to be healthy.
+                { "status": "ok"|"degraded", "writable": bool, "lastWriteFailure": ts|null,
+                  "eventCount": n, "dbSizeBytes": n, "freeDiskBytes": n|null }
+                Degraded when either signal fires, because neither is sufficient alone:
+                  writable  a real insert inside a rolled-back transaction. Catches a
+                            read-only mount or lost permissions. It is one small row, so on a
+                            full disk SQLite still fits it in a free page and this stays true
+                            while real batches fail — measured.
+                  lastWriteFailure  the most recent write_failed rejection. Not a guess about
+                            the next write but a write that already did not happen; counts
+                            against health for 5 minutes, so a fixed disk recovers without a
+                            restart and a broken one does not flap.
+                freeDiskBytes is for the volume holding the database, found by deepest mount
+                point — asking for the path root reported the host filesystem while /data was
+                full. Null where the platform will not report it.
+                The Dockerfile HEALTHCHECK curls this with -f, so a degraded container stops
+                claiming to be healthy.
 
 --- SWAGGER (admin only) ---
 

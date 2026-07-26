@@ -74,13 +74,31 @@ public sealed class LogHarborDb
         }
     }
 
-    /// <summary>Free bytes on the volume holding the database, or null when the platform
-    /// will not say. Turns "the disk filled up" from a surprise into something watchable.</summary>
+    /// <summary>
+    /// Free bytes on the volume holding the database, or null when the platform will not say.
+    /// Picks the deepest mount point containing the file rather than the path root: on Unix
+    /// every path roots at "/", so asking for the root reported 54 GB free while the /data
+    /// mount the database actually lived on was full — measured, and useless in exactly the
+    /// situation the number exists for.
+    /// </summary>
     public long? GetFreeDiskBytes()
     {
         try
         {
-            return new DriveInfo(Path.GetPathRoot(DatabasePath)!).AvailableFreeSpace;
+            DriveInfo? best = null;
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                var mount = drive.RootDirectory.FullName;
+                if (!DatabasePath.StartsWith(mount, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (best is null || mount.Length > best.RootDirectory.FullName.Length)
+                {
+                    best = drive;
+                }
+            }
+            return best?.AvailableFreeSpace;
         }
         catch (Exception exception) when (exception is ArgumentException or IOException
                                               or UnauthorizedAccessException)

@@ -40,4 +40,9 @@ public interface IIngestRejectionStore
 
     /// <summary>Drops buckets older than <paramref name="keepDays"/>; returns rows removed.</summary>
     Task<int> PruneAsync(int keepDays, CancellationToken cancellationToken = default);
+
+    /// <summary>When a reason was last recorded, or null if never. The health check reads
+    /// write_failed through this: a probe can only guess whether the next write will work,
+    /// but a recorded failure is a write that actually did not.</summary>
+    Task<string?> GetLastSeenAsync(string reason, CancellationToken cancellationToken = default);
 }

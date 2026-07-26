@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using LogHarbor.Api.Endpoints;
 using LogHarbor.Core.Storage;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -66,5 +67,55 @@ public sealed class HealthEndpointsTests : IDisposable
 
         var free = body.GetProperty("freeDiskBytes");
         Assert.True(free.ValueKind == JsonValueKind.Null || free.GetInt64() > 0);
+    }
+
+    /// <summary>
+    /// The case the write probe alone could not see. Measured on a full disk: 2000-event
+    /// batches failed with "database or disk is full" while the probe's single row still fit
+    /// in a free page, so /healthz kept answering ok. A recorded failure is not a guess about
+    /// the next write — it is a write that already did not happen.
+    /// </summary>
+    [Fact]
+    public async Task RecentWriteFailure_MakesHealthDegraded_With503()
+    {
+        var rejections = _factory.Services.GetRequiredService<IIngestRejectionStore>();
+        await rejections.RecordAsync(
+            1, RejectionReasons.WriteFailed, "database or disk is full", DateTimeOffset.UtcNow);
+
+        var response = await _client.GetAsync("/healthz");
+
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("degraded", body.GetProperty("status").GetString());
+        // the database itself is fine here; only the recorded failure is not
+        Assert.True(body.GetProperty("writable").GetBoolean());
+        Assert.NotNull(body.GetProperty("lastWriteFailure").GetString());
+    }
+
+    [Fact]
+    public async Task OldWriteFailure_DoesNotKeepTheServerDegradedForever()
+    {
+        var rejections = _factory.Services.GetRequiredService<IIngestRejectionStore>();
+        await rejections.RecordAsync(1, RejectionReasons.WriteFailed, "yesterday's outage",
+            DateTimeOffset.UtcNow - HealthEndpoints.WriteFailureWindow - TimeSpan.FromMinutes(1));
+
+        var response = await _client.GetAsync("/healthz");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("ok", body.GetProperty("status").GetString());
+    }
+
+    /// <summary>A 4xx rejection is the client's problem, not the server's health.</summary>
+    [Fact]
+    public async Task ClientSideRejections_DoNotAffectHealth()
+    {
+        var rejections = _factory.Services.GetRequiredService<IIngestRejectionStore>();
+        await rejections.RecordAsync(
+            1, RejectionReasons.InvalidPayload, "line 1: bad", DateTimeOffset.UtcNow);
+
+        var response = await _client.GetAsync("/healthz");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
