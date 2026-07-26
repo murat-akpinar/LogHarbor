@@ -106,6 +106,14 @@ public sealed class HealthEndpointsTests : IDisposable
         Assert.Equal("ok", body.GetProperty("status").GetString());
     }
 
+    [Fact]
+    public async Task Healthy_ReportsRoomForABatch()
+    {
+        var body = await _client.GetFromJsonAsync<JsonElement>("/healthz");
+
+        Assert.True(body.GetProperty("roomForABatch").GetBoolean());
+    }
+
     /// <summary>A 4xx rejection is the client's problem, not the server's health.</summary>
     [Fact]
     public async Task ClientSideRejections_DoNotAffectHealth()

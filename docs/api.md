@@ -348,9 +348,10 @@ Only events matching the subscribed filter are pushed.
 --- HEALTH ---
 
 GET /healthz    No auth. 200 when the server can still store events, 503 when it cannot.
-                { "status": "ok"|"degraded", "writable": bool, "lastWriteFailure": ts|null,
-                  "eventCount": n, "dbSizeBytes": n, "freeDiskBytes": n|null }
-                Degraded when either signal fires, because neither is sufficient alone:
+                { "status": "ok"|"degraded", "writable": bool, "roomForABatch": bool,
+                  "lastWriteFailure": ts|null, "eventCount": n, "dbSizeBytes": n,
+                  "freeDiskBytes": n|null }
+                Degraded when any signal fires, because none is sufficient alone:
                   writable  a real insert inside a rolled-back transaction. Catches a
                             read-only mount or lost permissions. It is one small row, so on a
                             full disk SQLite still fits it in a free page and this stays true
@@ -359,6 +360,10 @@ GET /healthz    No auth. 200 when the server can still store events, 503 when it
                             the next write but a write that already did not happen; counts
                             against health for 5 minutes, so a fixed disk recovers without a
                             restart and a broken one does not flap.
+                  roomForABatch  free space is at least MaxBatchBytes. Covers the disk that
+                            filled while nobody happened to be sending: the probe's one row
+                            still fits and the last real failure ages out, so without this
+                            the server would go back to reporting ok on a full disk.
                 freeDiskBytes is for the volume holding the database, found by deepest mount
                 point — asking for the path root reported the host filesystem while /data was
                 full. Null where the platform will not report it.

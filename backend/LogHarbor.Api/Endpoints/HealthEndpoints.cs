@@ -22,22 +22,30 @@ public static class HealthEndpoints
         // measured. Recorded write failures are the ground truth the probe cannot reach:
         // not a guess about the next write, but a write that already did not happen.
         app.MapGet("/healthz", async (
-            LogHarborDb db, IIngestRejectionStore rejections, CancellationToken cancellationToken) =>
+            LogHarborDb db, IIngestRejectionStore rejections, IngestionOptions options,
+            CancellationToken cancellationToken) =>
         {
             var writable = db.CanWrite();
             var lastWriteFailure =
                 await rejections.GetLastSeenAsync(RejectionReasons.WriteFailed, cancellationToken);
             var failingNow = IsWithinWindow(lastWriteFailure, DateTimeOffset.UtcNow);
-            var healthy = writable && !failingNow;
+            var freeDiskBytes = db.GetFreeDiskBytes();
+            // Without this, a server whose disk filled while nobody happened to be sending
+            // would report ok: the probe's one row still fits, and the last real failure ages
+            // out of the window. MaxBatchBytes is the honest threshold — below it the next
+            // full-size batch cannot land, whether or not one has been tried yet.
+            var roomForABatch = freeDiskBytes is null || freeDiskBytes >= options.MaxBatchBytes;
+            var healthy = writable && !failingNow && roomForABatch;
 
             var payload = new
             {
                 status = healthy ? "ok" : "degraded",
                 writable,
+                roomForABatch,
                 lastWriteFailure,
                 eventCount = db.CountEvents(),
                 dbSizeBytes = db.GetDatabaseSizeBytes(),
-                freeDiskBytes = db.GetFreeDiskBytes(),
+                freeDiskBytes,
             };
             // 503 so the Docker healthcheck (curl -f) and any uptime monitor act on it
             return healthy
