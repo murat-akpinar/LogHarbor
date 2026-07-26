@@ -70,10 +70,15 @@ unaffected by any of this.
 ### Testing over plain HTTP (home / LAN)
 
 In production LogHarbor runs behind an HTTPS reverse proxy, so outside development the session
-cookie is issued with `Secure`. Reaching it over plain HTTP — `http://localhost:5000` or a LAN
-address like `http://192.168.1.50:5000` — then breaks login: the browser drops the `Secure`
-cookie, the sign-in never sticks, and you land back on the login screen instead of the
-change-password step (even though **admin / admin** is correct).
+cookie is issued with `Secure`. Reaching it over plain HTTP at **a LAN address** like
+`http://192.168.1.50:5000` then breaks login: the client drops the `Secure` cookie, the
+sign-in never sticks, and you land back on the login screen instead of the change-password
+step (even though **admin / admin** is correct). Measured on a fresh install — the login call
+answers `200`, the cookie is never stored, and the next request is unauthenticated.
+
+`http://localhost:5000` is the exception, not an example of the problem: loopback counts as a
+trustworthy origin, so browsers and command-line clients keep a `Secure` cookie there and
+login works without any of this.
 
 For HTTP testing, opt out explicitly with `LogHarbor__AllowInsecureCookie=true`. With `docker run`:
 

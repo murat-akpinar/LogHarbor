@@ -72,10 +72,15 @@ ile çalışır, bunlardan etkilenmez.
 ### Düz HTTP üzerinde test (ev / yerel ağ)
 
 Canlıda LogHarbor bir HTTPS reverse proxy arkasında çalışır; bu yüzden geliştirme dışında
-oturum çerezi `Secure` olarak verilir. Siteye düz HTTP ile eriştiğinde — `http://localhost:5000`
-ya da `http://192.168.1.50:5000` gibi bir yerel ağ adresi — giriş bozulur: tarayıcı `Secure`
-çerezi saklamaz, giriş "tutmaz" ve **admin / admin** doğru olsa bile parola-değiştirme adımı
-yerine tekrar giriş ekranına düşersin.
+oturum çerezi `Secure` olarak verilir. Siteye düz HTTP ile **yerel ağ adresinden** —
+`http://192.168.1.50:5000` gibi — eriştiğinde giriş bozulur: istemci `Secure` çerezi saklamaz,
+giriş "tutmaz" ve **admin / admin** doğru olsa bile parola-değiştirme adımı yerine tekrar
+giriş ekranına düşersin. Sıfırdan bir kurulumda ölçüldü: giriş çağrısı `200` dönüyor, çerez
+hiç saklanmıyor, sonraki istek kimliksiz kalıyor.
+
+`http://localhost:5000` bu sorunun örneği değil, istisnası: loopback güvenilir bir köken
+sayıldığı için tarayıcılar da komut satırı istemcileri de orada `Secure` çerezi saklar ve
+giriş bu ayara hiç gerek kalmadan çalışır.
 
 HTTP testi için bu davranıştan `LogHarbor__AllowInsecureCookie=true` ile açıkça çık. `docker run` ile:
 
