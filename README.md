@@ -419,10 +419,18 @@ Restore — unzip into the data volume:
 ```bash
 docker compose stop logharbor
 docker run --rm -v logharbor_logharbor-data:/data -v "$PWD":/backup alpine \
-  sh -c "apk add --no-cache unzip >/dev/null && \
-         unzip -o /backup/logharbor-backup-YYYYMMDD-HHmmss.zip -d /data"
+  sh -c 'owner=$(stat -c "%u:%g" /data) && \
+         apk add --no-cache unzip >/dev/null && \
+         unzip -o /backup/logharbor-backup-YYYYMMDD-HHmmss.zip -d /data && \
+         chown -R "$owner" /data'
 docker compose start logharbor
 ```
+
+The `chown` is not optional. LogHarbor runs as a non-root user inside the
+container, and unzipping as root leaves files it cannot write — the server then
+dies at startup with `SQLite Error 8: attempt to write a readonly database`.
+Reading the owner off `/data` keeps the restore correct whatever uid the image
+uses.
 
 The volume name carries your compose project as a prefix (`logharbor_...` when
 the project directory is `logharbor`); `docker volume ls` shows the exact name.

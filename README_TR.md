@@ -426,10 +426,18 @@ Geri yükleme — zip'i veri volume'üne aç:
 ```bash
 docker compose stop logharbor
 docker run --rm -v logharbor_logharbor-data:/data -v "$PWD":/backup alpine \
-  sh -c "apk add --no-cache unzip >/dev/null && \
-         unzip -o /backup/logharbor-backup-YYYYMMDD-HHmmss.zip -d /data"
+  sh -c 'owner=$(stat -c "%u:%g" /data) && \
+         apk add --no-cache unzip >/dev/null && \
+         unzip -o /backup/logharbor-backup-YYYYMMDD-HHmmss.zip -d /data && \
+         chown -R "$owner" /data'
 docker compose start logharbor
 ```
+
+`chown` isteğe bağlı değil. LogHarbor konteyner içinde root olmayan bir
+kullanıcı olarak çalışır; root ile açılan dosyalara yazamaz ve sunucu açılışta
+`SQLite Error 8: attempt to write a readonly database` ile ölür. Sahipliği
+`/data` üzerinden okumak, imaj hangi uid'i kullanırsa kullansın doğru sonucu
+verir.
 
 Volume adının başında compose projesinin adı bulunur (proje klasörü
 `logharbor` ise `logharbor_...`); tam adı `docker volume ls` gösterir.
