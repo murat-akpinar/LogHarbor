@@ -14,6 +14,7 @@ public static class StatsEndpoints
         group.MapGet("/heatmap", HeatmapAsync);
         group.MapGet("/summary", SummaryAsync);
         group.MapGet("/ingestion-lag", IngestionLagAsync);
+        group.MapGet("/ingest-rejections", IngestRejectionsAsync);
         group.MapGet("/top-errors", TopErrorsAsync);
         group.MapGet("/top-exceptions", TopExceptionsAsync);
         group.MapGet("/slow-operations", SlowOperationsAsync);
@@ -26,6 +27,27 @@ public static class StatsEndpoints
     }
 
     private static readonly string[] DefaultErrorLevels = ["Error", "Fatal"];
+
+    /// <summary>Ingestion requests that were turned away, by key and reason. The one view that
+    /// answers "a client swears it is sending logs and nothing arrives" (docs/api.md).</summary>
+    private static async Task<IResult> IngestRejectionsAsync(
+        IIngestRejectionStore rejectionStore,
+        CancellationToken cancellationToken,
+        int days = 7)
+    {
+        if (days is < 1 or > SqliteIngestRejectionStore.DefaultKeepDays)
+        {
+            return Problems.BadRequest("Invalid query",
+                $"days must be between 1 and {SqliteIngestRejectionStore.DefaultKeepDays}.");
+        }
+
+        var rejections = await rejectionStore.ListAsync(days, cancellationToken);
+        return Results.Ok(new
+        {
+            rejections,
+            totalRequests = rejections.Sum(rejection => rejection.RequestCount),
+        });
+    }
 
     // events before this predate the server; used as the open-ended baseline start for slow-operations
     private const string BaselineStart = "2000-01-01T00:00:00.0000000Z";

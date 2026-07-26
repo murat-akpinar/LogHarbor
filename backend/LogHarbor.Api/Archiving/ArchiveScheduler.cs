@@ -14,14 +14,17 @@ public sealed class ArchiveScheduler : BackgroundService
     private readonly Archiver _archiver;
     private readonly ISpanStore _spans;
     private readonly ISettingsStore _settings;
+    private readonly IIngestRejectionStore _rejections;
     private readonly ILogger<ArchiveScheduler> _logger;
 
     public ArchiveScheduler(
-        Archiver archiver, ISpanStore spans, ISettingsStore settings, ILogger<ArchiveScheduler> logger)
+        Archiver archiver, ISpanStore spans, ISettingsStore settings,
+        IIngestRejectionStore rejections, ILogger<ArchiveScheduler> logger)
     {
         _archiver = archiver;
         _spans = spans;
         _settings = settings;
+        _rejections = rejections;
         _logger = logger;
     }
 
@@ -76,6 +79,17 @@ public sealed class ArchiveScheduler : BackgroundService
                 if (spansRemoved > 0)
                 {
                     _logger.LogInformation("Retention removed {Count} span(s)", spansRemoved);
+                }
+
+                // rejection buckets have their own fixed window: they are an operational trail,
+                // not log data, so RetentionDays (which users shorten to save disk) must not
+                // silently erase the evidence that a client has been failing all week
+                var rejectionsRemoved = await _rejections.PruneAsync(
+                    SqliteIngestRejectionStore.DefaultKeepDays, stoppingToken);
+                if (rejectionsRemoved > 0)
+                {
+                    _logger.LogInformation(
+                        "Retention removed {Count} ingest rejection bucket(s)", rejectionsRemoved);
                 }
                 lastArchiveDate = today;
             }

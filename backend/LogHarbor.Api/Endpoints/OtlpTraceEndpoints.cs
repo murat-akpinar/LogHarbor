@@ -23,6 +23,7 @@ public static class OtlpTraceEndpoints
         HttpRequest httpRequest,
         ISpanStore spanStore,
         IngestionOptions options,
+        IngestRejectionRecorder rejections,
         CancellationToken cancellationToken)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -31,17 +32,21 @@ public static class OtlpTraceEndpoints
         var isJson = contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase);
         if (!isProtobuf && !isJson)
         {
+            var detail = "POST /v1/traces accepts application/x-protobuf or application/json.";
+            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+                RejectionReasons.UnsupportedMediaType, detail, httpRequest.Path, cancellationToken);
             return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType,
-                title: "Unsupported content type",
-                detail: "POST /v1/traces accepts application/x-protobuf or application/json.");
+                title: "Unsupported content type", detail: detail);
         }
 
         var body = await RequestBody.ReadCappedAsync(httpRequest, options.MaxBatchBytes, cancellationToken);
         if (body is null)
         {
+            var detail = $"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).";
+            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+                RejectionReasons.TooLarge, detail, httpRequest.Path, cancellationToken);
             return Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
-                title: "Payload too large",
-                detail: $"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).");
+                title: "Payload too large", detail: detail);
         }
 
         ExportTraceServiceRequest request;
@@ -53,14 +58,14 @@ public static class OtlpTraceEndpoints
             }
             catch (InvalidProtocolBufferException ex)
             {
-                return Problems.BadRequest("Invalid OTLP payload", ex.Message);
+                return await RejectInvalidAsync(httpRequest, rejections, ex.Message, cancellationToken);
             }
         }
         else
         {
             if (!OtlpJson.TryParseTraces(Encoding.UTF8.GetString(body), out var parsed, out var error))
             {
-                return Problems.BadRequest("Invalid OTLP payload", error!);
+                return await RejectInvalidAsync(httpRequest, rejections, error!, cancellationToken);
             }
             request = parsed!;
         }
@@ -73,6 +78,11 @@ public static class OtlpTraceEndpoints
         var response = new ExportTraceServiceResponse();
         if (result.RejectedSpans > 0)
         {
+            // as on /v1/logs: partial_success inside a 200 is silent unless it is recorded
+            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+                RejectionReasons.InvalidPayload,
+                $"{result.RejectedSpans} span(s) dropped: {result.ErrorMessage}",
+                httpRequest.Path, cancellationToken);
             response.PartialSuccess = new ExportTracePartialSuccess
             {
                 RejectedSpans = result.RejectedSpans,
@@ -82,5 +92,14 @@ public static class OtlpTraceEndpoints
         return isProtobuf
             ? Results.Bytes(response.ToByteArray(), "application/x-protobuf")
             : Results.Text(JsonFormatter.Default.Format(response), "application/json");
+    }
+
+    private static async Task<IResult> RejectInvalidAsync(
+        HttpRequest httpRequest, IngestRejectionRecorder rejections, string detail,
+        CancellationToken cancellationToken)
+    {
+        await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+            RejectionReasons.InvalidPayload, detail, httpRequest.Path, cancellationToken);
+        return Problems.BadRequest("Invalid OTLP payload", detail);
     }
 }

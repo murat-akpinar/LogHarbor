@@ -25,6 +25,7 @@ public static class OtlpEndpoints
         IEventStore eventStore,
         TailBroadcaster tailBroadcaster,
         IngestionOptions options,
+        IngestRejectionRecorder rejections,
         CancellationToken cancellationToken)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -33,17 +34,21 @@ public static class OtlpEndpoints
         var isJson = contentType.StartsWith("application/json", StringComparison.OrdinalIgnoreCase);
         if (!isProtobuf && !isJson)
         {
+            var detail = "POST /v1/logs accepts application/x-protobuf or application/json.";
+            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+                RejectionReasons.UnsupportedMediaType, detail, httpRequest.Path, cancellationToken);
             return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType,
-                title: "Unsupported content type",
-                detail: "POST /v1/logs accepts application/x-protobuf or application/json.");
+                title: "Unsupported content type", detail: detail);
         }
 
         var body = await RequestBody.ReadCappedAsync(httpRequest, options.MaxBatchBytes, cancellationToken);
         if (body is null)
         {
+            var detail = $"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).";
+            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+                RejectionReasons.TooLarge, detail, httpRequest.Path, cancellationToken);
             return Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
-                title: "Payload too large",
-                detail: $"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).");
+                title: "Payload too large", detail: detail);
         }
 
         ExportLogsServiceRequest request;
@@ -55,14 +60,14 @@ public static class OtlpEndpoints
             }
             catch (InvalidProtocolBufferException ex)
             {
-                return Problems.BadRequest("Invalid OTLP payload", ex.Message);
+                return await RejectInvalidAsync(httpRequest, rejections, ex.Message, cancellationToken);
             }
         }
         else
         {
             if (!OtlpJson.TryParse(Encoding.UTF8.GetString(body), out var parsed, out var error))
             {
-                return Problems.BadRequest("Invalid OTLP payload", error!);
+                return await RejectInvalidAsync(httpRequest, rejections, error!, cancellationToken);
             }
             request = parsed!;
         }
@@ -77,6 +82,12 @@ public static class OtlpEndpoints
         var response = new ExportLogsServiceResponse();
         if (result.RejectedLogRecords > 0)
         {
+            // partial_success rides inside a 200 and most exporters never look at it, so a
+            // dropped record here is every bit as silent as an outright 4xx
+            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+                RejectionReasons.InvalidPayload,
+                $"{result.RejectedLogRecords} log record(s) dropped: {result.ErrorMessage}",
+                httpRequest.Path, cancellationToken);
             response.PartialSuccess = new ExportLogsPartialSuccess
             {
                 RejectedLogRecords = result.RejectedLogRecords,
@@ -87,5 +98,14 @@ public static class OtlpEndpoints
         return isProtobuf
             ? Results.Bytes(response.ToByteArray(), "application/x-protobuf")
             : Results.Text(JsonFormatter.Default.Format(response), "application/json");
+    }
+
+    private static async Task<IResult> RejectInvalidAsync(
+        HttpRequest httpRequest, IngestRejectionRecorder rejections, string detail,
+        CancellationToken cancellationToken)
+    {
+        await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+            RejectionReasons.InvalidPayload, detail, httpRequest.Path, cancellationToken);
+        return Problems.BadRequest("Invalid OTLP payload", detail);
     }
 }

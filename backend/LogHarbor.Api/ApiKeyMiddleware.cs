@@ -29,7 +29,8 @@ public sealed class ApiKeyMiddleware
 
     public ApiKeyMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext context, IApiKeyStore apiKeys)
+    public async Task InvokeAsync(
+        HttpContext context, IApiKeyStore apiKeys, IngestRejectionRecorder rejections)
     {
         var token = ReadToken(context.Request);
 
@@ -39,6 +40,9 @@ public sealed class ApiKeyMiddleware
 
         if (keyId is null)
         {
+            await rejections.RecordAsync(0, RejectionReasons.Unauthorized,
+                token.Length == 0 ? "no API key header" : "the key is unknown or revoked",
+                context.Request.Path, context.RequestAborted);
             await Results.Problem(statusCode: StatusCodes.Status401Unauthorized,
                 title: "Missing or invalid API key").ExecuteAsync(context);
             return;

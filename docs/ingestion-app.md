@@ -166,6 +166,25 @@ winston-seq send, which is why it exists; hand-written clients gain nothing from
 Errors name the offending event in whichever format was sent: "line 2: ..." for CLEF,
 "event 2: ..." for an Events envelope. Either way nothing in the batch is stored.
 
+--- WHEN NOTHING ARRIVES ---
+
+A sink that is being rejected looks exactly like a sink with nothing to say: most of them
+swallow the 4xx (that is the point — logging must not throw into the app), so the app runs
+fine and the events simply are not there.
+
+LogHarbor records every rejected ingestion request, so check that first:
+
+  GET /api/stats/ingest-rejections
+
+It is also the red panel at the top of the Dashboard, which appears only when there is
+something to show. It names the API key, the reason, how many requests, and the last error —
+usually enough to identify the client without touching it. The same rejections are logged as
+warnings, so `docker logs logharbor` works too.
+
+Nothing there at all means the requests are not reaching LogHarbor: wrong URL or port, a
+proxy in between, or the sink never flushed (see the per-language notes above — that one
+bites hardest in short-lived scripts).
+
 Smoke test:
 
   curl -X POST "$LOGHARBOR_URL/api/events/raw" \

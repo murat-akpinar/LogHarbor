@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { HeatmapCell, Histogram, IngestionLagResult, OperationOverview, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
+import type { HeatmapCell, Histogram, IngestRejectionsResult, IngestionLagResult, OperationOverview, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
 
 export interface StatsRangeParams {
   from: string
@@ -31,6 +31,10 @@ export function getIngestionLag(
   params: StatsRangeParams & { lateAfterSeconds?: number },
 ): Promise<IngestionLagResult> {
   return api.get<IngestionLagResult>(`/api/stats/ingestion-lag${buildQuery(params)}`)
+}
+
+export function getIngestRejections(params: { days?: number } = {}): Promise<IngestRejectionsResult> {
+  return api.get<IngestRejectionsResult>(`/api/stats/ingest-rejections${buildQuery(params)}`)
 }
 
 export function getTopErrors(params: StatsRangeParams & { limit?: number }): Promise<{ errors: TopError[] }> {

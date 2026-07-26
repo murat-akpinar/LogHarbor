@@ -3,6 +3,7 @@ import {
   useHeatmap,
   useHistogram,
   useIngestionLag,
+  useIngestRejections,
   useOperations,
   useServices,
   useSlowOperations,
@@ -13,6 +14,7 @@ import {
 } from '../hooks/useStats'
 import { MetricCard } from '../components/dashboard/MetricCard'
 import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
+import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionHeader } from '../components/dashboard/SectionHeader'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
@@ -31,6 +33,9 @@ import { useI18n } from '../i18n'
 const BUCKET_COUNT = 24
 const PANEL_LIMIT = 5
 const ERROR_FILTER = "@Level = 'Error' or @Level = 'Fatal'"
+// deliberately not tied to the page's time range: a client that broke on Friday is still
+// broken on Monday, and the operator needs to see that on a dashboard set to "last hour"
+const REJECTION_DAYS = 7
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
@@ -42,6 +47,7 @@ export function DashboardPage() {
   const errorHistogram = useHistogram({ ...range, buckets: BUCKET_COUNT, filter: ERROR_FILTER })
   const heatmap = useHeatmap(range)
   const ingestionLag = useIngestionLag(range)
+  const rejections = useIngestRejections(REJECTION_DAYS)
   const topErrors = useTopErrors({ ...range, limit: PANEL_LIMIT })
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
   const services = useServices({ ...range, limit: PANEL_LIMIT })
@@ -84,6 +90,15 @@ export function DashboardPage() {
             {t.onboarding.title} →
           </Link>
         </Card>
+      )}
+
+      {/* Events the server refused: not in any chart below, because they were never stored */}
+      {rejections.data && (
+        <IngestRejectionBanner
+          rejections={rejections.data.rejections}
+          totalRequests={rejections.data.totalRequests}
+          days={REJECTION_DAYS}
+        />
       )}
 
       {/* Activity: the pulse of raw volume and errors over time */}

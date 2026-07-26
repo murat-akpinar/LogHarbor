@@ -38,4 +38,13 @@ public static class LogHarborMetrics
 
     public static void CountIngested(long events, string source) =>
         IngestedEvents.Add(events, new KeyValuePair<string, object?>("source", source));
+
+    /// <summary>One ingestion request turned away; tag "reason" is a RejectionReasons value.
+    /// Rejections are otherwise invisible — the client keeps its 4xx to itself.</summary>
+    public static readonly Counter<long> RejectedRequests =
+        Meter.CreateCounter<long>("logharbor.ingest.rejected", unit: "{request}",
+            description: "Ingestion requests rejected, by reason");
+
+    public static void CountRejected(string reason) =>
+        RejectedRequests.Add(1, new KeyValuePair<string, object?>("reason", reason));
 }

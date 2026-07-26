@@ -57,6 +57,9 @@ POST /api/events/raw
   NLog.Targets.Seq, seqlog, winston-seq all work by pointing them at LogHarbor
   (docs/ingestion-app.md).
 
+  Every rejection here is recorded and readable at GET /api/stats/ingest-rejections — a 4xx
+  otherwise leaves no trace on the server, and the client silently drops the batch.
+
   Both of Seq's body formats are accepted, distinguished by the body rather than Content-Type:
   a JSON object whose top level holds an "Events" array (and no CLEF @t) is the envelope,
   everything else is parsed as CLEF lines. Serilog and NLog send CLEF; seqlog and winston-seq
@@ -177,6 +180,18 @@ GET /api/stats/heatmap
   Counts by (day-of-week, hour-of-day), both UTC; dayOfWeek 0 = Sunday.
   Searches hot + hydrated data; cells with no events are omitted.
   200: { "cells": [ { dayOfWeek, hour, count } ] }
+
+GET /api/stats/ingest-rejections
+  Query: days? (1..30, default 7)
+  Ingestion requests that were turned away, so events a client believes it sent but that
+  were never stored are visible without reading server logs. Aggregated per (api key,
+  reason, UTC day) rather than per request: a misconfigured client retries forever.
+  reason is one of unauthorized | rate_limited | invalid_payload | too_large |
+  unsupported_media_type. apiKeyId 0 (apiKeyTitle null) means the request had no valid key.
+  lastDetail is the server's own message, capped at 200 chars, and can quote the client's
+  payload. Buckets are kept 30 days, independent of RetentionDays.
+  200: { "rejections": [ { apiKeyId, apiKeyTitle, reason, day, requestCount,
+                           firstSeen, lastSeen, lastDetail } ], "totalRequests" }
 
 --- ANALYSIS ---
 

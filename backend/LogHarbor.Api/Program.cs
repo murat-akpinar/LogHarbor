@@ -24,6 +24,8 @@ builder.Services.AddSingleton(new LogHarborDb(
     builder.Configuration["LogHarbor:DatabasePath"] ?? "data/logharbor.db"));
 builder.Services.AddSingleton<IEventStore, SqliteEventStore>();
 builder.Services.AddSingleton<IApiKeyStore, SqliteApiKeyStore>();
+builder.Services.AddSingleton<IIngestRejectionStore, SqliteIngestRejectionStore>();
+builder.Services.AddSingleton<IngestRejectionRecorder>();
 builder.Services.AddSingleton<ISignalStore, SqliteSignalStore>();
 builder.Services.AddSingleton<IArchiveStore, SqliteArchiveStore>();
 builder.Services.AddSingleton<ISpanStore, SqliteSpanStore>();
@@ -98,6 +100,21 @@ builder.Services.AddSingleton(ingestionOptions);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    // a throttled client drops the events it could not send, so the 429 is worth a row too.
+    // The ingestion key is already resolved here: ApiKeyMiddleware runs earlier in the pipeline
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        if (context.HttpContext.Request.Path.StartsWithSegments("/api/events/raw")
+            || context.HttpContext.Request.Path.StartsWithSegments("/v1"))
+        {
+            var recorder = context.HttpContext.RequestServices.GetRequiredService<IngestRejectionRecorder>();
+            await recorder.RecordAsync(
+                IngestRejectionRecorder.ApiKeyIdOf(context.HttpContext),
+                RejectionReasons.RateLimited,
+                $"over IngestRateLimitPerMinute ({ingestionOptions.IngestRateLimitPerMinute})",
+                context.HttpContext.Request.Path, cancellationToken);
+        }
+    };
     // partitioned by API key token: one noisy client cannot starve the others. Reads the key
     // exactly as the middleware does, Seq alias included, or Seq sinks would all share one bucket
     options.AddPolicy(IngestionEndpoints.RateLimitPolicy, context =>

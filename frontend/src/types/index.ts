@@ -75,6 +75,31 @@ export interface IngestionLagResult {
   lag: IngestionLag
 }
 
+export type RejectionReason =
+  | 'unauthorized'
+  | 'rate_limited'
+  | 'invalid_payload'
+  | 'too_large'
+  | 'unsupported_media_type'
+
+/** One (api key, reason, UTC day) bucket of turned-away ingestion requests.
+ *  apiKeyTitle is null when the request carried no valid key. */
+export interface IngestRejection {
+  apiKeyId: number
+  apiKeyTitle: string | null
+  reason: RejectionReason
+  day: string
+  requestCount: number
+  firstSeen: string
+  lastSeen: string
+  lastDetail: string | null
+}
+
+export interface IngestRejectionsResult {
+  rejections: IngestRejection[]
+  totalRequests: number
+}
+
 /** One error group: all events sharing a CLEF message template and level. */
 export interface TopError {
   template: string

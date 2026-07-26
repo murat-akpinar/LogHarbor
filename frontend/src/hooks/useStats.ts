@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { getHeatmap, getHistogram, getIngestionLag, getOperations, getQueries, getServices, getServiceStatus, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
+import { getHeatmap, getHistogram, getIngestRejections, getIngestionLag, getOperations, getQueries, getServices, getServiceStatus, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
 import type { StatsRangeParams } from '../api/stats'
 
 // refetch keeps the previous render instead of flashing a skeleton (dataviz interaction rules)
@@ -33,6 +33,16 @@ export function useIngestionLag(params: StatsRangeParams & { lateAfterSeconds?: 
   return useQuery({
     queryKey: ['stats', 'ingestion-lag', params],
     queryFn: () => getIngestionLag(params),
+    ...KEEP_PREVIOUS,
+  })
+}
+
+/** Rejections are an operator concern, not a live metric: a slower poll is plenty. */
+export function useIngestRejections(days = 7) {
+  return useQuery({
+    queryKey: ['stats', 'ingest-rejections', days],
+    queryFn: () => getIngestRejections({ days }),
+    refetchInterval: 60_000,
     ...KEEP_PREVIOUS,
   })
 }

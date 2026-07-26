@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using LogHarbor.Api;
 using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Storage;
@@ -33,13 +34,15 @@ public static class IngestionEndpoints
         IEventStore eventStore,
         TailBroadcaster tailBroadcaster,
         IngestionOptions options,
+        IngestRejectionRecorder rejections,
         CancellationToken cancellationToken)
     {
         var started = System.Diagnostics.Stopwatch.GetTimestamp();
         var bytes = await RequestBody.ReadCappedAsync(request, options.MaxBatchBytes, cancellationToken);
         if (bytes is null)
         {
-            return PayloadTooLarge($"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).");
+            return await RejectAsync(request, rejections,
+                TooLarge($"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes})."), cancellationToken);
         }
 
         var serverTime = DateTimeOffset.UtcNow;
@@ -52,7 +55,7 @@ public static class IngestionEndpoints
             : ParseClefLines(Encoding.UTF8.GetString(bytes), serverTime, options);
         if (failure is not null)
         {
-            return failure;
+            return await RejectAsync(request, rejections, failure, cancellationToken);
         }
 
         var ids = await eventStore.WriteBatchAsync(events, cancellationToken);
@@ -63,7 +66,17 @@ public static class IngestionEndpoints
         return Results.StatusCode(StatusCodes.Status201Created);
     }
 
-    private static (List<Event> Events, IResult? Failure) ParseClefLines(
+    /// <summary>A rejected batch: the reason it gets recorded under, the detail the client
+    /// and the operator both see, and how to turn that into the response.</summary>
+    private sealed record IngestFailure(string Reason, string Detail, Func<string, IResult> ToResult);
+
+    private static IngestFailure TooLarge(string detail) =>
+        new(RejectionReasons.TooLarge, detail, PayloadTooLarge);
+
+    private static IngestFailure InvalidPayload(string title, string detail) =>
+        new(RejectionReasons.InvalidPayload, detail, d => BadRequest(title, d));
+
+    private static (List<Event> Events, IngestFailure? Failure) ParseClefLines(
         string body, DateTimeOffset serverTime, IngestionOptions options)
     {
         var events = new List<Event>();
@@ -78,19 +91,19 @@ public static class IngestionEndpoints
             }
             if (Encoding.UTF8.GetByteCount(line) > options.MaxEventBytes)
             {
-                return ([], PayloadTooLarge(
+                return ([], TooLarge(
                     $"line {lineNumber}: event exceeds MaxEventBytes ({options.MaxEventBytes})."));
             }
             if (!ClefParser.TryParse(line, serverTime, out var parsed, out var error))
             {
-                return ([], BadRequest("Invalid CLEF payload", $"line {lineNumber}: {error}"));
+                return ([], InvalidPayload("Invalid CLEF payload", $"line {lineNumber}: {error}"));
             }
             events.Add(parsed!);
         }
         return (events, null);
     }
 
-    private static (List<Event> Events, IResult? Failure) ParseSeqRawEvents(
+    private static (List<Event> Events, IngestFailure? Failure) ParseSeqRawEvents(
         byte[] body, DateTimeOffset serverTime, IngestionOptions options)
     {
         JsonDocument document;
@@ -100,7 +113,7 @@ public static class IngestionEndpoints
         }
         catch (JsonException)
         {
-            return ([], BadRequest("Invalid Seq events payload", "invalid JSON"));
+            return ([], InvalidPayload("Invalid Seq events payload", "invalid JSON"));
         }
 
         using (document)
@@ -113,17 +126,27 @@ public static class IngestionEndpoints
                 index++;
                 if (Encoding.UTF8.GetByteCount(element.GetRawText()) > options.MaxEventBytes)
                 {
-                    return ([], PayloadTooLarge(
+                    return ([], TooLarge(
                         $"event {index}: event exceeds MaxEventBytes ({options.MaxEventBytes})."));
                 }
                 if (!SeqRawEventsParser.TryParseEvent(element, serverTime, out var parsed, out var error))
                 {
-                    return ([], BadRequest("Invalid Seq events payload", $"event {index}: {error}"));
+                    return ([], InvalidPayload("Invalid Seq events payload", $"event {index}: {error}"));
                 }
                 events.Add(parsed!);
             }
             return (events, null);
         }
+    }
+
+    private static async Task<IResult> RejectAsync(
+        HttpRequest request, IngestRejectionRecorder rejections, IngestFailure failure,
+        CancellationToken cancellationToken)
+    {
+        await rejections.RecordAsync(
+            IngestRejectionRecorder.ApiKeyIdOf(request.HttpContext),
+            failure.Reason, failure.Detail, request.Path, cancellationToken);
+        return failure.ToResult(failure.Detail);
     }
 
     private static IResult BadRequest(string title, string detail) =>

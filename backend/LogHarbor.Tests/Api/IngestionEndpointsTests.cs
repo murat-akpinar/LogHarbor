@@ -293,5 +293,90 @@ public sealed class IngestionEndpointsTests : IDisposable
         Assert.Contains("\"0af7651916cd43dd8448eb211c80319c\"", csv);
     }
 
+    private async Task<JsonElement> GetRejectionsAsync()
+    {
+        var stats = await _client.GetFromJsonAsync<JsonElement>("/api/stats/ingest-rejections");
+        return stats.GetProperty("rejections");
+    }
+
+    [Fact]
+    public async Task BadPayload_IsRecordedAsARejection_WithTheKeyThatSentIt()
+    {
+        var token = await CreateApiKeyAsync();
+
+        await PostRawAsync("{not valid json}", token);
+
+        var rejection = (await GetRejectionsAsync()).EnumerateArray().Single();
+        Assert.Equal("invalid_payload", rejection.GetProperty("reason").GetString());
+        Assert.Equal("test", rejection.GetProperty("apiKeyTitle").GetString());
+        Assert.Equal(1, rejection.GetProperty("requestCount").GetInt64());
+        Assert.Contains("line 1", rejection.GetProperty("lastDetail").GetString());
+    }
+
+    [Fact]
+    public async Task RepeatedBadPayloads_CollapseIntoOneBucket()
+    {
+        var token = await CreateApiKeyAsync();
+
+        await PostRawAsync("{not valid json}", token);
+        await PostRawAsync("""{"@t":"nonsense"}""", token);
+
+        var rejection = (await GetRejectionsAsync()).EnumerateArray().Single();
+        Assert.Equal(2, rejection.GetProperty("requestCount").GetInt64());
+        Assert.Contains("@t", rejection.GetProperty("lastDetail").GetString());
+    }
+
+    [Fact]
+    public async Task InvalidApiKey_IsRecorded_WithoutAKeyTitle()
+    {
+        await PostRawAsync("""{"@t":"2026-07-13T10:00:00Z"}""", "logharbor_not_a_real_key");
+
+        var rejection = (await GetRejectionsAsync()).EnumerateArray().Single();
+        Assert.Equal("unauthorized", rejection.GetProperty("reason").GetString());
+        Assert.Equal(0, rejection.GetProperty("apiKeyId").GetInt64());
+        Assert.Equal(JsonValueKind.Null, rejection.GetProperty("apiKeyTitle").ValueKind);
+    }
+
+    [Fact]
+    public async Task OversizedBatch_IsRecordedAsTooLarge()
+    {
+        var token = await CreateApiKeyAsync();
+        var filler = new string('x', LogHarborApiFactory.MaxEventBytes - 100);
+        var lines = Enumerable.Range(0, LogHarborApiFactory.MaxBatchBytes / filler.Length + 2)
+            .Select(_ => $$"""{"@t":"2026-07-13T10:00:00Z","Filler":"{{filler}}"}""");
+
+        await PostRawAsync(string.Join('\n', lines), token);
+
+        var rejection = (await GetRejectionsAsync()).EnumerateArray().Single();
+        Assert.Equal("too_large", rejection.GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    public async Task RateLimitedRequests_AreRecorded()
+    {
+        var token = await CreateApiKeyAsync();
+        var line = """{"@t":"2026-07-13T10:00:00Z","@m":"hi"}""";
+        for (var i = 0; i < LogHarborApiFactory.RateLimitPerMinute; i++)
+        {
+            await PostRawAsync(line, token);
+        }
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await PostRawAsync(line, token)).StatusCode);
+
+        var rejection = (await GetRejectionsAsync()).EnumerateArray().Single();
+        Assert.Equal("rate_limited", rejection.GetProperty("reason").GetString());
+        Assert.Equal("test", rejection.GetProperty("apiKeyTitle").GetString());
+    }
+
+    [Fact]
+    public async Task SuccessfulIngestion_RecordsNoRejection()
+    {
+        var token = await CreateApiKeyAsync();
+
+        await PostRawAsync("""{"@t":"2026-07-13T10:00:00Z","@m":"fine"}""", token);
+
+        Assert.Empty((await GetRejectionsAsync()).EnumerateArray());
+    }
+
     public void Dispose() => _factory.Dispose();
 }

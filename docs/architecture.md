@@ -21,6 +21,9 @@ Ingestion API:
   POST /api/events/raw, accepts CLEF (newline-delimited JSON) and Seq's {"Events":[...]}
   envelope, sniffed from the body rather than Content-Type
   Validates API key, parses events, writes batch to store, broadcasts to live tail
+  Every rejected request (401/413/429/400) is counted, logged and stored as an
+  ingest_rejections bucket — otherwise a client that silently drops its events
+  leaves no trace anywhere on the server (docs/data-model.md)
   Wire-compatible with Seq (same path, both bodies, X-Seq-ApiKey accepted as a header alias),
   so existing Seq sinks ingest into LogHarbor unchanged (docs/ingestion-app.md)
   POST /v1/logs accepts OTLP/HTTP (OpenTelemetry logs) in protobuf and JSON
@@ -58,8 +61,9 @@ Web API:
 
 Self-telemetry:
   Custom meters (Meter "LogHarbor", plain System.Diagnostics.Metrics in Core):
-  ingest rate and ingest request duration by source (clef/seq-raw/otlp), event query
-  duration, archive job duration. logharbor.ingest.duration doubles as the
+  ingest rate and ingest request duration by source (clef/seq-raw/otlp), rejected
+  ingestion requests by reason, event query duration, archive job duration.
+  logharbor.ingest.duration doubles as the
   tripwire for the parked write-path channel refactor (todo.md Phase 13).
   Exported via OTLP together with ASP.NET Core request metrics ONLY when
   OTEL_EXPORTER_OTLP_ENDPOINT is set — off by default, near-zero cost unlistened

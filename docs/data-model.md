@@ -43,6 +43,27 @@ Properties.*    ->  properties JSON (the bag verbatim, re-serialized compact)
 Renderings, EventType -> dropped; trace_id/span_id are null, the format carries no
                          trace ids (a TraceId property stays an ordinary property)
 
+--- INGEST REJECTIONS ---
+
+What ingestion refused, so a client whose events never arrive can be found without a packet
+capture (docs/api.md GET /api/stats/ingest-rejections).
+
+Field          Type      Notes
+api_key_id     INTEGER   0 when the request carried no valid key (a 401 has nothing to join)
+reason         TEXT      unauthorized | rate_limited | invalid_payload | too_large |
+                         unsupported_media_type
+day            TEXT      UTC yyyy-MM-dd
+request_count  INTEGER   requests in this bucket, not events — a rejected batch is unparsed,
+                         so how many events it held is unknown
+first_seen     TEXT      UTC ISO-8601, when the bucket opened
+last_seen      TEXT      UTC ISO-8601, most recent rejection
+last_detail    TEXT      nullable, the server's message, capped at 200 chars
+
+One row per (api_key_id, reason, day), upserted: a misconfigured client retries forever and
+the record of the problem must not outgrow the log data. Kept 30 days by the archive
+scheduler's daily pass — deliberately not RetentionDays, which users shorten to save disk
+and which would then erase the evidence that a client has been failing all week.
+
 --- INGESTION NORMALIZATION ---
 
 timestamp: @t parsed as DateTimeOffset, converted to UTC, stored as fixed-width
