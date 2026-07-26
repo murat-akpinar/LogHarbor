@@ -312,6 +312,19 @@ public sealed class SqliteArchiveStore : IArchiveStore
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task CompactAsync(CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        // checkpoint, reclaim, checkpoint again: incremental_vacuum itself writes to the WAL,
+        // so one pass would leave the freed space sitting outside the file it is measured by
+        command.CommandText =
+            "PRAGMA wal_checkpoint(TRUNCATE); " +
+            "PRAGMA incremental_vacuum; " +
+            "PRAGMA wal_checkpoint(TRUNCATE);";
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     internal static string DayStart(string day) => day + "T00:00:00.0000000Z";
 
     internal static string NextDay(string day) =>

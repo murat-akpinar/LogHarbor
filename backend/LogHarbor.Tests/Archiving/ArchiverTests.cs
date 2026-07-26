@@ -568,4 +568,51 @@ public sealed class ArchiverTests : IDisposable
 
         Assert.Equal(0, result.DaysDropped);
     }
+
+    /// <summary>Seeds three fat days so dropping one moves the file length measurably.</summary>
+    private async Task SeedThreeFatDaysAsync()
+    {
+        foreach (var day in new[] { "2026-06-01", "2026-06-02", "2026-06-03" })
+        {
+            var padding = new string('x', 2000);
+            var events = Enumerable.Range(0, 400)
+                .Select(i => MakeEvent($"{day}T{i % 24:D2}:00:00.0000000Z", $"{day} event {i}",
+                    $$"""{"Day":"{{day}}","Pad":"{{padding}}"}"""))
+                .ToList();
+            await _eventStore.WriteBatchAsync(events);
+        }
+    }
+
+    private async Task<int> CountDayAsync(string day)
+    {
+        var page = await _eventStore.QueryAsync(
+            new EventQuery(Filter($"Day = '{day}'"), null, null, null, 1000));
+        return page.Events.Count;
+    }
+
+    /// <summary>
+    /// The regression the first implementation shipped with. It vacuumed and then measured the
+    /// file, but in WAL mode the freed pages sit in the -wal until a checkpoint, so the length
+    /// did not move, the loop concluded it was still over the ceiling, and it kept going. On a
+    /// real 24 MB database under an 8 MB cap that deleted all three days instead of one.
+    /// </summary>
+    [Fact]
+    public async Task SizeCap_StopsAtTheCeiling_AndKeepsTheNewestDays()
+    {
+        await SeedThreeFatDaysAsync();
+        await _archiveStore.CompactAsync();
+        var before = _db.GetDatabaseSizeBytes();
+        Assert.True(before > 0);
+        // a ceiling that only the oldest day (or two) needs to go to satisfy
+        await SetSizeCapAsync(before * 3 / 4);
+
+        var result = await _archiver.RunSizeCapAsync(() => _db.GetDatabaseSizeBytes());
+
+        Assert.True(result.RemovedAnything, "expected the cap to drop something");
+        Assert.Equal(0, await CountDayAsync("2026-06-01"));
+        Assert.True(await CountDayAsync("2026-06-03") > 0,
+            "the newest day must survive a cap that only needed the oldest one gone");
+        Assert.True(result.DatabaseSizeBytes <= before * 3 / 4,
+            $"expected to fit under the ceiling, ended at {result.DatabaseSizeBytes}");
+    }
 }

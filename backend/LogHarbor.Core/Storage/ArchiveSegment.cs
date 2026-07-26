@@ -82,6 +82,15 @@ public interface IArchiveStore
 
     /// <summary>Reclaims free pages after archive/evict/retention deletions.</summary>
     Task IncrementalVacuumAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Folds the WAL back into the database file and reclaims freed pages, so the file length
+    /// on disk reflects the deletes that just happened. The size cap loops on that length: in
+    /// WAL mode freed pages sit in the -wal until a checkpoint, so without this it reads a
+    /// stale size, concludes it is still over the ceiling and drops another day. Measured —
+    /// a 24 MB database under an 8 MB cap lost all three of its days instead of one.
+    /// </summary>
+    Task CompactAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>A segment failed verification; the archive step was rolled back and hot rows kept.</summary>

@@ -208,7 +208,9 @@ public sealed class Archiver
                 SqliteArchiveStore.DayStart(SqliteArchiveStore.NextDay(oldest)), cancellationToken);
             daysDropped++;
 
-            await _store.IncrementalVacuumAsync(cancellationToken);
+            // compact, not just vacuum: the loop decides on the file length, and in WAL mode
+            // that length does not move until the freed pages are checkpointed back into it
+            await _store.CompactAsync(cancellationToken);
             var next = databaseSizeBytes();
             if (next >= size && await _store.GetOldestDataDayAsync(cancellationToken) == oldest)
             {
