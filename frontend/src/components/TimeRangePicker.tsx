@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { isoToLocalInput, localInputToIso } from '../lib/dates'
+import { useDismiss } from '../hooks/useDismiss'
 import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 
@@ -27,6 +28,9 @@ export function TimeRangePicker({ from, to, onChange }: TimeRangePickerProps) {
   const { t, lang } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [presetKey, setPresetKey] = useState<PresetKey | null>(null)
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => setIsOpen(false), [])
+  useDismiss(isOpen, anchorRef, close)
 
   // ponytail: presets set an absolute `from` (frozen at click), matching the existing from/to
   // query model — no rolling window. The preset label is a convenience and can drift as time
@@ -50,7 +54,7 @@ export function TimeRangePicker({ from, to, onChange }: TimeRangePickerProps) {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={anchorRef}>
       <Button variant="secondary" onClick={() => setIsOpen((open) => !open)} title={t.timeRange.title}>
         <span className="tabular">{presetKey ? t.timeRange[presetKey] : rangeLabel()}</span>
       </Button>

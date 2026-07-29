@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { chipLabel, compileChips, parseChips, type Chip } from '../lib/filterChips'
+import { useDismiss } from '../hooks/useDismiss'
 import { useI18n } from '../i18n'
 import { FilterEditor } from './FilterEditor'
 import { SearchBar } from './SearchBar'
@@ -18,6 +19,11 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
   const [raw, setRaw] = useState<string | null>(parsed ? null : initialText)
   // null => closed; { index:null } => adding; { index:n } => editing chip n
   const [editing, setEditing] = useState<{ index: number | null } | null>(null)
+  // the editor opens next to the button but can be opened from a chip, so the whole bar is the
+  // "inside": clicking another chip should move the editor, not close it and reopen it
+  const barRef = useRef<HTMLDivElement>(null)
+  const closeEditor = useCallback(() => setEditing(null), [])
+  useDismiss(editing !== null, barRef, closeEditor)
 
   function commit(next: Chip[]) {
     setChips(next)
@@ -67,7 +73,7 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div ref={barRef} className="flex flex-wrap items-center gap-2">
       {chips.map((chip, index) => (
         <span
           key={index}

@@ -1,5 +1,6 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useDismiss } from '../hooks/useDismiss'
 import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 
@@ -19,6 +20,8 @@ export function ColumnPicker({ columns, onChange }: ColumnPickerProps) {
   const anchorRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const [alignLeft, setAlignLeft] = useState(false)
+  const close = useCallback(() => setIsOpen(false), [])
+  useDismiss(isOpen, anchorRef, close)
 
   // This button lives in a wrapping toolbar, so unlike the other dropdowns it is not pinned
   // to a window edge: when the row wraps it slides left, and a right-aligned panel then hangs
