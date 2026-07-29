@@ -15,6 +15,7 @@ import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { formatTimestamp } from '../lib/dates'
+import { formatDuration } from '../lib/duration'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
@@ -36,13 +37,6 @@ const CLAMP_CLASS: Record<QueryLines, string> = {
   '1': 'truncate',
   '3': 'line-clamp-3 break-words',
   all: 'break-words',
-}
-
-/** 830 -> "830 ms", 4100 -> "4.1 s" — totals can reach seconds while p95 stays in ms. */
-function formatDuration(ms: number | null, locale: string): string {
-  if (ms === null) return '—'
-  if (ms < 1000) return `${Math.round(ms).toLocaleString(locale)} ms`
-  return `${(ms / 1000).toLocaleString(locale, { maximumFractionDigits: 1 })} s`
 }
 
 function sortValue(row: QueryOverview, key: SortKey): number {

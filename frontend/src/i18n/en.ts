@@ -199,6 +199,11 @@ export const en = {
         'The batch was valid and the server could not store it — usually a full disk or a read-only volume. The client did nothing wrong, and those events are gone.',
     },
     routes: 'Routes',
+    routesOver: (slow: number, shown: number, limit: string) =>
+      `${slow} of ${shown} route${shown === 1 ? '' : 's'} over ${limit}`,
+    routesAllUnder: (shown: number, limit: string) =>
+      `${shown === 1 ? 'This route is' : `All ${shown} routes are`} under ${limit}`,
+    p95: 'p95',
     servicesUsers: 'Services & users',
     info: 'Info',
     warn: 'Warn',

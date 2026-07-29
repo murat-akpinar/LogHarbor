@@ -200,6 +200,11 @@ export const tr: Messages = {
         'Grup geçerliydi ve sunucu kaydedemedi — genelde dolu disk ya da salt okunur birim. İstemcinin hatası yok ve o olaylar kayboldu.',
     },
     routes: 'Rotalar',
+    routesOver: (slow: number, shown: number, limit: string) =>
+      `${shown} rotanın ${slow} tanesi ${limit} üzerinde`,
+    routesAllUnder: (shown: number, limit: string) =>
+      shown === 1 ? `Tek rota ${limit} altında` : `${shown} rotanın tamamı ${limit} altında`,
+    p95: 'p95',
     servicesUsers: 'Servisler ve kullanıcılar',
     info: 'Bilgi',
     warn: 'Uyarı',

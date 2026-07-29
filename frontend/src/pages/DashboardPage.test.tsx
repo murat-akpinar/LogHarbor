@@ -137,10 +137,27 @@ describe('DashboardPage', () => {
     expect(hrefs).toContain('/users')
   })
 
-  it('lists routes with their p95 latency', async () => {
+  it('lists routes with their p95 latency, verb apart from path', async () => {
     renderPage()
-    expect(await screen.findByText('GET /articles')).toBeDefined()
+    // the verb is its own coloured label, so a write stands out among reads before reading paths
+    expect(await screen.findByText('GET')).toBeDefined()
+    expect(screen.getByText('/articles')).toBeDefined()
     expect(screen.getByText('512 ms')).toBeDefined()
+    // 512 ms is under the 1 s line, and the panel says so rather than staying silent
+    expect(screen.getByText('This route is under 1 s')).toBeDefined()
+  })
+
+  it('counts the routes over the latency line', async () => {
+    vi.mocked(stats.getOperations).mockResolvedValue({
+      operations: [
+        { template: 'GET /articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
+        { template: 'POST /orders', total: 40, errorCount: 0, p95ElapsedMs: 2450 },
+      ],
+    })
+    renderPage()
+
+    expect(await screen.findByText('1 of 2 routes over 1 s')).toBeDefined()
+    expect(screen.getByText('2.5 s')).toBeDefined()
   })
 
   it('is live by default, with the range picker beside it', async () => {

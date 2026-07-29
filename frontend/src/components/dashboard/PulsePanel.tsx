@@ -9,11 +9,15 @@ interface PulsePanelProps {
   to: string
   isEmpty: boolean
   emptyText: ReactNode
+  /** One line above the rows saying what they add up to. */
+  lead?: ReactNode
+  /** Rows as separate cards instead of a divided list, for rows that carry two lines each. */
+  cards?: boolean
   children: ReactNode
 }
 
 /** A compact top-N card for the dashboard: titled header with a deep link, then a row list. */
-export function PulsePanel({ title, to, isEmpty, emptyText, children }: PulsePanelProps) {
+export function PulsePanel({ title, to, isEmpty, emptyText, lead, cards = false, children }: PulsePanelProps) {
   const { t } = useI18n()
   return (
     <Card className="flex flex-col">
@@ -24,7 +28,10 @@ export function PulsePanel({ title, to, isEmpty, emptyText, children }: PulsePan
       {isEmpty ? (
         <p className="px-4 py-6 text-sm text-fg-muted">{emptyText}</p>
       ) : (
-        <ul className="divide-y divide-border">{children}</ul>
+        <>
+          {lead && <div className="px-4 pt-3">{lead}</div>}
+          <ul className={cards ? 'space-y-2 p-3' : 'divide-y divide-border'}>{children}</ul>
+        </>
       )}
     </Card>
   )
