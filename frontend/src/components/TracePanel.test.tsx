@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
 import { getEvents } from '../api/events'
@@ -30,6 +30,15 @@ function makeEvent(overrides: Partial<Event>): Event {
     traceId: TRACE,
     spanId: null,
     ...overrides,
+  }
+}
+
+/** A 120 ms root span, the smallest trace that still has a shape to zoom into. */
+function span() {
+  return {
+    traceId: TRACE, spanId: 'root', parentSpanId: null, name: 'GET /cart', kind: 'server',
+    service: 'checkout', startTimestamp: '2026-07-18T10:00:00.000Z', durationMs: 120,
+    statusCode: 'error', statusMessage: 'boom', attributes: null,
   }
 }
 
@@ -140,6 +149,45 @@ it('renders the real waterfall when the trace has spans', async () => {
   // clicking the span opens its detail with the status message
   screen.getByRole('button', { name: /GET \/cart/ }).click()
   expect(await screen.findByText(/error — boom/)).toBeDefined()
+})
+
+// spans that finish in a millisecond are a single pixel at fit width; zoom is the only way to
+// see the order they ran in
+it('stretches the timeline on zoom and snaps back to fit', async () => {
+  vi.mocked(getTrace).mockResolvedValue({ spans: [span()] })
+  renderPanel()
+
+  await screen.findByText('GET /cart')
+  const track = screen.getByTestId('span-timeline')
+  expect(track.style.width).toBe('100%')
+  expect((screen.getByLabelText('Fit the whole trace') as HTMLButtonElement).disabled).toBe(true)
+
+  screen.getByLabelText('Zoom in').click()
+
+  await waitFor(() => expect(screen.getByTestId('span-timeline').style.width).toBe('160%'))
+  expect(screen.getByText('1.6×')).toBeDefined()
+
+  screen.getByLabelText('Fit the whole trace').click()
+  await waitFor(() => expect(screen.getByTestId('span-timeline').style.width).toBe('100%'))
+})
+
+it('reads the offset under the pointer off the time axis', async () => {
+  vi.mocked(getTrace).mockResolvedValue({ spans: [span()] })
+  renderPanel()
+
+  await screen.findByText('GET /cart')
+  const track = screen.getByTestId('span-timeline')
+  // jsdom has no layout: give the element a box so the pointer maths has something to divide by
+  Object.defineProperty(track, 'getBoundingClientRect', {
+    value: () => ({ left: 0, top: 0, right: 640, bottom: 100, width: 640, height: 100, x: 0, y: 0, toJSON: () => ({}) }),
+  })
+
+  // 176px of labels, 64px of durations, so the track itself is 400px wide: halfway is 60 ms
+  fireEvent.mouseMove(track, { clientX: 176 + 200 })
+  expect(await screen.findByText('60.0ms')).toBeDefined()
+
+  fireEvent.mouseLeave(track)
+  await waitFor(() => expect(screen.queryByText('60.0ms')).toBeNull())
 })
 
 it('falls back to the inferred layout when the trace has no spans', async () => {

@@ -29,6 +29,22 @@ public sealed class SqliteIngestRejectionStoreTests : IDisposable
         }
     }
 
+    /// <summary>The bucket keeps the newest attempt's sender: an operator chasing a client that
+    /// is being turned away wants the one that is still running, not the first one that failed.</summary>
+    [Fact]
+    public async Task KeepsTheLatestClientAndUserAgent()
+    {
+        await _store.RecordAsync(
+            0, RejectionReasons.Unauthorized, "no API key header", Monday, "10.0.0.5", "vector/0.57");
+        await _store.RecordAsync(
+            0, RejectionReasons.Unauthorized, "no API key header", Monday.AddMinutes(1), "10.0.0.9", "curl/8.5");
+
+        var rejection = (await _store.ListAsync(days: 3650)).Single();
+        Assert.Equal(2, rejection.RequestCount);
+        Assert.Equal("10.0.0.9", rejection.LastClient);
+        Assert.Equal("curl/8.5", rejection.LastUserAgent);
+    }
+
     [Fact]
     public async Task RecordsOneBucketPerKeyReasonAndDay()
     {

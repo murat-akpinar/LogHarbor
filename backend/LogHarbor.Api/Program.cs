@@ -113,10 +113,10 @@ builder.Services.AddRateLimiter(options =>
         {
             var recorder = context.HttpContext.RequestServices.GetRequiredService<IngestRejectionRecorder>();
             await recorder.RecordAsync(
-                IngestRejectionRecorder.ApiKeyIdOf(context.HttpContext),
+                context.HttpContext,
                 RejectionReasons.RateLimited,
                 $"over IngestRateLimitPerMinute ({ingestionOptions.IngestRateLimitPerMinute})",
-                context.HttpContext.Request.Path, cancellationToken);
+                cancellationToken);
         }
     };
     // partitioned by API key token: one noisy client cannot starve the others. Reads the key

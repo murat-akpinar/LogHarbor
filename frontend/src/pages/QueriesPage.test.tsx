@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
@@ -76,8 +76,8 @@ function renderPage() {
 
 it('lists queries and auto-selects the first row into the detail pane', async () => {
   renderPage()
-  // appears in the row and, auto-selected, in the detail pane's <pre>
-  expect((await screen.findAllByText('SELECT * FROM orders WHERE id = @p0')).length).toBeGreaterThanOrEqual(1)
+  // the cell keeps the whole statement in its title; the text itself is split into coloured spans's <pre>
+  expect((await screen.findAllByTitle('SELECT * FROM orders WHERE id = @p0')).length).toBeGreaterThanOrEqual(1)
   // detail pane shows the full SQL in a <pre> plus its stats
   await waitFor(() => {
     expect(document.querySelector('pre')?.textContent).toContain('SELECT * FROM orders')
@@ -89,7 +89,7 @@ it('lists queries and auto-selects the first row into the detail pane', async ()
 
 it('shows recent occurrences with their duration and an Events link', async () => {
   renderPage()
-  await screen.findAllByText('SELECT * FROM orders WHERE id = @p0')
+  await screen.findAllByTitle('SELECT * FROM orders WHERE id = @p0')
   expect(await screen.findByText('Recent occurrences')).toBeDefined()
   expect(await screen.findByText('12 ms')).toBeDefined()
 
@@ -100,7 +100,7 @@ it('shows recent occurrences with their duration and an Events link', async () =
 
 it('lets the user change the query property', async () => {
   renderPage()
-  await screen.findAllByText('SELECT * FROM orders WHERE id = @p0')
+  await screen.findAllByTitle('SELECT * FROM orders WHERE id = @p0')
   const input = screen.getByLabelText('Query property') as HTMLInputElement
   expect(input.value).toBe('commandText')
 })
@@ -117,9 +117,21 @@ it('starts live, and keeps the range picker alongside in both states', async () 
   expect(screen.getByTitle('Time range')).toBeDefined()
 })
 
+// one truncated line is unreadable for anything but the shortest statement, so how much of the
+// query the list shows is the reader's call, and it has to survive a reload
+it('remembers how many lines of a query the list shows', async () => {
+  renderPage()
+  const lines = (await screen.findByLabelText('Query text')) as HTMLSelectElement
+  expect(lines.value).toBe('3')
+
+  fireEvent.change(lines, { target: { value: 'all' } })
+
+  await waitFor(() => expect(localStorage.getItem('logharbor-query-lines')).toBe('"all"'))
+})
+
 it('clicking another row swaps the detail pane', async () => {
   renderPage()
-  ;(await screen.findByText('UPDATE users SET seen = @p0')).click()
+  ;(await screen.findByTitle('UPDATE users SET seen = @p0')).click()
   await waitFor(() => {
     expect(document.querySelector('pre')?.textContent).toContain('UPDATE users SET seen')
   })

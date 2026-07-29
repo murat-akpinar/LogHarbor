@@ -35,8 +35,8 @@ public static class OtlpEndpoints
         if (!isProtobuf && !isJson)
         {
             var detail = "POST /v1/logs accepts application/x-protobuf or application/json.";
-            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
-                RejectionReasons.UnsupportedMediaType, detail, httpRequest.Path, cancellationToken);
+            await rejections.RecordAsync(httpRequest.HttpContext,
+                RejectionReasons.UnsupportedMediaType, detail, cancellationToken);
             return Results.Problem(statusCode: StatusCodes.Status415UnsupportedMediaType,
                 title: "Unsupported content type", detail: detail);
         }
@@ -45,8 +45,8 @@ public static class OtlpEndpoints
         if (body is null)
         {
             var detail = $"Batch exceeds MaxBatchBytes ({options.MaxBatchBytes}).";
-            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
-                RejectionReasons.TooLarge, detail, httpRequest.Path, cancellationToken);
+            await rejections.RecordAsync(httpRequest.HttpContext,
+                RejectionReasons.TooLarge, detail, cancellationToken);
             return Results.Problem(statusCode: StatusCodes.Status413PayloadTooLarge,
                 title: "Payload too large", detail: detail);
         }
@@ -84,10 +84,10 @@ public static class OtlpEndpoints
         {
             // partial_success rides inside a 200 and most exporters never look at it, so a
             // dropped record here is every bit as silent as an outright 4xx
-            await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
+            await rejections.RecordAsync(httpRequest.HttpContext,
                 RejectionReasons.InvalidPayload,
                 $"{result.RejectedLogRecords} log record(s) dropped: {result.ErrorMessage}",
-                httpRequest.Path, cancellationToken);
+                cancellationToken);
             response.PartialSuccess = new ExportLogsPartialSuccess
             {
                 RejectedLogRecords = result.RejectedLogRecords,
@@ -104,8 +104,8 @@ public static class OtlpEndpoints
         HttpRequest httpRequest, IngestRejectionRecorder rejections, string detail,
         CancellationToken cancellationToken)
     {
-        await rejections.RecordAsync(IngestRejectionRecorder.ApiKeyIdOf(httpRequest.HttpContext),
-            RejectionReasons.InvalidPayload, detail, httpRequest.Path, cancellationToken);
+        await rejections.RecordAsync(httpRequest.HttpContext,
+            RejectionReasons.InvalidPayload, detail, cancellationToken);
         return Problems.BadRequest("Invalid OTLP payload", detail);
     }
 }

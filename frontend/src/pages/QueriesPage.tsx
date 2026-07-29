@@ -9,8 +9,11 @@ import { LevelBadge } from '../components/LevelBadge'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
+import { SqlText } from '../components/SqlText'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
+import { Select } from '../components/ui/Select'
+import { useLocalStorage } from '../hooks/useLocalStorage'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
@@ -22,6 +25,18 @@ const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
 
 type SortKey = 'calls' | 'total' | 'avg' | 'p95'
+
+/** How much of a query the list shows. One line fits more rows on screen; three is enough to
+ *  tell two statements on the same table apart, which one line often is not. */
+type QueryLines = '1' | '3' | 'all'
+
+const QUERY_LINES_KEY = 'logharbor-query-lines'
+
+const CLAMP_CLASS: Record<QueryLines, string> = {
+  '1': 'truncate',
+  '3': 'line-clamp-3 break-words',
+  all: 'break-words',
+}
 
 /** 830 -> "830 ms", 4100 -> "4.1 s" — totals can reach seconds while p95 stays in ms. */
 function formatDuration(ms: number | null, locale: string): string {
@@ -44,6 +59,7 @@ export function QueriesPage() {
   const [selectedValue, setSelectedValue] = useState<string | null>(null)
   const [property, setProperty] = useState('commandText')
   const [durationProperty, setDurationProperty] = useState('elapsed')
+  const [queryLines, setQueryLines] = useLocalStorage<QueryLines>(QUERY_LINES_KEY, '3')
 
   const queries = useQueries({ ...range, property, durationProperty, limit: ROW_LIMIT })
   const rows = [...(queries.data?.queries ?? [])].sort((a, b) => sortValue(b, sortKey) - sortValue(a, sortKey))
@@ -98,6 +114,19 @@ export function QueriesPage() {
               className="w-28 font-mono text-xs"
             />
           </label>
+          <label className="flex items-center gap-1 text-xs text-fg-muted">
+            {t.queries.queryLines}
+            <Select
+              aria-label={t.queries.queryLines}
+              value={queryLines}
+              onChange={(event) => setQueryLines(event.target.value as QueryLines)}
+              className="px-2 py-1 text-xs"
+            >
+              <option value="1">{t.queries.linesOne}</option>
+              <option value="3">{t.queries.linesThree}</option>
+              <option value="all">{t.queries.linesAll}</option>
+            </Select>
+          </label>
           <LiveRangeControls
             live={live}
             onToggleLive={toggleLive}
@@ -131,13 +160,26 @@ export function QueriesPage() {
                     selected?.value === row.value ? 'bg-surface-raised' : 'hover:bg-surface-hover'
                   }`}
                 >
-                  <td className={`${TD_CLASS} max-w-0 truncate font-mono`} title={row.value}>
-                    {row.value}
+                  <td
+                    className={`${TD_CLASS} align-top font-mono ${queryLines === '1' ? 'max-w-0' : ''}`}
+                    title={row.value}
+                  >
+                    <div className={CLAMP_CLASS[queryLines]}>
+                      <SqlText text={row.value} />
+                    </div>
                   </td>
-                  <td className={`${TD_CLASS} tabular text-right`}>{row.calls.toLocaleString(lang)}</td>
-                  <td className={`${TD_CLASS} tabular text-right`}>{formatDuration(row.totalMs, lang)}</td>
-                  <td className={`${TD_CLASS} tabular text-right`}>{formatDuration(row.avgMs, lang)}</td>
-                  <td className={`${TD_CLASS} tabular text-right`}>{formatDuration(row.p95Ms, lang)}</td>
+                  <td className={`${TD_CLASS} tabular align-top text-right whitespace-nowrap`}>
+                    {row.calls.toLocaleString(lang)}
+                  </td>
+                  <td className={`${TD_CLASS} tabular align-top text-right whitespace-nowrap`}>
+                    {formatDuration(row.totalMs, lang)}
+                  </td>
+                  <td className={`${TD_CLASS} tabular align-top text-right whitespace-nowrap`}>
+                    {formatDuration(row.avgMs, lang)}
+                  </td>
+                  <td className={`${TD_CLASS} tabular align-top text-right whitespace-nowrap`}>
+                    {formatDuration(row.p95Ms, lang)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -153,8 +195,8 @@ export function QueriesPage() {
         <Card className="min-h-0 overflow-y-auto p-4 lg:w-1/2">
           {selected && (
             <div className="flex flex-col gap-4">
-              <pre className="max-h-48 overflow-auto rounded-lg bg-surface-raised p-3 font-mono text-xs whitespace-pre-wrap text-fg">
-                {selected.value}
+              <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-fg">
+                <SqlText text={selected.value} />
               </pre>
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                 <DetailTile label={t.queries.calls} value={selected.calls.toLocaleString(lang)} />

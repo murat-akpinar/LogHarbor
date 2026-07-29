@@ -9,7 +9,7 @@ export function Input({ mono = false, className = '', ...rest }: InputProps) {
   return (
     <input
       {...rest}
-      className={`rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg transition-colors duration-150 placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none ${mono ? 'font-mono' : ''} ${className}`}
+      className={`rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-fg transition-colors duration-150 placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${mono ? 'font-mono' : ''} ${className}`}
     />
   )
 }

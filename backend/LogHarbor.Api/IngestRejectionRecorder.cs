@@ -19,19 +19,27 @@ public sealed class IngestRejectionRecorder
         _logger = logger;
     }
 
-    /// <summary>apiKeyId 0 means the request carried no valid key.</summary>
+    /// <summary>Everything a rejection is worth recording comes off the request itself: which
+    /// key the middleware resolved (0 when none), where it was posted, and who sent it.</summary>
     public async Task RecordAsync(
-        long apiKeyId, string reason, string? detail, string path, CancellationToken cancellationToken)
+        HttpContext context, string reason, string? detail, CancellationToken cancellationToken)
     {
+        var apiKeyId = ApiKeyIdOf(context);
+        var path = context.Request.Path.ToString();
+        var client = ClientOf(context);
+        var userAgent = context.Request.Headers.UserAgent.ToString();
+
         // the key id, never the token (rules.md SECURITY)
         _logger.LogWarning(
-            "Ingestion rejected on {Path}: {Reason} (api key {ApiKeyId}) {Detail}",
-            path, reason, apiKeyId, detail);
+            "Ingestion rejected on {Path}: {Reason} (api key {ApiKeyId}, client {Client}) {Detail}",
+            path, reason, apiKeyId, client, detail);
         LogHarborMetrics.CountRejected(reason);
 
         try
         {
-            await _store.RecordAsync(apiKeyId, reason, detail, DateTimeOffset.UtcNow, cancellationToken);
+            await _store.RecordAsync(
+                apiKeyId, reason, detail, DateTimeOffset.UtcNow,
+                client, string.IsNullOrWhiteSpace(userAgent) ? null : userAgent, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -46,4 +54,19 @@ public sealed class IngestRejectionRecorder
     /// <summary>Reads the key the ApiKeyMiddleware resolved, or 0 when it rejected the request.</summary>
     public static long ApiKeyIdOf(HttpContext context) =>
         context.Items.TryGetValue(ApiKeyMiddleware.KeyIdItem, out var id) && id is long keyId ? keyId : 0;
+
+    /// <summary>Who sent it, for the rejection that has no API key to name. The socket address
+    /// is what actually connected; X-Forwarded-For is the client's own claim, so both are kept
+    /// and neither decides anything — this string is only ever displayed.</summary>
+    private static string? ClientOf(HttpContext context)
+    {
+        var remote = context.Connection.RemoteIpAddress?.ToString();
+        var forwarded = context.Request.Headers["X-Forwarded-For"].ToString();
+        if (string.IsNullOrWhiteSpace(forwarded))
+        {
+            return remote;
+        }
+        var claimed = forwarded.Split(',')[0].Trim();
+        return remote is null ? claimed : $"{claimed} via {remote}";
+    }
 }

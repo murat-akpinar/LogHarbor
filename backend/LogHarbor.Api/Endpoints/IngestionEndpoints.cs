@@ -161,8 +161,7 @@ public static class IngestionEndpoints
         CancellationToken cancellationToken)
     {
         await rejections.RecordAsync(
-            IngestRejectionRecorder.ApiKeyIdOf(request.HttpContext),
-            failure.Reason, failure.Detail, request.Path, cancellationToken);
+            request.HttpContext, failure.Reason, failure.Detail, cancellationToken);
         return failure.ToResult(failure.Detail);
     }
 

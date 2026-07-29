@@ -82,6 +82,40 @@ describe('DashboardPage', () => {
     expect(screen.getByText('57')).toBeDefined()
   })
 
+  // a headline number on its own says nothing about whether today is unusual; the tiles exist
+  // for the comparison, so the comparison is what has to be right
+  it('measures the headline figures against the window before them', async () => {
+    // the rolling window is the last hour, so the previous window is the one ending before it
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    const PREVIOUS = {
+      total: 100,
+      byLevel: { Verbose: 0, Debug: 0, Information: 60, Warning: 0, Error: 20, Fatal: 20 },
+    }
+    vi.mocked(stats.getSummary).mockImplementation(async (params) =>
+      params.to < cutoff ? PREVIOUS : SUMMARY,
+    )
+
+    const { container } = renderPage()
+    expect(await screen.findByText('Total events')).toBeDefined()
+
+    // events 200 against 100, errors 20 against 40
+    await waitFor(() => expect(container.textContent).toContain('↑ 100%'))
+    expect(container.textContent).toContain('↓ 50%')
+    expect(container.textContent).toContain('vs previous period')
+  })
+
+  it('leaves the comparison off when the previous window held nothing', async () => {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    const EMPTY = { total: 0, byLevel: { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 } }
+    vi.mocked(stats.getSummary).mockImplementation(async (params) => (params.to < cutoff ? EMPTY : SUMMARY))
+
+    const { container } = renderPage()
+    expect(await screen.findByText('Total events')).toBeDefined()
+
+    await waitFor(() => expect(container.textContent).toContain('200'))
+    expect(container.textContent).not.toContain('vs previous period')
+  })
+
   it('groups content under sections and links Activity to Events', async () => {
     renderPage()
     expect(await screen.findByText('Activity')).toBeDefined()
@@ -120,8 +154,8 @@ describe('DashboardPage', () => {
   it('shows how late events arrived, above the charts', async () => {
     renderPage()
 
-    expect(await screen.findByText('Ingestion lag')).toBeDefined()
-    expect(screen.getByText(/worst 7d/)).toBeDefined()
+    // the tile above prints the same label before any data lands, so wait on the strip's numbers
+    expect(await screen.findByText(/worst 7d/)).toBeDefined()
     expect(screen.getByText(/3 arrived late/)).toBeDefined()
   })
 
@@ -134,9 +168,16 @@ describe('DashboardPage', () => {
 
     const getSummary = vi.mocked(stats.getSummary)
     await waitFor(() => {
-      const lastFrom = getSummary.mock.calls.at(-1)?.[0]?.from
-      expect(lastFrom).toBeDefined()
-      const width = Date.now() - new Date(lastFrom as string).getTime()
+      // two windows are queried now — the visible one and the one before it, for the tile
+      // comparison — so the window under test is the one that ends latest
+      const visible = getSummary.mock.calls
+        .map((call) => call[0])
+        .reduce<{ from: string; to: string } | null>(
+          (newest, params) => (newest === null || params.to > newest.to ? params : newest),
+          null,
+        )
+      expect(visible).not.toBeNull()
+      const width = Date.now() - new Date((visible as { from: string }).from).getTime()
       expect(width).toBeLessThanOrEqual(FIFTEEN_MIN_MS + 60_000)
     })
   })

@@ -148,7 +148,7 @@ describe('App', () => {
 
     renderApp('/events')
 
-    expect(await screen.findByPlaceholderText('Username')).toBeDefined()
+    expect(await screen.findByLabelText('Username')).toBeDefined()
     await waitFor(() => expect(screen.queryByRole('link', { name: /Events/ })).toBeNull())
   })
 
@@ -163,7 +163,7 @@ describe('App', () => {
 
     renderApp('/')
 
-    expect(await screen.findByPlaceholderText('New password')).toBeDefined()
+    expect(await screen.findByLabelText('New password')).toBeDefined()
     expect(screen.queryByRole('link', { name: /Settings/ })).toBeNull()
   })
 })

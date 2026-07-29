@@ -17,6 +17,7 @@ public sealed class SqliteIngestRejectionStore : IIngestRejectionStore
 
     public async Task RecordAsync(
         long apiKeyId, string reason, string? detail, DateTimeOffset at,
+        string? client = null, string? userAgent = null,
         CancellationToken cancellationToken = default)
     {
         var timestamp = ClefParser.FormatTimestamp(at);
@@ -25,15 +26,19 @@ public sealed class SqliteIngestRejectionStore : IIngestRejectionStore
         using var command = connection.CreateCommand();
         command.CommandText =
             "INSERT INTO ingest_rejections " +
-            "  (api_key_id, reason, day, request_count, first_seen, last_seen, last_detail) " +
-            "VALUES (@apiKeyId, @reason, @day, 1, @at, @at, @detail) " +
+            "  (api_key_id, reason, day, request_count, first_seen, last_seen, last_detail, " +
+            "   last_client, last_user_agent) " +
+            "VALUES (@apiKeyId, @reason, @day, 1, @at, @at, @detail, @client, @userAgent) " +
             "ON CONFLICT(api_key_id, reason, day) DO UPDATE SET " +
-            "  request_count = request_count + 1, last_seen = @at, last_detail = @detail;";
+            "  request_count = request_count + 1, last_seen = @at, last_detail = @detail, " +
+            "  last_client = @client, last_user_agent = @userAgent;";
         command.Parameters.AddWithValue("@apiKeyId", apiKeyId);
         command.Parameters.AddWithValue("@reason", reason);
         command.Parameters.AddWithValue("@day", DayOf(at));
         command.Parameters.AddWithValue("@at", timestamp);
         command.Parameters.AddWithValue("@detail", (object?)Truncate(detail) ?? DBNull.Value);
+        command.Parameters.AddWithValue("@client", (object?)Truncate(client) ?? DBNull.Value);
+        command.Parameters.AddWithValue("@userAgent", (object?)Truncate(userAgent) ?? DBNull.Value);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
@@ -44,7 +49,7 @@ public sealed class SqliteIngestRejectionStore : IIngestRejectionStore
         using var command = connection.CreateCommand();
         command.CommandText =
             "SELECT r.api_key_id, k.title, r.reason, r.day, r.request_count, " +
-            "       r.first_seen, r.last_seen, r.last_detail " +
+            "       r.first_seen, r.last_seen, r.last_detail, r.last_client, r.last_user_agent " +
             "FROM ingest_rejections r " +
             "LEFT JOIN api_keys k ON k.id = r.api_key_id " +
             "WHERE r.day >= @from " +
@@ -63,7 +68,9 @@ public sealed class SqliteIngestRejectionStore : IIngestRejectionStore
                 RequestCount: reader.GetInt64(4),
                 FirstSeen: reader.GetString(5),
                 LastSeen: reader.GetString(6),
-                LastDetail: reader.IsDBNull(7) ? null : reader.GetString(7)));
+                LastDetail: reader.IsDBNull(7) ? null : reader.GetString(7),
+                LastClient: reader.IsDBNull(8) ? null : reader.GetString(8),
+                LastUserAgent: reader.IsDBNull(9) ? null : reader.GetString(9)));
         }
         return rejections;
     }

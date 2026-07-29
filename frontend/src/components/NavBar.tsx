@@ -1,9 +1,29 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import type { Theme } from '../hooks/useTheme'
+import { useAuthStatus, useLogout } from '../hooks/useAuth'
 import { useI18n } from '../i18n'
 import { PageIcon } from './icons'
 import type { PageIconName } from './icons'
 import { Button } from './ui/Button'
+
+/** Door with an arrow leaving it. Not in icons.tsx: that set names pages, and this is an action. */
+function SignOutIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4 shrink-0"
+      aria-hidden="true"
+    >
+      <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+      <path d="M10 17l-5-5 5-5M5 12h9" />
+    </svg>
+  )
+}
 
 interface NavBarProps {
   theme: Theme
@@ -12,6 +32,8 @@ interface NavBarProps {
 
 export function NavBar({ theme, onToggleTheme }: NavBarProps) {
   const { t, lang, setLang } = useI18n()
+  const { data: authStatus } = useAuthStatus()
+  const logoutMutation = useLogout()
 
   const links: { to: string; label: string; end: boolean; icon: PageIconName }[] = [
     { to: '/', label: t.nav.dashboard, end: true, icon: 'dashboard' },
@@ -29,10 +51,18 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
 
   return (
     <nav className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface px-4">
-      <span className="mr-6 flex items-center gap-2 text-sm font-semibold text-fg">
-        <span className="size-2 rounded-full bg-accent" aria-hidden="true" />
+      <Link
+        to="/"
+        className="mr-6 flex items-center gap-2 rounded-lg text-sm font-semibold text-fg transition-colors duration-150 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
+      >
+        <span
+          className="flex size-6 items-center justify-center rounded-md border border-border bg-surface-raised"
+          aria-hidden="true"
+        >
+          <span className="size-1.5 rounded-full bg-accent" />
+        </span>
         LogHarbor
-      </span>
+      </Link>
       {links.map(({ to, label, end, icon }) => (
         <NavLink
           key={to}
@@ -50,23 +80,41 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
           {label}
         </NavLink>
       ))}
-      <Button
-        variant="ghost"
-        onClick={() => setLang(lang === 'en' ? 'tr' : 'en')}
-        aria-label={t.nav.switchLanguage}
-        title={t.nav.switchLanguage}
-        className="ml-auto"
-      >
-        {lang.toUpperCase()}
-      </Button>
-      <Button
-        variant="ghost"
-        onClick={onToggleTheme}
-        aria-label={theme === 'dark' ? t.nav.switchToLight : t.nav.switchToDark}
-        title={theme === 'dark' ? t.nav.switchToLight : t.nav.switchToDark}
-      >
-        {theme === 'dark' ? '☀' : '☾'}
-      </Button>
+      {/* the two instance-wide switches, grouped as one control so they read apart from the pages */}
+      <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
+        <Button
+          variant="ghost"
+          onClick={() => setLang(lang === 'en' ? 'tr' : 'en')}
+          aria-label={t.nav.switchLanguage}
+          title={t.nav.switchLanguage}
+          className="px-2 py-1 text-xs font-semibold tracking-wide"
+        >
+          {lang.toUpperCase()}
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={onToggleTheme}
+          aria-label={theme === 'dark' ? t.nav.switchToLight : t.nav.switchToDark}
+          title={theme === 'dark' ? t.nav.switchToLight : t.nav.switchToDark}
+          className="px-2 py-1"
+        >
+          {theme === 'dark' ? '☀' : '☾'}
+        </Button>
+        {/* only when there is a session to end: an install with no accounts has nothing to sign
+            out of. The tooltip carries who is signed in, which is the other half of Settings' row */}
+        {authStatus?.authRequired && (
+          <Button
+            variant="ghost"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+            aria-label={t.settings.signOut}
+            title={t.settings.signedInAs(authStatus.username ?? '', authStatus.role ?? '')}
+            className="px-2 py-1"
+          >
+            <SignOutIcon />
+          </Button>
+        )}
+      </div>
     </nav>
   )
 }

@@ -39,6 +39,15 @@ export const en = {
   },
   login: {
     tagline: 'Structured log server',
+    heroTitle: 'Every event, one query away.',
+    heroBody:
+      'Ingest CLEF or OTLP, tail it live, and search it with a real filter language. One SQLite file, one port, and nothing leaves your network.',
+    cardSubtitle: 'Sign in to this LogHarbor instance.',
+    sampleLabel: 'Sample',
+    methodStandard: 'Standard',
+    methodLdap: 'LDAP',
+    ldapNotConfigured:
+      'Directory sign-in is not set up on this instance yet. Once an administrator configures one under Settings, domain accounts sign in here.',
     username: 'Username',
     password: 'Password',
     signIn: 'Sign in',
@@ -144,6 +153,9 @@ export const en = {
     spanKind: 'Kind',
     spanService: 'Service',
     spanAttributes: 'Attributes',
+    zoomIn: 'Zoom in',
+    zoomOut: 'Zoom out',
+    zoomReset: 'Fit the whole trace',
   },
   dashboard: {
     title: 'Dashboard',
@@ -160,6 +172,11 @@ export const en = {
     rejectedFrom: 'from',
     rejectedNoKey: 'no valid API key',
     rejectedLastSeen: 'last',
+    rejectedDismiss: 'Dismiss',
+    rejectedDismissHint: 'Hides this until a newer rejection arrives.',
+    rejectedKeyLabel: 'key',
+    rejectedClientLabel: 'client',
+    rejectedAgentLabel: 'agent',
     rejectedReasons: {
       unauthorized: 'Rejected key',
       rate_limited: 'Rate limited',
@@ -167,6 +184,19 @@ export const en = {
       too_large: 'Too large',
       unsupported_media_type: 'Unsupported content type',
       write_failed: 'Could not be stored',
+    },
+    rejectedExplain: {
+      unauthorized:
+        'The request carried no valid API key, so nothing was stored. Check the key the client below is configured with.',
+      rate_limited:
+        'The client sent more requests per minute than IngestRateLimitPerMinute allows, and those batches were dropped.',
+      invalid_payload:
+        'The body was not CLEF, Seq raw events or OTLP. The line the parser stopped on is at the bottom of this row.',
+      too_large:
+        'The batch or a single event was over MaxBatchBytes / MaxEventBytes. The client has to send smaller batches.',
+      unsupported_media_type: 'The Content-Type the client sent is not one this endpoint accepts.',
+      write_failed:
+        'The batch was valid and the server could not store it — usually a full disk or a read-only volume. The client did nothing wrong, and those events are gone.',
     },
     routes: 'Routes',
     servicesUsers: 'Services & users',
@@ -187,6 +217,7 @@ export const en = {
     topError: 'Top error',
     noneInRange: 'None in range',
     openAnalysis: (count: number) => `${count}× — open Analysis`,
+    vsPrevious: 'vs previous period',
     activityByHour: 'Activity by hour (UTC)',
     total: 'Total',
     bucketAria: (time: string, count: number) => `${time}: ${count} events`,
@@ -284,6 +315,10 @@ export const en = {
     recentOccurrences: 'Recent occurrences',
     queryProperty: 'Query property',
     durationProperty: 'Duration property',
+    queryLines: 'Query text',
+    linesOne: '1 line',
+    linesThree: '3 lines',
+    linesAll: 'Full',
     noQueries: 'No query events in the selected range.',
     noQueriesHint:
       'This page groups events that carry a SQL-text property (default "commandText") and a duration property (default "elapsed") — EF Core\'s "Executed DbCommand" log has both. See docs/ingestion-app.md for enabling it.',

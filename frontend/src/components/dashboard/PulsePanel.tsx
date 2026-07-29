@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { Card } from '../ui/Card'
+import { PillLink } from '../ui/PillLink'
 import { useI18n } from '../../i18n'
 
 interface PulsePanelProps {
@@ -17,11 +17,9 @@ export function PulsePanel({ title, to, isEmpty, emptyText, children }: PulsePan
   const { t } = useI18n()
   return (
     <Card className="flex flex-col">
-      <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
-        <h2 className="text-sm font-semibold text-fg">{title}</h2>
-        <Link to={to} className="shrink-0 text-xs text-fg-muted transition-colors hover:text-accent">
-          {t.dashboard.viewAll} →
-        </Link>
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+        <h2 className="truncate text-sm font-semibold text-fg">{title}</h2>
+        <PillLink to={to}>{t.dashboard.viewAll}</PillLink>
       </div>
       {isEmpty ? (
         <p className="px-4 py-6 text-sm text-fg-muted">{emptyText}</p>

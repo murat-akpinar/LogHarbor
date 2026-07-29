@@ -337,6 +337,26 @@ public sealed class IngestionEndpointsTests : IDisposable
         Assert.Equal(JsonValueKind.Null, rejection.GetProperty("apiKeyTitle").ValueKind);
     }
 
+    /// <summary>The rejection with no key to name is the one an operator can do least with, so
+    /// it has to carry whatever else identifies the sender.</summary>
+    [Fact]
+    public async Task InvalidApiKey_IsRecorded_WithTheClientThatSentIt()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent("""{"@t":"2026-07-13T10:00:00Z"}""", Encoding.UTF8, "application/vnd.serilog.clef"),
+        };
+        request.Headers.Add("X-LogHarbor-ApiKey", "logharbor_not_a_real_key");
+        request.Headers.Add("User-Agent", "vector/0.57");
+        request.Headers.Add("X-Forwarded-For", "10.0.0.5, 172.18.0.1");
+        await _client.SendAsync(request);
+
+        var rejection = (await GetRejectionsAsync()).EnumerateArray().Single();
+        Assert.Equal("vector/0.57", rejection.GetProperty("lastUserAgent").GetString());
+        // the forwarded claim is kept, and so is the fact that it is only a claim
+        Assert.Contains("10.0.0.5", rejection.GetProperty("lastClient").GetString());
+    }
+
     [Fact]
     public async Task OversizedBatch_IsRecordedAsTooLarge()
     {

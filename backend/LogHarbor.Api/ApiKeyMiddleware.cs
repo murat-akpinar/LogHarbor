@@ -40,9 +40,9 @@ public sealed class ApiKeyMiddleware
 
         if (keyId is null)
         {
-            await rejections.RecordAsync(0, RejectionReasons.Unauthorized,
+            await rejections.RecordAsync(context, RejectionReasons.Unauthorized,
                 token.Length == 0 ? "no API key header" : "the key is unknown or revoked",
-                context.Request.Path, context.RequestAborted);
+                context.RequestAborted);
             await Results.Problem(statusCode: StatusCodes.Status401Unauthorized,
                 title: "Missing or invalid API key").ExecuteAsync(context);
             return;

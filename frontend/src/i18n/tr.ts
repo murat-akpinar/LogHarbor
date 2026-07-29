@@ -41,6 +41,15 @@ export const tr: Messages = {
   },
   login: {
     tagline: 'Yapılandırılmış log sunucusu',
+    heroTitle: 'Her olay, tek sorgu uzağında.',
+    heroBody:
+      'CLEF veya OTLP ile topla, canlı akışta izle, gerçek bir filtre diliyle ara. Tek SQLite dosyası, tek port; hiçbir veri ağının dışına çıkmaz.',
+    cardSubtitle: 'Bu LogHarbor kurulumuna giriş yap.',
+    sampleLabel: 'Örnek',
+    methodStandard: 'Standart',
+    methodLdap: 'LDAP',
+    ldapNotConfigured:
+      'Dizin ile giriş bu kurulumda henüz yapılandırılmadı. Bir yönetici Ayarlar altında dizin tanımladığında, alan hesapları buradan giriş yapacak.',
     username: 'Kullanıcı adı',
     password: 'Parola',
     signIn: 'Giriş yap',
@@ -145,6 +154,9 @@ export const tr: Messages = {
     spanKind: 'Tür',
     spanService: 'Servis',
     spanAttributes: 'Öznitelikler',
+    zoomIn: 'Yakınlaştır',
+    zoomOut: 'Uzaklaştır',
+    zoomReset: 'İzin tamamını sığdır',
   },
   dashboard: {
     title: 'Panel',
@@ -161,6 +173,11 @@ export const tr: Messages = {
     rejectedFrom: 'kaynak',
     rejectedNoKey: 'geçerli API anahtarı yok',
     rejectedLastSeen: 'son',
+    rejectedDismiss: 'Yoksay',
+    rejectedDismissHint: 'Daha yeni bir reddedilme gelene kadar gizler.',
+    rejectedKeyLabel: 'anahtar',
+    rejectedClientLabel: 'istemci',
+    rejectedAgentLabel: 'ajan',
     rejectedReasons: {
       unauthorized: 'Reddedilen anahtar',
       rate_limited: 'Hız sınırı',
@@ -168,6 +185,19 @@ export const tr: Messages = {
       too_large: 'Fazla büyük',
       unsupported_media_type: 'Desteklenmeyen içerik tipi',
       write_failed: 'Kaydedilemedi',
+    },
+    rejectedExplain: {
+      unauthorized:
+        'İstek geçerli bir API anahtarı taşımıyordu, hiçbir şey kaydedilmedi. Aşağıdaki istemcinin yapılandırdığı anahtarı kontrol et.',
+      rate_limited:
+        'İstemci dakikada IngestRateLimitPerMinute sınırından fazla istek gönderdi ve o gruplar düşürüldü.',
+      invalid_payload:
+        'Gövde CLEF, Seq raw events ya da OTLP değildi. Çözümleyicinin takıldığı satır bu satırın altında.',
+      too_large:
+        'Grup ya da tek bir olay MaxBatchBytes / MaxEventBytes sınırını aştı. İstemcinin daha küçük gruplar göndermesi gerekiyor.',
+      unsupported_media_type: 'İstemcinin gönderdiği Content-Type bu uç noktanın kabul ettiklerinden biri değil.',
+      write_failed:
+        'Grup geçerliydi ve sunucu kaydedemedi — genelde dolu disk ya da salt okunur birim. İstemcinin hatası yok ve o olaylar kayboldu.',
     },
     routes: 'Rotalar',
     servicesUsers: 'Servisler ve kullanıcılar',
@@ -188,6 +218,7 @@ export const tr: Messages = {
     topError: 'En sık hata',
     noneInRange: 'Aralıkta yok',
     openAnalysis: (count: number) => `${count}× — Analizi aç`,
+    vsPrevious: 'önceki döneme göre',
     activityByHour: 'Saatlik etkinlik (UTC)',
     total: 'Toplam',
     bucketAria: (time: string, count: number) => `${time}: ${count} olay`,
@@ -283,6 +314,10 @@ export const tr: Messages = {
     recentOccurrences: 'Son çağrılar',
     queryProperty: 'Sorgu property\'si',
     durationProperty: 'Süre property\'si',
+    queryLines: 'Sorgu metni',
+    linesOne: '1 satır',
+    linesThree: '3 satır',
+    linesAll: 'Tamamı',
     noQueries: 'Seçilen aralıkta sorgu olayı yok.',
     noQueriesHint:
       'Bu sayfa SQL metni taşıyan bir property (varsayılan "commandText") ile süre property\'si (varsayılan "elapsed") olan olayları gruplar — EF Core\'un "Executed DbCommand" logu ikisini de taşır. Etkinleştirmek için docs/ingestion-app.md\'ye bakın.',

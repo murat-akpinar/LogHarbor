@@ -17,7 +17,8 @@ public static class RejectionReasons
 }
 
 /// <summary>One (key, reason, day) bucket. ApiKeyTitle is null when the request had no valid
-/// key — there is no key row to name.</summary>
+/// key — there is no key row to name, which is when LastClient and LastUserAgent are the only
+/// things that say who was turned away.</summary>
 public sealed record IngestRejection(
     long ApiKeyId,
     string? ApiKeyTitle,
@@ -26,13 +27,16 @@ public sealed record IngestRejection(
     long RequestCount,
     string FirstSeen,
     string LastSeen,
-    string? LastDetail);
+    string? LastDetail,
+    string? LastClient,
+    string? LastUserAgent);
 
 public interface IIngestRejectionStore
 {
     /// <summary>Adds one rejection to its bucket. apiKeyId 0 means no valid key.</summary>
     Task RecordAsync(
         long apiKeyId, string reason, string? detail, DateTimeOffset at,
+        string? client = null, string? userAgent = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>Buckets from the last <paramref name="days"/> UTC days, newest activity first.</summary>

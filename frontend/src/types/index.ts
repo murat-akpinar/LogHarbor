@@ -96,6 +96,9 @@ export interface IngestRejection {
   firstSeen: string
   lastSeen: string
   lastDetail: string | null
+  /** Socket address of the last attempt, with the forwarded-for claim when there is one. */
+  lastClient: string | null
+  lastUserAgent: string | null
 }
 
 export interface IngestRejectionsResult {
