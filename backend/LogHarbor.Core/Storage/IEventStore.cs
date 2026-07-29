@@ -39,7 +39,18 @@ public sealed record HeatmapCell(int DayOfWeek, int Hour, long Count);
 public sealed record ServiceOverview(string Service, long Total, long ErrorCount, double? P95ElapsedMs);
 
 /// <summary>RED numbers for one operation (CLEF message template); P95ElapsedMs is null when no event carried Elapsed.</summary>
-public sealed record OperationOverview(string Template, long Total, long ErrorCount, double? P95ElapsedMs);
+/// <summary>One operation group. When the events carried the configured route property the group
+/// is a route — Method and Route are filled and Template is the "GET /orders/{id}" label built
+/// from them; otherwise the group is a message template and both are null. Grouping by template
+/// alone put every request an app makes into one row, which is no answer to "which route is
+/// slow": the template is the same string for all of them.</summary>
+public sealed record OperationOverview(
+    string Template,
+    long Total,
+    long ErrorCount,
+    double? P95ElapsedMs,
+    string? Method = null,
+    string? Route = null);
 
 /// <summary>Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen timestamp.</summary>
 public sealed record UserActivity(string Value, long Total, long ErrorCount, string LastSeen);
@@ -159,11 +170,16 @@ public interface IEventStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Per-operation totals, Error+Fatal counts and p95 of Elapsed, largest first. Operation identity
-    /// is the CLEF message_template; events without one are excluded. Searches hot + hydrated data.
+    /// Per-operation totals, Error+Fatal counts and p95 of Elapsed, largest first. An event that
+    /// carries <paramref name="routeProperty"/> is grouped as a route (with
+    /// <paramref name="methodProperty"/> in front of it when present); everything else falls back
+    /// to its CLEF message_template, so jobs and other non-HTTP operations stay visible. Both
+    /// property names must be bare identifiers ([A-Za-z0-9_.]); the API boundary validates them.
+    /// Searches hot + hydrated data.
     /// </summary>
     Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
-        QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);
+        QuerySql? filter, string fromUtc, string toUtc, string routeProperty, string methodProperty,
+        int limit, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Per-value activity for one user-identifying <paramref name="property"/> (totals, Error+Fatal

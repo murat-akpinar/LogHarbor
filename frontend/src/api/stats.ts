@@ -55,7 +55,9 @@ export function getServiceStatus(
   return api.get<ServiceStatusBoard>(`/api/stats/service-status${buildQuery(params)}`)
 }
 
-export function getOperations(params: StatsRangeParams & { limit?: number }): Promise<{ operations: OperationOverview[] }> {
+export function getOperations(
+  params: StatsRangeParams & { routeProperty?: string; methodProperty?: string; limit?: number },
+): Promise<{ operations: OperationOverview[] }> {
   return api.get<{ operations: OperationOverview[] }>(`/api/stats/operations${buildQuery(params)}`)
 }
 

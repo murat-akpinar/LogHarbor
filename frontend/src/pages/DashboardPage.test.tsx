@@ -27,7 +27,11 @@ const SLOW = {
   timedOperationCount: 5,
   comparableOperationCount: 5,
 }
-const OPERATIONS = { operations: [{ template: 'GET /articles', total: 90, errorCount: 2, p95ElapsedMs: 512 }] }
+const OPERATIONS = {
+  operations: [
+    { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
+  ],
+}
 const USERS = { users: [{ value: 'user-7', total: 33, errorCount: 3, lastSeen: ISO }] }
 
 const LAG = {
@@ -147,11 +151,26 @@ describe('DashboardPage', () => {
     expect(screen.getByText('This route is under 1 s')).toBeDefined()
   })
 
+  // splitting one request template into routes makes each route smaller than a busy job
+  // template, so ordering by volume alone would push every route off a panel called Routes
+  it('shows routes even when busier operations are not routes', async () => {
+    vi.mocked(stats.getOperations).mockResolvedValue({
+      operations: [
+        { template: 'Processed job {JobId}', method: null, route: null, total: 400, errorCount: 0, p95ElapsedMs: 20 },
+        { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
+      ],
+    })
+    renderPage()
+
+    expect(await screen.findByText('/articles')).toBeDefined()
+    expect(screen.queryByText('Processed job {JobId}')).toBeNull()
+  })
+
   it('counts the routes over the latency line', async () => {
     vi.mocked(stats.getOperations).mockResolvedValue({
       operations: [
-        { template: 'GET /articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
-        { template: 'POST /orders', total: 40, errorCount: 0, p95ElapsedMs: 2450 },
+        { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
+        { template: 'POST /orders', method: 'POST', route: '/orders', total: 40, errorCount: 0, p95ElapsedMs: 2450 },
       ],
     })
     renderPage()

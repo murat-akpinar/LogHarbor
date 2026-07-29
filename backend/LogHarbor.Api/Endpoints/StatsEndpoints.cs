@@ -182,16 +182,27 @@ public static class StatsEndpoints
         string from,
         string to,
         string? filter = null,
+        string routeProperty = "Path",
+        string methodProperty = "Method",
         int limit = 50)
     {
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {
             return error!;
         }
+        // sinks disagree on the spelling (Path, RequestPath, http.route), so both are settings
+        foreach (var name in new[] { routeProperty, methodProperty })
+        {
+            if (name.Length == 0 || !name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
+            {
+                return Problems.BadRequest("Invalid query",
+                    "property names must contain only letters, digits, underscores, or dots.");
+            }
+        }
 
         var operations = await eventStore.GetOperationOverviewAsync(
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
-            limit, cancellationToken);
+            routeProperty, methodProperty, limit, cancellationToken);
         return Results.Ok(new { operations });
     }
 

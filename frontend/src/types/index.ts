@@ -181,10 +181,14 @@ export interface ServiceStatusBoard {
 
 /** RED numbers for one operation (CLEF message template); p95ElapsedMs is null when no event carried Elapsed. */
 export interface OperationOverview {
+  /** The group's identity: "GET /orders/{id}" for a route, the message template otherwise. */
   template: string
   total: number
   errorCount: number
   p95ElapsedMs: number | null
+  /** Set when the events carried the route property; null for template groups (jobs, probes). */
+  method: string | null
+  route: string | null
 }
 
 /** Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen. */

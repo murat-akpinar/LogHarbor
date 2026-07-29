@@ -232,6 +232,67 @@ public sealed class SqliteEventStoreTests : IDisposable
         Assert.Empty(rows);
     }
 
+    /// <summary>A request log writes one message template for every route it serves, so grouping
+    /// by the template put the whole application in one row. The route property is what tells
+    /// them apart — and the events that do not carry it are still operations.</summary>
+    [Fact]
+    public async Task OperationOverview_GroupsByRouteWhenTheEventsCarryOne()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"Method":"GET","Path":"/orders/{id}","Elapsed":10}""")
+                with { MessageTemplate = "Handled {Method} {Path} in {Elapsed} ms" },
+            MakeEvent("b", """{"Method":"GET","Path":"/orders/{id}","Elapsed":90}""")
+                with { MessageTemplate = "Handled {Method} {Path} in {Elapsed} ms", Level = "Error" },
+            MakeEvent("c", """{"Method":"POST","Path":"/orders","Elapsed":500}""")
+                with { MessageTemplate = "Handled {Method} {Path} in {Elapsed} ms" },
+            // same template, no route: a job keeps its template as identity
+            MakeEvent("d", """{"Elapsed":20}""") with { MessageTemplate = "Processed job {JobId}" },
+            // a path with no verb is a line *about* that path, not its traffic: it must not open a
+            // second "/orders/{id}" row whose p95 is measured over a different set of events
+            MakeEvent("e", """{"Path":"/orders/{id}","Elapsed":3000}""")
+                with { MessageTemplate = "Slow request {Path} took {Elapsed} ms" },
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+
+        Assert.Equal(4, rows.Count);
+        Assert.Equal("Slow request {Path} took {Elapsed} ms", rows.Single(row => row.Route is null && row.Total == 1 && row.P95ElapsedMs == 3000).Template);
+
+        var get = rows.Single(row => row.Template == "GET /orders/{id}");
+        Assert.Equal("GET", get.Method);
+        Assert.Equal("/orders/{id}", get.Route);
+        Assert.Equal(2, get.Total);
+        Assert.Equal(1, get.ErrorCount);
+        Assert.Equal(90, get.P95ElapsedMs);
+
+        // the same template, a different verb: two rows, not one
+        var post = rows.Single(row => row.Template == "POST /orders");
+        Assert.Equal(500, post.P95ElapsedMs);
+
+        var job = rows.Single(row => row.Template == "Processed job {JobId}");
+        Assert.Null(job.Route);
+        Assert.Null(job.Method);
+    }
+
+    /// <summary>Serilog writes RequestPath, OTel writes http.route: the names are settings.</summary>
+    [Fact]
+    public async Task OperationOverview_TakesTheRoutePropertyNameFromTheCaller()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"RequestMethod":"PUT","RequestPath":"/cart","Elapsed":12}""")
+                with { MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded" },
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z",
+            "RequestPath", "RequestMethod", 50);
+
+        Assert.Equal("PUT /cart", rows.Single().Template);
+    }
+
     [Fact]
     public async Task OperationOverview_GroupsByTemplate_CountsErrors_ComputesP95()
     {
@@ -246,10 +307,12 @@ public sealed class SqliteEventStoreTests : IDisposable
         ]);
 
         var rows = await _store.GetOperationOverviewAsync(
-            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", 50);
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
 
         Assert.Equal(2, rows.Count);
         Assert.Equal("GET /orders", rows[0].Template);
+        // no route property on these events, so the template is still the identity
+        Assert.Null(rows[0].Route);
         Assert.Equal(3, rows[0].Total);
         Assert.Equal(1, rows[0].ErrorCount);
         Assert.Equal(100, rows[0].P95ElapsedMs);

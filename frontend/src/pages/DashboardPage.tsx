@@ -78,7 +78,9 @@ export function DashboardPage() {
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
   const services = useServices({ ...range, limit: SERVICE_SCAN_LIMIT })
   const slow = useSlowOperations({ ...range, limit: PANEL_LIMIT })
-  const operations = useOperations({ ...range, limit: PANEL_LIMIT })
+  // wider than the panel shows: splitting one request template into its routes makes each route
+  // smaller than the busiest job templates, so the routes have to be picked out of a longer list
+  const operations = useOperations({ ...range, limit: SERVICE_SCAN_LIMIT })
   const users = useUserActivity({ ...range, property: 'UserId', limit: PANEL_LIMIT })
 
   const byLevel = summary.data?.byLevel
@@ -92,6 +94,12 @@ export function DashboardPage() {
   const errorTrend = trendOf(errorHistogram.data?.buckets)
   const lag = ingestionLag.data?.lag
   const serviceCount = services.data?.services.length ?? 0
+
+  // a panel called Routes shows routes; an install whose events carry no route property has none
+  // to show, and then the busiest operations are still the best answer it can give
+  const allOperations = operations.data?.operations ?? []
+  const routes = allOperations.filter((op) => op.route !== null)
+  const routeRows = (routes.length > 0 ? routes : allOperations).slice(0, PANEL_LIMIT)
   const compact = (value: number) =>
     new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
@@ -232,7 +240,7 @@ export function DashboardPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <TopErrorsPanel errors={topErrors.data?.errors ?? []} from={range.from} to={range.to} />
           <ExceptionsPanel exceptions={topExceptions.data?.exceptions ?? []} />
-          <RoutesPanel operations={operations.data?.operations ?? []} from={range.from} to={range.to} />
+          <RoutesPanel operations={routeRows} from={range.from} to={range.to} />
           <SlowOpsPanel result={slow.data} from={range.from} to={range.to} />
         </div>
       </section>

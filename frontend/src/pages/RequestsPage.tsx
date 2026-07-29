@@ -8,7 +8,8 @@ import { Sparkline } from '../components/Sparkline'
 import { StatusChart, STATUS_FILTERS } from '../components/requests/StatusChart'
 import type { StatusClass } from '../components/requests/StatusChart'
 import { Card } from '../components/ui/Card'
-import { quote } from '../lib/filter'
+import { Input } from '../components/ui/Input'
+import { METHOD_PROPERTY, ROUTE_PROPERTY, operationFilter } from '../lib/operations'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
 
@@ -34,9 +35,19 @@ export function RequestsPage() {
   const { live, range, toggleLive, setRange } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
   const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
+  // the sink decides the spelling: Path/Method here, RequestPath/RequestMethod under Serilog's
+  // ASP.NET middleware, http.route under OTel. Blank falls back to grouping by message template
+  const [routeProperty, setRouteProperty] = useState(ROUTE_PROPERTY)
+  const [methodProperty, setMethodProperty] = useState(METHOD_PROPERTY)
   const statusFilter = statusClass ? STATUS_FILTERS[statusClass] : undefined
 
-  const operations = useOperations({ ...range, filter: statusFilter, limit: ROW_LIMIT })
+  const operations = useOperations({
+    ...range,
+    filter: statusFilter,
+    routeProperty: routeProperty || ROUTE_PROPERTY,
+    methodProperty: methodProperty || METHOD_PROPERTY,
+    limit: ROW_LIMIT,
+  })
   const rangeMinutes = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 60_000)
 
   const rows = [...(operations.data?.operations ?? [])].sort((a, b) => {
@@ -47,13 +58,13 @@ export function RequestsPage() {
   })
 
   // the status class, when one is isolated, travels with every deep link and sparkline
-  function templateFilter(template: string): string {
-    const clause = `@MessageTemplate = ${quote(template)}`
+  function rowFilter(op: OperationOverview): string {
+    const clause = operationFilter(op, routeProperty, methodProperty)
     return statusFilter ? `${clause} and ${statusFilter}` : clause
   }
 
-  function openEvents(template: string) {
-    const params = new URLSearchParams({ from: range.from, to: range.to, filter: templateFilter(template) })
+  function openEvents(op: OperationOverview) {
+    const params = new URLSearchParams({ from: range.from, to: range.to, filter: rowFilter(op) })
     navigate(`/events?${params.toString()}`)
   }
 
@@ -76,7 +87,25 @@ export function RequestsPage() {
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold text-fg">{t.requests.title}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-1 text-xs text-fg-muted">
+            {t.requests.routeProperty}
+            <Input
+              aria-label={t.requests.routeProperty}
+              value={routeProperty}
+              onChange={(event) => setRouteProperty(event.target.value)}
+              className="w-28 font-mono text-xs"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-fg-muted">
+            {t.requests.methodProperty}
+            <Input
+              aria-label={t.requests.methodProperty}
+              value={methodProperty}
+              onChange={(event) => setMethodProperty(event.target.value)}
+              className="w-28 font-mono text-xs"
+            />
+          </label>
           <LiveRangeControls
             live={live}
             onToggleLive={toggleLive}
@@ -110,7 +139,7 @@ export function RequestsPage() {
               return (
                 <tr
                   key={op.template}
-                  onClick={() => openEvents(op.template)}
+                  onClick={() => openEvents(op)}
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
                 >
                   <td className={`${TD_CLASS} font-mono`}>{op.template}</td>
@@ -128,7 +157,7 @@ export function RequestsPage() {
                   </td>
                   <td className={TD_CLASS}>
                     <Sparkline
-                      filter={templateFilter(op.template)}
+                      filter={rowFilter(op)}
                       color={errorPct > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
                       from={range.from}
                       to={range.to}

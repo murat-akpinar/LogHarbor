@@ -482,29 +482,47 @@ public sealed class SqliteEventStore : IEventStore
     }
 
     public async Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
-        QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default)
+        QuerySql? filter, string fromUtc, string toUtc, string routeProperty, string methodProperty,
+        int limit, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         var source = await BuildStatsSourceAsync(
             connection, command, filter, "message_template, level, properties", fromUtc, toUtc, cancellationToken);
 
-        // operation identity is the CLEF message template; the p95 mirrors GetServiceOverviewAsync
-        // (ROW_NUMBER so a burst of equal durations doesn't collapse to rank 0)
+        // safe to embed: both names are restricted to [A-Za-z0-9_.] at the API boundary, and the
+        // quoted step keeps dots literal (http.route is one key, not a path into an object)
+        var route = $"json_extract(properties, '$.\"{routeProperty}\"')";
+        var method = $"json_extract(properties, '$.\"{methodProperty}\"')";
+
+        // A request log uses one message template for every route it serves, so grouping by the
+        // template alone collapses the whole application into a single row. Where the route
+        // property exists the group is the route; where it does not, the template still is —
+        // a job or a heartbeat is an operation too. The p95 mirrors GetServiceOverviewAsync
+        // (ROW_NUMBER so a burst of equal durations doesn't collapse to rank 0).
         command.CommandText =
             "WITH v AS (" +
-            "SELECT message_template AS tmpl, level, " +
+            $"SELECT message_template AS tmpl, {route} AS route, {method} AS method, level, " +
             "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms " +
-            $"FROM {source} WHERE message_template IS NOT NULL), " +
-            "s AS (SELECT tmpl, COUNT(*) AS total, " +
+            $"FROM {source}), " +
+            // a route is a verb and a path: a log line that mentions the path without one (a
+            // "slow request" warning, say) is about that path, not about all its traffic, and
+            // grouping it as a route would put a second row under the same name whose p95 is
+            // measured over a different set of events. Those keep their template instead.
+            "k AS (SELECT " +
+            "CASE WHEN route IS NOT NULL AND method IS NOT NULL THEN method || ' ' || route ELSE tmpl END AS label, " +
+            "CASE WHEN route IS NOT NULL AND method IS NOT NULL THEN method END AS method, " +
+            "CASE WHEN route IS NOT NULL AND method IS NOT NULL THEN route END AS route, level, ms " +
+            "FROM v WHERE (route IS NOT NULL AND method IS NOT NULL) OR tmpl IS NOT NULL), " +
+            "s AS (SELECT label, MAX(method) AS method, MAX(route) AS route, COUNT(*) AS total, " +
             "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors " +
-            "FROM v GROUP BY tmpl), " +
-            "r AS (SELECT tmpl, ms, ROW_NUMBER() OVER (PARTITION BY tmpl ORDER BY ms) AS rn, " +
-            "COUNT(*) OVER (PARTITION BY tmpl) AS n FROM v WHERE ms IS NOT NULL), " +
-            "p AS (SELECT tmpl, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY tmpl) " +
-            "SELECT s.tmpl, s.total, s.errors, p.p95 " +
-            "FROM s LEFT JOIN p ON p.tmpl = s.tmpl " +
-            "ORDER BY s.total DESC, s.tmpl LIMIT @limit;";
+            "FROM k GROUP BY label), " +
+            "r AS (SELECT label, ms, ROW_NUMBER() OVER (PARTITION BY label ORDER BY ms) AS rn, " +
+            "COUNT(*) OVER (PARTITION BY label) AS n FROM k WHERE ms IS NOT NULL), " +
+            "p AS (SELECT label, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY label) " +
+            "SELECT s.label, s.total, s.errors, p.p95, s.method, s.route " +
+            "FROM s LEFT JOIN p ON p.label = s.label " +
+            "ORDER BY s.total DESC, s.label LIMIT @limit;";
         command.Parameters.AddWithValue("@limit", limit);
 
         var rows = new List<OperationOverview>();
@@ -513,7 +531,9 @@ public sealed class SqliteEventStore : IEventStore
         {
             rows.Add(new OperationOverview(
                 reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2),
-                reader.IsDBNull(3) ? null : reader.GetDouble(3)));
+                reader.IsDBNull(3) ? null : reader.GetDouble(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5)));
         }
         return rows;
     }

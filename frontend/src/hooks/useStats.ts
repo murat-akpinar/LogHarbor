@@ -79,7 +79,9 @@ export function useServiceStatus(params: StatsRangeParams & { staleMinutes?: num
   })
 }
 
-export function useOperations(params: StatsRangeParams & { limit?: number }) {
+export function useOperations(
+  params: StatsRangeParams & { routeProperty?: string; methodProperty?: string; limit?: number },
+) {
   return useQuery({
     queryKey: ['stats', 'operations', params],
     queryFn: () => getOperations(params),

@@ -16,8 +16,8 @@ function bucketOf(count: number) {
 vi.mock('../api/stats', () => ({
   getOperations: vi.fn(async () => ({
     operations: [
-      { template: 'GET /api/orders/{id}', total: 90, errorCount: 0, p95ElapsedMs: 120 },
-      { template: 'POST /api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300 },
+      { template: 'GET /api/orders/{id}', method: 'GET', route: '/api/orders/{id}', total: 90, errorCount: 0, p95ElapsedMs: 120 },
+      { template: 'POST /api/orders', method: 'POST', route: '/api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300 },
     ],
   })),
   getHistogram: vi.fn(async ({ filter }: { filter?: string }) => {

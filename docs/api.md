@@ -258,12 +258,23 @@ GET /api/stats/service-status
                          secondsSinceLastSeen } ] }
 
 GET /api/stats/operations
-  Query: limit? default 50
-  Per-operation RED numbers, grouped by the CLEF message_template (events without one
-  are excluded). errorCount counts Error + Fatal levels; p95ElapsedMs is the p95 of
-  the numeric Elapsed property, null when no event of the operation carried Elapsed.
-  Ordered by total descending.
-  200: { "operations": [ { template, total, errorCount, p95ElapsedMs } ] }
+  Query: routeProperty? default Path, methodProperty? default Method
+         (both [A-Za-z0-9_.] only), limit? default 50
+  Per-operation RED numbers. An event carrying BOTH properties is grouped as a route and
+  comes back with method + route filled and template set to "GET /orders/{id}"; anything
+  else falls back to its CLEF message_template (method and route null), so jobs and probes
+  stay on the list. Both are required on purpose: a line that names a path without a verb
+  ("Slow request {Path} took {Elapsed} ms") is about that path, not about its traffic, and
+  grouping it as a route would add a second row under the same name whose p95 was measured
+  over a different set of events. A request log writes one template for every route it serves,
+  which is why the route properties decide the grouping and not the template.
+  Property names differ per sink: Path/Method here, RequestPath/RequestMethod under
+  Serilog's ASP.NET middleware, http.route/http.request.method under OTel.
+  Note the cardinality: grouping is only useful if the app logs the route template
+  ("/orders/{id}"). An app that logs the raw path produces one group per request.
+  errorCount counts Error + Fatal levels; p95ElapsedMs is the p95 of the numeric Elapsed
+  property, null when no event of the group carried Elapsed. Ordered by total descending.
+  200: { "operations": [ { template, total, errorCount, p95ElapsedMs, method, route } ] }
 
 GET /api/stats/user-activity
   Query: property? default UserId ([A-Za-z0-9_.] only), limit? default 50

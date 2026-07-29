@@ -292,6 +292,8 @@ export const tr: Messages = {
   requests: {
     title: 'İstekler',
     statusCodes: 'Durum kodları',
+    routeProperty: 'Rota property\'si',
+    methodProperty: 'Metot property\'si',
     noStatus: 'Seçilen aralıkta StatusCode property\'si taşıyan olay yok.',
     onlyThis: (label: string) => `Sadece ${label} göster`,
     showAll: 'Tüm durum sınıflarını göster',

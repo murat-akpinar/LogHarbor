@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { OperationOverview } from '../../types'
 import { useI18n } from '../../i18n'
-import { quote } from '../../lib/filter'
+import { operationFilter } from '../../lib/operations'
 import { formatDuration } from '../../lib/duration'
 import { PulsePanel } from './PulsePanel'
 
@@ -21,13 +21,10 @@ const METHOD_CLASS: Record<string, string> = {
   DELETE: 'text-level-error',
 }
 
-/** "GET /articles" -> verb and path. An operation template is any message template, not only an
- *  HTTP route, so anything that does not start with a verb stays whole. */
-export function splitRoute(template: string): { method: string | null; path: string } {
-  const space = template.indexOf(' ')
-  if (space <= 0) return { method: null, path: template }
-  const method = template.slice(0, space).toUpperCase()
-  return method in METHOD_CLASS ? { method, path: template.slice(space + 1) } : { method: null, path: template }
+/** The server groups by the route property when the events carry one and hands back the verb and
+ *  path apart; a template group (a job, a heartbeat) arrives with both null and is shown whole. */
+function routeOf(op: OperationOverview): { method: string | null; path: string } {
+  return op.route === null ? { method: null, path: op.template } : { method: op.method, path: op.route }
 }
 
 interface RoutesPanelProps {
@@ -42,8 +39,10 @@ export function RoutesPanel({ operations, from, to }: RoutesPanelProps) {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
 
-  function openEvents(template: string) {
-    const params = new URLSearchParams({ from, to, filter: `@MessageTemplate = ${quote(template)}` })
+  // a route group is not a template, so the deep link has to filter on the same properties the
+  // grouping used — filtering by the template would open every route the app serves
+  function openEvents(op: OperationOverview) {
+    const params = new URLSearchParams({ from, to, filter: operationFilter(op) })
     navigate(`/events?${params.toString()}`)
   }
 
@@ -69,18 +68,22 @@ export function RoutesPanel({ operations, from, to }: RoutesPanelProps) {
       cards
     >
       {operations.map((op) => {
-        const { method, path } = splitRoute(op.template)
+        const { method, path } = routeOf(op)
         const isSlow = op.p95ElapsedMs !== null && op.p95ElapsedMs >= SLOW_MS
         return (
           <li key={op.template}>
             <button
               type="button"
-              onClick={() => openEvents(op.template)}
+              onClick={() => openEvents(op)}
               className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-surface-inset px-3 py-2 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-hover"
             >
               <span className="min-w-0">
                 {method && (
-                  <span className={`block font-mono text-xs font-semibold ${METHOD_CLASS[method]}`}>{method}</span>
+                  <span
+                    className={`block font-mono text-xs font-semibold ${METHOD_CLASS[method.toUpperCase()] ?? 'text-fg-muted'}`}
+                  >
+                    {method}
+                  </span>
                 )}
                 <span className="block truncate font-mono text-sm text-fg-muted">{path}</span>
               </span>
