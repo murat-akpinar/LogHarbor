@@ -85,12 +85,17 @@ managed "trust this certificate" callback entirely. Against a self-signed direct
 up as:
 
 ```
-LDAP sign-in refused for jdoe: LDAP error 81: The LDAP server is unavailable.
+LDAP error 81: The LDAP server is unavailable.
+LDAP error 91: The connection cannot be established.
 ```
 
 — on both StartTLS and LDAPS, while plain `ldap://` to the same host works fine. It is a
 certificate rejection wearing the words "server unavailable". LogHarbor sets libldap's
 `TLS_REQCERT` at startup instead, which libldap reads exactly once per process.
+
+If you turn the setting on and press **Test** before restarting, that is exactly what you
+will see — so the test button now adds "this server has not been restarted since …" to the
+message rather than leaving you looking for a network fault.
 
 The better answer for anything long-lived is to install the directory's CA certificate into the
 container's trust store and leave this off.

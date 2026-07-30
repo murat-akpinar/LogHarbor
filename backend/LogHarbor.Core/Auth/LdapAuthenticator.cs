@@ -29,8 +29,11 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
     /// belongs to libldap rather than to .NET. Must run before the process opens its first LDAP
     /// connection: libldap reads this once, when it initialises.
     /// </summary>
+    private static bool _untrustedCertificatesAllowed;
+
     public static void AllowUntrustedCertificates()
     {
+        _untrustedCertificatesAllowed = true;
         Environment.SetEnvironmentVariable("LDAPTLS_REQCERT", "never");
         if (OperatingSystem.IsWindows())
         {
@@ -93,9 +96,12 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
         }
         catch (LdapException exception)
         {
-            return LdapAuthResult.Failed(exception.ErrorCode == InvalidCredentials
-                ? "the directory rejected the credentials"
-                : $"LDAP error {exception.ErrorCode}: {exception.Message}");
+            if (exception.ErrorCode == InvalidCredentials)
+            {
+                return LdapAuthResult.Failed("the directory rejected the credentials");
+            }
+            return LdapAuthResult.Failed(
+                $"LDAP error {exception.ErrorCode}: {exception.Message}{PendingRestartHint(settings)}");
         }
         catch (Exception exception) when (exception is DirectoryOperationException
                                               or InvalidOperationException or COMException)
@@ -114,6 +120,22 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
     /// </remarks>
     private static bool IsPlausibleUsername(string username)
         => username.Length is > 0 and <= MaxUsernameLength && !username.Any(char.IsControl);
+
+    /// <summary>
+    /// Names the likeliest cause of a connection error nobody would otherwise guess.
+    /// </summary>
+    /// <remarks>
+    /// Turning on "accept an untrusted certificate" and pressing Test straight away reports
+    /// "the connection cannot be established" — a network problem, as far as the message goes,
+    /// on a directory that is answering perfectly well. The setting only reaches libldap at
+    /// startup, and this is the moment somebody finds that out.
+    /// </remarks>
+    private static string PendingRestartHint(LdapSettings settings)
+        => settings.AllowInvalidCertificate && !_untrustedCertificatesAllowed
+           && settings.Security != LdapSecurity.None && !OperatingSystem.IsWindows()
+            ? " — this server has not been restarted since \"accept an untrusted certificate\" "
+              + "was turned on, and on Linux that setting only takes effect at startup"
+            : "";
 
     private static LdapConnection Connect(LdapSettings settings)
     {
