@@ -151,6 +151,16 @@ which can't read a CSS variable back).
 Every level owns a hue, so severity is readable from color alone: Verbose violet, Debug cyan,
 Information blue, Warning amber, Error red, Fatal a deeper rose so it still reads as worse
 than Error next to it.
+
+One palette, one meaning per hue, wherever a hue appears: blue reads, green creates, amber
+changes, red destroys or fails. HTTP methods borrow the level hues on that rule (GET/HEAD blue,
+POST the accent green, PUT/PATCH amber, DELETE red) rather than owning a palette of their own,
+so a method beside a level chip is not a second colour language to learn.
+
+Charts are the exception, and deliberately: LEVEL_CHART draws everything below Warning in one
+neutral so color in a chart means trouble and nothing else. Method colors are never carried into
+a chart - most events are not requests, and a red bar that might mean DELETE would stop meaning
+failure, which is the only thing a chart color is there to say.
 The low three are told apart by hue rather than by lightness, because all six have to clear
 4.5:1 as text on white and on surface-raised (the active level chip). They were muted greys
 until 2026-07-25; distinguishing them at a glance beat keeping Information quiet.

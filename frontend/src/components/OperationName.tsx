@@ -1,14 +1,24 @@
 import type { OperationOverview } from '../types'
 
-/** The verb decides the colour, so a write standing out among reads is visible before reading
- *  a single path. Level hues, so both themes and their contrast floor still hold. */
+/**
+ * The verb decides the colour, so a write standing out among reads is visible before reading a
+ * single path.
+ *
+ * One palette, one meaning per hue, everywhere in the app: blue reads, green creates, amber
+ * changes, red destroys or fails. These are the level hues, which is what keeps a method chip
+ * and a warning bar speaking the same language and both themes' contrast floor holding.
+ *
+ * Deliberately not extended to the volume charts. Most events are not requests at all, and a
+ * red bar that might mean DELETE would stop meaning trouble — which is the one thing a chart
+ * colour here is for.
+ */
 export const METHOD_CLASS: Record<string, string> = {
   GET: 'text-level-information',
   HEAD: 'text-level-information',
   OPTIONS: 'text-fg-muted',
   POST: 'text-accent',
-  PUT: 'text-level-verbose',
-  PATCH: 'text-level-verbose',
+  PUT: 'text-level-warning',
+  PATCH: 'text-level-warning',
   DELETE: 'text-level-error',
 }
 
