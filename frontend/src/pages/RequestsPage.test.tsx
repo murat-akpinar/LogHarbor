@@ -33,13 +33,13 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function renderPage() {
+function renderPage(url = '/requests') {
   localStorage.setItem('logharbor-lang', 'en')
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[url]}>
           <RequestsPage />
         </MemoryRouter>
       </LanguageProvider>
@@ -100,6 +100,24 @@ it('isolates a status class and narrows the table to it', async () => {
   // clicking again returns to every class
   only5xx.click()
   await waitFor(() => expect(only5xx.getAttribute('aria-pressed')).toBe('false'))
+})
+
+// the dashboard's request chart links here per status class; landing on the unfiltered table
+// would throw away the thing the reader clicked
+it('opens already narrowed when the URL names a status class', async () => {
+  renderPage('/requests?status=server')
+
+  await waitFor(() => {
+    expect(vi.mocked(getOperations).mock.calls.some(([params]) => params.filter === 'StatusCode >= 500')).toBe(true)
+  })
+  expect(screen.getByRole('button', { name: /5xx/ }).getAttribute('aria-pressed')).toBe('true')
+})
+
+it('ignores a status class it does not know', async () => {
+  renderPage('/requests?status=teapot')
+
+  await screen.findByText('/api/orders/{id}')
+  expect(screen.getByRole('button', { name: /5xx/ }).getAttribute('aria-pressed')).toBe('false')
 })
 
 it('re-sorts by error % when that header is clicked', async () => {

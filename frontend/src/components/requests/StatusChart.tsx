@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useHistogram } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
 import { LEVELS, LEVEL_CHART } from '../../lib/levels'
@@ -6,7 +7,9 @@ import { formatTimestamp } from '../../lib/dates'
 import { niceCeil } from '../../lib/niceScale'
 import { useI18n } from '../../i18n'
 
-const BUCKET_COUNT = 24
+// matches the volume chart: enough columns to read the shape of an hour, each thin enough to
+// read as a tick rather than a slab
+const BUCKET_COUNT = 60
 const PLOT_HEIGHT_PX = 128
 
 /** Status classes as query-language filters; the page reuses them to narrow its table. */
@@ -32,17 +35,20 @@ interface StatusChartProps {
   /** null shows every class stacked; a class isolates it here and in the caller's table. */
   selected: StatusClass | null
   onSelect: (next: StatusClass | null) => void
+  /** Defaults to "Status codes". The dashboard calls it Requests, because there it is the
+   *  request chart rather than one control on a page that is already about requests. */
+  title?: string
+  /** A link out, for callers that are only sampling this (the dashboard). */
+  action?: ReactNode
 }
+
+/** Frameless on purpose: the Requests page puts it in a card, the dashboard in a section well. */
 
 function bucketTotals(buckets: { start: string; counts: Record<string, number> }[] | undefined): number[] {
   return (buckets ?? []).map((bucket) => LEVELS.reduce((sum, level) => sum + bucket.counts[level], 0))
 }
 
-function formatTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-}
-
-export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) {
+export function StatusChart({ from, to, selected, onSelect, title, action }: StatusChartProps) {
   const { t, lang } = useI18n()
   const [hovered, setHovered] = useState<number | null>(null)
   const shared = { from, to, buckets: BUCKET_COUNT }
@@ -66,14 +72,16 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
     Math.max(1, ...Array.from({ length: bucketCount }, (_, i) => visible.reduce((sum, s) => sum + (s.data[i] ?? 0), 0))),
   )
   const grandTotal = series.reduce((sum, s) => sum + s.data.reduce((a, b) => a + b, 0), 0)
-  const labelEvery = Math.max(1, Math.ceil(bucketCount / 6))
   const compact = (value: number) =>
     new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
   return (
-    <Card className="shrink-0 p-4">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg">{t.requests.statusCodes}</h2>
+        <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg">
+          <span className="truncate">{title ?? t.requests.statusCodes}</span>
+          {action}
+        </h2>
         <div className="flex items-center gap-1.5">
           {series.map(({ key, label, color, data, dimmed }) => (
             <button
@@ -98,16 +106,9 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
 
       {grandTotal > 0 ? (
         <>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3">
             <div
-              className="flex w-10 shrink-0 flex-col justify-between text-right text-xs text-fg-muted"
-              style={{ height: PLOT_HEIGHT_PX }}
-            >
-              <span className="tabular">{niceMax.toLocaleString(lang)}</span>
-              <span className="tabular">0</span>
-            </div>
-            <div
-              className="flex min-w-0 flex-1 items-end gap-0.5 border-b border-border"
+              className="flex min-w-0 items-end gap-[2px]"
               style={{ height: PLOT_HEIGHT_PX }}
             >
               {Array.from({ length: bucketCount }, (_, index) => (
@@ -115,7 +116,7 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
                   key={starts[index] ?? index}
                   onMouseEnter={() => setHovered(index)}
                   onMouseLeave={() => setHovered(null)}
-                  className="group relative flex h-full min-w-0 flex-1 flex-col-reverse gap-0.5"
+                  className="group relative flex h-full min-w-0 flex-1 flex-col-reverse"
                 >
                   <span className="absolute inset-0 -m-px rounded-sm group-hover:bg-surface-hover" />
                   {series.map(({ key, color, data, dimmed }) => {
@@ -124,7 +125,7 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
                     return (
                       <span
                         key={key}
-                        className="relative w-full shrink-0 rounded-sm transition-[height] duration-300"
+                        className="relative w-full shrink-0 transition-[height] duration-300"
                         style={{ height: `${(count / niceMax) * 100}%`, backgroundColor: color }}
                       />
                     )
@@ -149,18 +150,16 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
               ))}
             </div>
           </div>
-          {/* mirrors the bars row's flex layout so each label sits under its bucket */}
-          <div className="ml-12 flex gap-0.5">
-            {Array.from({ length: bucketCount }, (_, index) => (
-              <span key={starts[index] ?? index} className="min-w-0 flex-1 truncate text-center text-xs text-fg-muted">
-                {index % labelEvery === 0 && starts[index] ? formatTime(starts[index], lang) : ''}
-              </span>
-            ))}
+          {/* no axis and no per-bucket ticks: the window's two ends place every bar, and the
+              exact numbers are already one hover away */}
+          <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
+            <span>{starts[0] ? formatTimestamp(starts[0], lang) : ''}</span>
+            <span>{formatTimestamp(to, lang)}</span>
           </div>
         </>
       ) : (
         <p className="mt-3 text-sm text-fg-muted">{t.requests.noStatus}</p>
       )}
-    </Card>
+    </div>
   )
 }

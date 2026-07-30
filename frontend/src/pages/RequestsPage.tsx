@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { OperationOverview } from '../types'
 import { useOperations } from '../hooks/useStats'
 import { LiveRangeControls } from '../components/LiveRangeControls'
@@ -35,7 +35,13 @@ export function RequestsPage() {
   const navigate = useNavigate()
   const { live, range, toggleLive, setRange } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
-  const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
+  // ?status=server arrives from the dashboard's request chart: clicking 5xx there opens this
+  // page already narrowed to it, rather than dropping the reader on the unfiltered table
+  const [searchParams] = useSearchParams()
+  const requestedStatus = searchParams.get('status')
+  const [statusClass, setStatusClass] = useState<StatusClass | null>(
+    requestedStatus !== null && requestedStatus in STATUS_FILTERS ? (requestedStatus as StatusClass) : null,
+  )
   // the sink decides the spelling: Path/Method here, RequestPath/RequestMethod under Serilog's
   // ASP.NET middleware, http.route under OTel. Blank falls back to grouping by message template
   const [routeProperty, setRouteProperty] = useState(ROUTE_PROPERTY)
@@ -121,7 +127,9 @@ export function RequestsPage() {
         <p className="bg-level-error/10 p-2 text-sm text-level-error">{operations.error.message}</p>
       )}
 
-      <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} />
+      <Card className="shrink-0 p-4">
+        <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} />
+      </Card>
 
       <Card className="overflow-x-auto">
         <table className="w-full">

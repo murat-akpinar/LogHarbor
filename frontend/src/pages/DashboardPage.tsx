@@ -20,6 +20,8 @@ import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBa
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { StatTile } from '../components/StatTile'
+import { StatusChart } from '../components/requests/StatusChart'
+import { PillLink } from '../components/ui/PillLink'
 import { TrendLine } from '../components/Sparkline'
 import { formatDuration } from '../lib/duration'
 import { formatTimestamp } from '../lib/dates'
@@ -278,6 +280,22 @@ export function DashboardPage() {
               </div>
             )}
           </MetricCard>
+
+          {/* The request timeline, sampled here: the shape of 4xx and 5xx over the window is
+              worth a glance before anyone opens the Requests page for the routes behind it.
+              Clicking a class opens that page already narrowed to it. */}
+          <Panel className="p-5">
+            <StatusChart
+              from={range.from}
+              to={range.to}
+              title={t.nav.requests}
+              action={<PillLink to="/requests">{t.dashboard.viewAll}</PillLink>}
+              selected={null}
+              onSelect={(next) =>
+                next && navigate(`/requests?${new URLSearchParams({ status: next }).toString()}`)
+              }
+            />
+          </Panel>
 
           <MetricCard
             eyebrow={t.dashboard.errors}
