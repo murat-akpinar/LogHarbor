@@ -77,6 +77,11 @@ Auth:
   except /api/auth until it sets a real password (docs/api.md AUTH)
   Ingestion is unaffected: it authenticates by API key, not by session
   Login and password-change endpoints rate limited against brute force
+  Directory sign-in (LDAP/AD, docs/ldap.md): binds as the user themselves, reads their own
+  memberOf, and maps a group to a role. No service account, no stored password, and no local
+  row — the role is re-read on every login, because a mirrored copy goes stale the moment
+  somebody leaves a group. Turning it on turns auth on: an LDAP-only install has no local
+  accounts, and counting those was the whole test for "is auth enabled?"
 
 React SPA:
   Served as static files by the backend in production

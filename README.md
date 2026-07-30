@@ -67,6 +67,11 @@ Either way the `admin` account is seeded on first start only; further accounts (
 `viewer` roles) are managed on the Settings page. Ingestion always uses API keys and is
 unaffected by any of this.
 
+If you have an Active Directory or LDAP server, people can sign in with their domain
+account instead — group membership decides whether they are an admin or a viewer, and no
+account is created in LogHarbor first. It is configured on the Settings page, not in a file:
+see [docs/ldap.md](docs/ldap.md).
+
 ### Testing over plain HTTP (home / LAN)
 
 In production LogHarbor runs behind an HTTPS reverse proxy, so outside development the session
@@ -195,6 +200,12 @@ narrows the table with it. Rows deep-link to the matching Events search.
 Feed it by logging `StatusCode` and `Elapsed` on your request-completed event — ASP.NET Core
 and most frameworks do this out of the box.
 
+Rows are grouped by route, and ids are folded out of the path first, so an app that logs
+`/api/orders/41973` still reads as one `/api/orders/{id}` row rather than one row per order.
+That matters more than it sounds: without it the busiest route in an application disappears
+from the table entirely, shattered across thousands of one-hit rows, while its p95 is measured
+over the two or three requests that happened to share an id.
+
 ### Exceptions (`/exceptions`)
 
 A live feed grouped by exception type: count, trend, first and last seen, and **Source** —
@@ -222,6 +233,9 @@ service: green up, red down, amber unhealthy or no heartbeat, grey "the probe co
 Click one to read that service's whole up/down timeline in Events. No probe, no board.
 
 ### Users (`/users`)
+
+This page is about the people appearing *in your logs*, not the accounts that sign in to
+LogHarbor — those live under Settings, and a directory user has no row there at all.
 
 The same shape, per user: events, errors, last seen, trend. `UserId` is the default grouping
 property — type another one (`TenantId`, `AccountId`, …) to regroup. Deep links handle numeric
@@ -267,6 +281,14 @@ Two derived lines sit under those fields. One spells out the time policy as a se
 a date: the hourly maintenance pass records the database size, and the page reports how fast
 the file is growing and how many days of room are left before the oldest day starts being
 dropped. A new install says it is still measuring rather than guessing from one reading.
+
+The last card is directory sign-in (LDAP / Active Directory): server, base DN, how the
+username becomes a bind, and the two groups that map to admin and viewer. Nothing secret is
+stored — LogHarbor binds as the person signing in — and a **Test** button asks the directory
+about one username and password and shows the groups it returned and the role they earn,
+without creating a session. Press it: a base DN one level too deep or a group spelled
+differently in your domain is otherwise invisible until someone tries to sign in, and then it
+is a 401 with no reason attached. Details in [docs/ldap.md](docs/ldap.md).
 
 Full UI reference: [docs/frontend.md](docs/frontend.md).
 ---
@@ -423,6 +445,10 @@ Environment variables (or `appsettings.json` under `LogHarbor:`):
 
 Archive settings are also editable at runtime on the Settings page, which takes precedence.
 
+Directory sign-in has no entry in this table on purpose: it is configured on the Settings page
+and stored in the database, and it holds no password to keep out of a file
+([docs/ldap.md](docs/ldap.md)).
+
 ---
 
 ## Backup & restore
@@ -531,3 +557,4 @@ need the backup. Take one first if the upgrade spans a release you have not run.
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Collecting Docker logs via Vector |
 | [docs/archiving.md](docs/archiving.md) | Tiered storage: compression, hydration, retention |
 | [docs/service-status.md](docs/service-status.md) | Up/down for systemd units and Docker containers |
+| [docs/ldap.md](docs/ldap.md) | Directory sign-in: the fields, the two groups, reading the test button |

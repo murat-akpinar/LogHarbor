@@ -69,6 +69,11 @@ Her iki durumda da `admin` hesabı yalnızca ilk açılışta oluşturulur; sonr
 (`admin` / `viewer` rolleri) Settings sayfasından yönetilir. Log gönderimi her zaman API key
 ile çalışır, bunlardan etkilenmez.
 
+Active Directory ya da LDAP sunucun varsa, kullanıcılar kendi alan hesaplarıyla da giriş
+yapabilir — yönetici mi izleyici mi olduklarına grup üyelikleri karar verir ve LogHarbor'da
+önceden hesap açılması gerekmez. Dosyadan değil, Settings sayfasından yapılandırılır:
+[docs/ldap.md](docs/ldap.md).
+
 ### Düz HTTP üzerinde test (ev / yerel ağ)
 
 Canlıda LogHarbor bir HTTPS reverse proxy arkasında çalışır; bu yüzden geliştirme dışında
@@ -201,6 +206,12 @@ ve tabloyu da onunla daraltır. Satırlar ilgili Olaylar aramasına gider.
 Beslemek için istek tamamlandı olayında `StatusCode` ve `Elapsed` logla — ASP.NET Core ve pek
 çok framework bunu zaten yapıyor.
 
+Satırlar route'a göre gruplanır ve önce path'teki id'ler katlanır: `/api/orders/41973` logglayan
+bir uygulama, sipariş başına bir satır yerine tek bir `/api/orders/{id}` satırı olarak okunur.
+Bu kulağa geldiğinden önemlidir: olmadan, uygulamanın en yoğun route'u binlerce tek-vuruşluk
+satıra dağılıp tablodan tamamen kaybolur, p95'i de aynı id'ye denk gelmiş iki üç istek üzerinden
+ölçülür.
+
 ### İstisnalar (`/exceptions`)
 
 İstisna tipine göre gruplanmış canlı akış: sayı, eğilim, ilk ve son görülme, ve **Kaynak** —
@@ -229,6 +240,9 @@ Servis başına bir kutu: yeşil ayakta, kırmızı kapalı, sarı sağlıksız 
 Sonda yoksa pano da yok.
 
 ### Kullanıcılar (`/users`)
+
+Bu sayfa *loglarında görünen* kişilerle ilgilidir, LogHarbor'a giriş yapan hesaplarla değil —
+onlar Settings altında yaşar, ve bir dizin kullanıcısının orada hiç kaydı olmaz.
 
 Aynı biçim, kullanıcı başına: olay, hata, son görülme, eğilim. Varsayılan gruplama property'si
 `UserId` — başka bir tane yaz (`TenantId`, `AccountId`, …) ve yeniden gruplansın. Derin
@@ -275,6 +289,14 @@ Bu alanların altında iki türetilmiş satır var. Biri zaman politikasını c�
 çeviriyor: saatlik bakım geçişi veritabanı boyutunu kaydediyor, sayfa da dosyanın ne hızla
 büyüdüğünü ve en eski gün silinmeye başlamadan önce kaç günlük yer kaldığını söylüyor. Yeni
 bir kurulum, tek ölçümden tahmin yürütmek yerine hâlâ ölçtüğünü söyler.
+
+Son kart dizin ile giriş (LDAP / Active Directory): sunucu, base DN, kullanıcı adının nasıl
+bind'e dönüştüğü, ve yöneticiye/izleyiciye eşlenen iki grup. Hiçbir sır saklanmaz — LogHarbor
+giriş yapan kişinin kendisi olarak bind eder — ve bir **Test** düğmesi, tek bir kullanıcı adı
+ve parolayı dizine sorup dönen grupları ve kazandırdıkları rolü gösterir, oturum açmadan.
+Bu düğmeye bas: bir seviye derinde kalmış base DN'i ya da sizin domainde başka türlü yazılmış
+bir grubu, aksi halde biri giriş yapmaya çalışana kadar göremezsin — ve o an gördüğün şey,
+sebebi yazmayan bir 401 olur. Ayrıntılar: [docs/ldap.md](docs/ldap.md).
 
 Tam UI referansı: [docs/frontend.md](docs/frontend.md).
 ---
@@ -431,6 +453,10 @@ Ortam değişkenleri (ya da `appsettings.json` içinde `LogHarbor:` altında):
 
 Arşiv ayarları Settings sayfasından da değiştirilebilir; oradaki değerler önceliklidir.
 
+Dizin ile girişin bu tabloda bilerek karşılığı yok: Settings sayfasından yapılandırılıp
+veritabanında saklanıyor, ve dosyadan uzak tutulacak bir parolası da yok
+([docs/ldap.md](docs/ldap.md)).
+
 ---
 
 ## Yedekleme ve geri yükleme
@@ -542,3 +568,4 @@ Dokümanlar İngilizcedir (rules.md).
 | [docs/ingestion-docker.md](docs/ingestion-docker.md) | Vector ile Docker loglarını toplama |
 | [docs/archiving.md](docs/archiving.md) | Katmanlı depolama: sıkıştırma, geri açma, saklama |
 | [docs/service-status.md](docs/service-status.md) | systemd/Docker servisleri için ayakta-mı durumu |
+| [docs/ldap.md](docs/ldap.md) | Dizin ile giriş: alanlar, iki grup, test düğmesinin okunması |

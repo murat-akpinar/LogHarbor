@@ -228,8 +228,13 @@ evidence of what the disk has been doing). GET /api/archive/forecast fits the la
 --- SETTINGS ---
 
 Key/value store for runtime-changeable settings; value is JSON.
-Today only the 'archive' key exists (compressAfterDays, hydrationKeepDays,
-retentionDays, maxDatabaseBytes); saved values override appsettings.json defaults.
+Two keys today; saved values override appsettings.json defaults.
+  archive  compressAfterDays, hydrationKeepDays, retentionDays, maxDatabaseBytes
+  ldap     directory sign-in (docs/ldap.md): enabled, host, port, security, baseDn,
+           upnSuffix, userDnPattern, adminGroup, viewerGroup, nestedGroups,
+           allowInvalidCertificate. No password: LogHarbor binds as the user
+           signing in, so there is nothing secret to store. A new key rather than a
+           migration, which is the point of this table.
 
 --- RETENTION & ARCHIVING ---
 
