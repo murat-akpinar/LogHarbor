@@ -27,6 +27,7 @@ RUN apt-get update \
 
 WORKDIR /app
 COPY --from=backend /app ./
+RUN chmod -R a+rX .
 
 # non-root user: /app stays root-owned (app cannot rewrite its own binaries),
 # only /data is writable; chown must precede VOLUME to bake the ownership in

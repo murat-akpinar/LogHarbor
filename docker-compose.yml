@@ -9,6 +9,7 @@ services:
       - logharbor-data:/data
     environment:
       - LOGHARBOR_ADMIN_PASSWORD=${LOGHARBOR_ADMIN_PASSWORD:-}
+#     - LogHarbor__AllowInsecureCookie=true # For HTTP
     # health status is inherited from the Dockerfile HEALTHCHECK (GET /healthz)
     security_opt:
       - no-new-privileges:true
