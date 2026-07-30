@@ -387,7 +387,8 @@ export const tr: Messages = {
     ldapNestedGroups: 'İç içe grupları izle',
     ldapNestedGroupsHint: 'Yalnızca Active Directory; diğer dizinler yok sayar.',
     ldapAllowInvalidCertificate: 'Güvenilmeyen sertifikayı kabul et',
-    ldapAllowInvalidCertificateHint: 'Kendinden imzalı test dizinleri için. Bağlantı şifreli kalır ama karşı tarafın kim olduğunu artık kanıtlayamaz.',
+    ldapAllowInvalidCertificateHint:
+      'Kendinden imzalı test dizinleri için. Bağlantı şifreli kalır ama karşı tarafın kim olduğunu artık kanıtlayamaz. Linux’ta yalnızca bu ayar, sunucu yeniden başlatıldıktan sonra etkili olur.',
     ldapSummary: (host: string, port: number, admin: string, viewer: string) =>
       `${admin} üyeleri yönetici, ${viewer} üyeleri izleyici olarak ${host}:${port} üzerinden giriş yapar. LogHarbor'da hesap oluşturulmaz.`,
     ldapSummaryDisabled: 'Dizin ile giriş kapalı. Giriş sayfası yalnızca yerel hesapları sunar.',

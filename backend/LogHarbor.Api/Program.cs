@@ -177,6 +177,16 @@ if (appliedMigrations > 0)
     migrationLogger.LogInformation("Schema upgraded: {Count} migration(s) applied", appliedMigrations);
 }
 
+// Has to happen here, before anything opens an LDAP connection: on Linux the underlying libldap
+// reads this once, the first time it initialises, so a per-connection setting is ignored. The
+// consequence is the one thing about this feature that needs a restart — see docs/ldap.md.
+if ((await app.Services.GetRequiredService<ISettingsStore>().GetLdapSettingsAsync()).AllowInvalidCertificate)
+{
+    LdapAuthenticator.AllowUntrustedCertificates();
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("LogHarbor.Ldap")
+        .LogWarning("LDAP server certificates are not verified (AllowInvalidCertificate is on).");
+}
+
 // First start with an empty user table seeds the admin account, so LogHarbor is never reachable
 // without a login. LOGHARBOR_ADMIN_PASSWORD sets that password (secrets come from the environment,
 // never from committed config files, rules.md); with no environment at all, admin/admin is

@@ -21,6 +21,23 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
     /// <summary>AD's "walk the group tree" matching rule. No other directory implements it.</summary>
     private const string NestedGroupRule = "1.2.840.113556.1.4.1941";
 
+    /// <summary>
+    /// Makes <see cref="LdapSettings.AllowInvalidCertificate"/> work on Linux. Must be called
+    /// before the first LDAP connection of the process.
+    /// </summary>
+    /// <remarks>
+    /// Measured, not assumed: on Linux, System.DirectoryServices.Protocols binds the system
+    /// libldap, which does its own TLS verification and ignores the managed
+    /// VerifyServerCertificate callback completely. Every StartTLS and LDAPS bind came back as
+    /// "LDAP error 81: The LDAP server is unavailable" against a self-signed directory, while
+    /// plain ldap:// to the same host worked — and none of it reproduced on Windows, which uses
+    /// wldap32 and does honour the callback. libldap reads TLS_REQCERT from this environment
+    /// variable, and only once, the first time it initialises; setting it later has no effect,
+    /// which is why this runs at startup rather than per connection.
+    /// </remarks>
+    public static void AllowUntrustedCertificates()
+        => Environment.SetEnvironmentVariable("LDAPTLS_REQCERT", "never");
+
     public Task<LdapAuthResult> AuthenticateAsync(
         LdapSettings settings, string username, string password,
         CancellationToken cancellationToken = default)
@@ -93,6 +110,7 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
 
         if (settings.AllowInvalidCertificate)
         {
+            // Windows honours this; Linux ignores it entirely (see AllowUntrustedCertificates)
             connection.SessionOptions.VerifyServerCertificate = (_, _) => true;
         }
         if (settings.Security == LdapSecurity.Ldaps)

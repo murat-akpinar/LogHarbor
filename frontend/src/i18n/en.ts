@@ -388,7 +388,7 @@ export const en = {
     ldapNestedGroups: 'Follow nested groups',
     ldapNestedGroupsHint: 'Active Directory only; other directories ignore it.',
     ldapAllowInvalidCertificate: 'Accept an untrusted certificate',
-    ldapAllowInvalidCertificateHint: 'For self-signed test directories. The connection stays encrypted but can no longer prove who is on the other end.',
+    ldapAllowInvalidCertificateHint: 'For self-signed test directories. The connection stays encrypted but can no longer prove who is on the other end. On Linux this one setting only takes effect after a server restart.',
     ldapSummary: (host: string, port: number, admin: string, viewer: string) =>
       `Members of ${admin} sign in as admins, members of ${viewer} as viewers, via ${host}:${port}. No account is created in LogHarbor.`,
     ldapSummaryDisabled: 'Directory sign-in is off. The login page offers local accounts only.',

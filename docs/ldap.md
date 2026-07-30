@@ -78,6 +78,23 @@ already trust end to end.
 connection encrypted but stops it proving who is on the other end, so it should not survive
 into production.
 
+It is the one setting on this card that needs a **server restart** on Linux, and the reason is
+worth knowing because it also explains a confusing failure. On Linux, .NET's LDAP client is a
+thin layer over the system libldap, which does its own TLS verification and ignores the
+managed "trust this certificate" callback entirely. Against a self-signed directory that shows
+up as:
+
+```
+LDAP sign-in refused for jdoe: LDAP error 81: The LDAP server is unavailable.
+```
+
+— on both StartTLS and LDAPS, while plain `ldap://` to the same host works fine. It is a
+certificate rejection wearing the words "server unavailable". LogHarbor sets libldap's
+`TLS_REQCERT` at startup instead, which libldap reads exactly once per process.
+
+The better answer for anything long-lived is to install the directory's CA certificate into the
+container's trust store and leave this off.
+
 ## Nested groups
 
 Off by default. When on, LogHarbor also asks the directory for groups reached *through* other
