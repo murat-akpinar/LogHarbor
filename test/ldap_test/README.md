@@ -28,10 +28,13 @@ two cases that are easy to forget: someone in **both** groups, and someone in
 | `ldap_user1` | `ldappass123` | logharbor-admin + logharbor-viewer | **Admin** (admin outranks viewer) |
 | `testuser1` | `testpass123` | logharbor-viewer | Viewer |
 | `testuser2` | `testpass123` | logharbor-viewer | Viewer |
-| `ldap_user2` | `ldappass123` | — | **refused** (401, and the reason goes to the log) |
+| `ldap_user2` | `ldappass123` | finance-payroll only | **refused** — in groups, but not ours |
 
 Groups live at `cn=logharbor-admin,ou=groups,dc=test,dc=local` and
-`cn=logharbor-viewer,ou=groups,dc=test,dc=local`.
+`cn=logharbor-viewer,ou=groups,dc=test,dc=local`. `finance-payroll` exists so one user is in a
+group LogHarbor knows nothing about — "in groups, but not ours" behaves differently from "in no
+groups at all", and it is the case that caught a refused sign-in logging a person's whole group
+list.
 
 Note that `memberOf` comes back as a full DN
 (`cn=logharbor-admin,ou=groups,dc=test,dc=local`), not a bare name — whatever maps

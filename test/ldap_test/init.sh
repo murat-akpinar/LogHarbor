@@ -50,8 +50,13 @@ USERS=(
   "ldap_user1|ldappass123|10010|LDAP User One|logharbor-admin,logharbor-viewer"
   "testuser1|testpass123|10000|Test User One|logharbor-viewer"
   "testuser2|testpass123|10001|Test User Two|logharbor-viewer"
-  "ldap_user2|ldappass123|10011|LDAP User Two|"
+  "ldap_user2|ldappass123|10011|LDAP User Two|finance-payroll"
 )
+
+# A group LogHarbor knows nothing about. "In groups, but not ours" is a different case from
+# "in no groups at all", and it is the one that exposed a refused sign-in writing a person's
+# whole group list into the server log.
+UNRELATED_GROUP=finance-payroll
 
 echo "-- users --"
 for row in "${USERS[@]}"; do
@@ -81,7 +86,7 @@ done
 # groupOfNames refuses to exist without at least one member, so each group is created
 # holding its first member and the rest are added after
 echo "-- groups --"
-for group in logharbor-admin logharbor-viewer; do
+for group in logharbor-admin logharbor-viewer "$UNRELATED_GROUP"; do
     members=()
     for row in "${USERS[@]}"; do
         IFS='|' read -r uid _ _ _ groups <<< "$row"

@@ -1,0 +1,3 @@
+# These run inside a Linux container. With CRLF, bash reads the \r as part of the command and
+# the script dies on its first line ("$'\r': command not found") — which is what happened.
+*.sh text eol=lf
