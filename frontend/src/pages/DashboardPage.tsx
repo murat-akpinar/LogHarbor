@@ -32,7 +32,9 @@ import { Card } from '../components/ui/Card'
 import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
-const BUCKET_COUNT = 24
+// A skyline, not a bar chart: enough columns that the shape of an hour is legible and each
+// column is thin enough to read as a tick. Twenty-four stretched across a card gave slabs.
+const BUCKET_COUNT = 60
 const PANEL_LIMIT = 5
 // the services panel shows the top few, but the section header counts them, so the query has to
 // see more than five. 100 is the endpoint's ceiling, which is why it says "100+" when it hits it

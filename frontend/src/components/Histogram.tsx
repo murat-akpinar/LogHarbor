@@ -97,7 +97,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
 
   return (
     <div>
-      <div className="flex min-w-0 items-end gap-0.5" style={{ height: PLOT_HEIGHT_PX }}>
+      <div className="flex min-w-0 items-end gap-[2px]" style={{ height: PLOT_HEIGHT_PX }}>
         {buckets.map((bucket, index) => {
             const total = sumCounts(bucket.counts)
             const segments = segmentsOf(bucket.counts)
@@ -129,7 +129,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                   <span
                     key={segment.key}
                     className={`relative w-full shrink-0 ${
-                      segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
+                      segmentIndex === segments.length - 1 ? 'rounded-t-[1px]' : ''
                     }`}
                     style={{ height: `${(segment.count / niceMax) * 100}%`, backgroundColor: segment.color }}
                   />
