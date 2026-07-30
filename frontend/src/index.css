@@ -139,12 +139,12 @@
   --color-chip-bg: var(--logharbor-chip-bg);
   --color-leader: var(--logharbor-leader);
 
-  /* Two faces doing two jobs: the interface speaks in sans, the data speaks in mono.
-     A path, a timestamp, a duration or an id is machine text and is set in mono; a label,
-     a heading or a sentence is ours and is set in sans. Both were the same monospace face
-     before, which left nothing to tell the two apart with. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "CaskaydiaMono NF", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* One face, on purpose (owner's call, 2026-07-31): Cascadia sets the whole interface, not
+     just the data. A separate sans for chrome was tried and rejected — this is a log tool and
+     it should read like one. Mark data with font-mono anyway: it is the same face today, and
+     the marking is what would carry the difference if that ever changes. */
+  --font-sans: "CaskaydiaMono NF", ui-monospace, monospace;
+  --font-mono: "CaskaydiaMono NF", ui-monospace, monospace;
 
   --radius-card: 10px;
   --shadow-card: var(--logharbor-shadow-card);
