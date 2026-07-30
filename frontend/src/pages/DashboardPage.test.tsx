@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
@@ -121,6 +121,23 @@ describe('DashboardPage', () => {
 
     await waitFor(() => expect(container.textContent).toContain('200'))
     expect(container.textContent).not.toContain('vs previous period')
+  })
+
+  // it looks like the filter it is on the Requests page, so it has to behave like one here:
+  // it used to navigate away on the first click, which made it feel broken
+  it('isolates a status class in place instead of leaving the page', async () => {
+    renderPage()
+
+    const only5xx = await screen.findByRole('button', { name: /5xx/ })
+    expect(only5xx.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(only5xx)
+
+    await waitFor(() => expect(only5xx.getAttribute('aria-pressed')).toBe('true'))
+    // and the way out carries the class the reader picked
+    expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toContain(
+      '/requests?status=server',
+    )
   })
 
   it('groups content under sections and links Activity to Events', async () => {

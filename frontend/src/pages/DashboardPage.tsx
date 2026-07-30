@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   useHeatmap,
@@ -21,6 +21,7 @@ import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { StatTile } from '../components/StatTile'
 import { StatusChart } from '../components/requests/StatusChart'
+import type { StatusClass } from '../components/requests/StatusChart'
 import { PillLink } from '../components/ui/PillLink'
 import { TrendLine } from '../components/Sparkline'
 import { formatDuration } from '../lib/duration'
@@ -82,6 +83,9 @@ export function DashboardPage() {
   const errorHistogram = useHistogram({ ...range, buckets: BUCKET_COUNT, filter: ERROR_FILTER })
   const heatmap = useHeatmap(range)
   const ingestionLag = useIngestionLag(range)
+  // isolating a status class is a way of looking at this chart, not a filter on the page: the
+  // panels around it keep answering about everything
+  const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
   const latency = useLatency({ ...range, buckets: BUCKET_COUNT })
   const rejections = useIngestRejections(REJECTION_DAYS)
   const topErrors = useTopErrors({ ...range, limit: PANEL_LIMIT })
@@ -283,17 +287,20 @@ export function DashboardPage() {
 
           {/* The request timeline, sampled here: the shape of 4xx and 5xx over the window is
               worth a glance before anyone opens the Requests page for the routes behind it.
-              Clicking a class opens that page already narrowed to it. */}
+              The class chips isolate a class in the chart, exactly as they do on that page —
+              they look like a filter, so they are one. Leaving is the pill's job. */}
           <Panel className="p-5">
             <StatusChart
               from={range.from}
               to={range.to}
               title={t.nav.requests}
-              action={<PillLink to="/requests">{t.dashboard.viewAll}</PillLink>}
-              selected={null}
-              onSelect={(next) =>
-                next && navigate(`/requests?${new URLSearchParams({ status: next }).toString()}`)
+              action={
+                <PillLink to={statusClass ? `/requests?status=${statusClass}` : '/requests'}>
+                  {t.dashboard.viewAll}
+                </PillLink>
               }
+              selected={statusClass}
+              onSelect={setStatusClass}
             />
           </Panel>
 
