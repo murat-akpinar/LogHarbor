@@ -18,6 +18,8 @@ public static class AuthEndpoints
 
     public const string LdapMethod = "ldap";
 
+    private const int MaxLoggedUsernameLength = 64;
+
     public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
     public static void MapAuth(this IEndpointRouteBuilder app)
@@ -117,8 +119,27 @@ public static class AuthEndpoints
         // the caller gets 401 and nothing else whichever of these it was; the operator needs to
         // know which, or a misconfigured baseDn is indistinguishable from a typo'd password
         logger.LogWarning(
-            "LDAP sign-in refused for {Username}: {Reason}", request.Username, result.Failure);
+            "LDAP sign-in refused for {Username}: {Reason}", ForLog(request.Username), result.Failure);
         return null;
+    }
+
+    /// <summary>
+    /// A rejected username is still attacker-supplied text on its way into the log.
+    /// </summary>
+    /// <remarks>
+    /// A newline in it produced a convincing second entry — "LDAP sign-in refused for kotu" then
+    /// "fail: SAHTE LOG SATIRI: ..." on its own line. The authenticator refuses such a username,
+    /// but refusing it is exactly the path that logs it.
+    /// </remarks>
+    private static string ForLog(string? username)
+    {
+        if (string.IsNullOrEmpty(username))
+        {
+            return "(empty)";
+        }
+        var clean = new string(username.Take(MaxLoggedUsernameLength)
+            .Select(c => char.IsControl(c) ? '?' : c).ToArray());
+        return username.Length > MaxLoggedUsernameLength ? clean + "…" : clean;
     }
 
     private static async Task<IResult> LogoutAsync(HttpContext context)
