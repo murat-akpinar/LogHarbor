@@ -13,6 +13,7 @@ using LogHarbor.Api.Endpoints;
 using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Alerting;
 using LogHarbor.Core.Archiving;
+using LogHarbor.Core.Auth;
 using LogHarbor.Core.Storage;
 using LogHarbor.Core.Telemetry;
 using OpenTelemetry.Metrics;
@@ -74,6 +75,7 @@ builder.Services.AddSingleton<TailBroadcaster>();
 
 builder.Services.AddSingleton<IUserStore, SqliteUserStore>();
 builder.Services.AddSingleton<AuthService>();
+builder.Services.AddSingleton<ILdapAuthenticator, LdapAuthenticator>();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {

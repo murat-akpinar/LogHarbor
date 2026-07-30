@@ -242,6 +242,37 @@ export interface AuthStatus {
   role: UserRole | null
   /** Seeded admin/admin account: the API refuses everything until a new password is set. */
   mustChangePassword: boolean
+  /** Whether an admin has configured a directory, so the login page knows to offer the choice. */
+  ldapEnabled: boolean
+}
+
+/** How a sign-in is authenticated: the local user table, or the configured directory. */
+export type LoginMethod = 'standard' | 'ldap'
+
+/** Directory sign-in configuration. Holds no password: LogHarbor binds as the user signing in. */
+export interface LdapSettings {
+  enabled: boolean
+  host: string
+  port: number
+  security: 'ldaps' | 'starttls' | 'none'
+  baseDn: string
+  /** Active Directory bind form: username@suffix. */
+  upnSuffix: string
+  /** Bind DN template with {0} for the username; anything that is not AD needs this. */
+  userDnPattern: string
+  adminGroup: string
+  viewerGroup: string
+  nestedGroups: boolean
+  allowInvalidCertificate: boolean
+}
+
+/** What the Settings card's test button gets back: no session, just what the directory said. */
+export interface LdapTestResult {
+  bound: boolean
+  succeeded: boolean
+  role: UserRole | null
+  groups: string[]
+  detail: string | null
 }
 
 export interface User {

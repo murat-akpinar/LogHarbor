@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { getAuthStatus } from './api/settings'
+import { getAuthStatus, login } from './api/settings'
 import App from './App'
 
 /**
@@ -16,7 +16,7 @@ vi.mock('./api/settings', () => ({
     authenticated: true,
     username: 'admin',
     role: 'admin',
-    mustChangePassword: false,
+    mustChangePassword: false, ldapEnabled: false,
   })),
   login: vi.fn(),
   logout: vi.fn(),
@@ -105,7 +105,7 @@ beforeEach(() => {
     authenticated: true,
     username: 'admin',
     role: 'admin',
-    mustChangePassword: false,
+    mustChangePassword: false, ldapEnabled: false,
   })
 })
 
@@ -143,7 +143,7 @@ describe('App', () => {
       authenticated: false,
       username: null,
       role: null,
-      mustChangePassword: false,
+      mustChangePassword: false, ldapEnabled: false,
     })
 
     renderApp('/events')
@@ -158,12 +158,81 @@ describe('App', () => {
       authenticated: true,
       username: 'admin',
       role: 'admin',
-      mustChangePassword: true,
+      mustChangePassword: true, ldapEnabled: false,
     })
 
     renderApp('/')
 
     expect(await screen.findByLabelText('New password')).toBeDefined()
     expect(screen.queryByRole('link', { name: /Settings/ })).toBeNull()
+  })
+
+  const loggedOut = (ldapEnabled: boolean) => ({
+    authRequired: true,
+    authenticated: false,
+    username: null,
+    role: null,
+    mustChangePassword: false,
+    ldapEnabled,
+  })
+
+  // the tab stays visible before a directory exists so the feature has a home, but it must not
+  // take credentials it has nowhere to send
+  it('offers the LDAP tab but disables it until a directory is configured', async () => {
+    vi.mocked(getAuthStatus).mockResolvedValue(loggedOut(false))
+    renderApp('/events')
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'LDAP' }))
+
+    expect((screen.getByLabelText('Username') as HTMLInputElement).disabled).toBe(true)
+    expect(screen.getByText(/not set up on this instance yet/)).toBeDefined()
+  })
+
+  it('takes directory credentials once one is configured', async () => {
+    vi.mocked(getAuthStatus).mockResolvedValue(loggedOut(true))
+    renderApp('/events')
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'LDAP' }))
+
+    const username = screen.getByLabelText('Directory username') as HTMLInputElement
+    expect(username.disabled).toBe(false)
+    expect(screen.queryByText(/not set up on this instance yet/)).toBeNull()
+  })
+
+  // the method has to travel with the credentials, or a domain user is checked against the
+  // local account table and always refused
+  it('sends the chosen method with the credentials', async () => {
+    vi.mocked(getAuthStatus).mockResolvedValue(loggedOut(true))
+    vi.mocked(login).mockResolvedValue({
+      authenticated: true, username: 'testuser1', role: 'viewer', mustChangePassword: false,
+    })
+    renderApp('/events')
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'LDAP' }))
+    fireEvent.change(screen.getByLabelText('Directory username'), { target: { value: 'testuser1' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'testpass123' } })
+    fireEvent.click(screen.getByRole('button', { name: /Sign in/ }))
+
+    await waitFor(() => expect(login).toHaveBeenCalledWith('testuser1', 'testpass123', 'ldap'))
+  })
+
+  // a domain user should not have to re-pick LDAP every morning
+  it('remembers the chosen method', async () => {
+    vi.mocked(getAuthStatus).mockResolvedValue(loggedOut(true))
+    renderApp('/events')
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'LDAP' }))
+    expect(localStorage.getItem('logharbor-login-method')).toBe('ldap')
+  })
+
+  // a remembered choice must not strand someone on a tab that stopped working
+  it('falls back to standard when a remembered directory is switched off again', async () => {
+    localStorage.setItem('logharbor-login-method', 'ldap')
+    vi.mocked(getAuthStatus).mockResolvedValue(loggedOut(false))
+    renderApp('/events')
+
+    // the LDAP tab is still selected, and says why it cannot be used
+    expect(await screen.findByText(/not set up on this instance yet/)).toBeDefined()
+    expect((screen.getByLabelText('Username') as HTMLInputElement).disabled).toBe(true)
   })
 })

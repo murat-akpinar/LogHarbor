@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using LogHarbor.Api.Auth;
+using LogHarbor.Core.Auth;
 using LogHarbor.Core.Storage;
 
 namespace LogHarbor.Api.Endpoints;
@@ -11,7 +12,11 @@ public static class AuthEndpoints
     public const string LoginRateLimitPolicy = "login";
     public const int MinPasswordLength = 8;
 
-    public sealed record LoginRequest(string? Username, string? Password);
+    /// <summary>Method is "standard" (the local user table) or "ldap"; absent means standard,
+    /// so a client written before directory sign-in existed keeps working.</summary>
+    public sealed record LoginRequest(string? Username, string? Password, string? Method);
+
+    public const string LdapMethod = "ldap";
 
     public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
@@ -37,6 +42,10 @@ public static class AuthEndpoints
                     ? context.User.FindFirstValue(ClaimTypes.Role)
                     : UserRole.Admin, // no accounts yet: everyone can do everything
                 mustChangePassword = AuthPolicy.MustChangePassword(context),
+                // unauthenticated on purpose: the login page has to know whether to offer the
+                // directory tab before anyone has signed in, and "this server can talk to a
+                // directory" is not something an attacker learns anything from
+                ldapEnabled = await authService.IsLdapEnabledAsync(cancellationToken),
             });
         });
     }
@@ -46,6 +55,9 @@ public static class AuthEndpoints
         HttpContext context,
         AuthService authService,
         IUserStore userStore,
+        ISettingsStore settingsStore,
+        ILdapAuthenticator ldap,
+        ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         if (!await authService.IsEnabledAsync(cancellationToken))
@@ -58,7 +70,10 @@ public static class AuthEndpoints
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials");
         }
 
-        var user = await userStore.AuthenticateAsync(request.Username, request.Password, cancellationToken);
+        var user = string.Equals(request.Method, LdapMethod, StringComparison.OrdinalIgnoreCase)
+            ? await AuthenticateLdapAsync(
+                request, settingsStore, ldap, loggerFactory.CreateLogger("LogHarbor.Ldap"), cancellationToken)
+            : await userStore.AuthenticateAsync(request.Username, request.Password, cancellationToken);
         if (user is null)
         {
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials");
@@ -72,6 +87,38 @@ public static class AuthEndpoints
             role = user.Role,
             mustChangePassword = user.MustChangePassword,
         });
+    }
+
+    /// <summary>
+    /// A directory user as a <see cref="User"/>, without a row in the users table.
+    /// </summary>
+    /// <remarks>
+    /// Nothing is written locally on purpose: there is no password to keep, and the role has to
+    /// be re-read from the directory on every login anyway — a mirrored copy goes stale the
+    /// moment somebody is moved out of a group, and then LogHarbor is enforcing a membership the
+    /// directory no longer agrees with. Id 0 marks a principal with no local row, which is why
+    /// UserStillExistsAsync has to let it through.
+    /// </remarks>
+    private static async Task<User?> AuthenticateLdapAsync(
+        LoginRequest request,
+        ISettingsStore settingsStore,
+        ILdapAuthenticator ldap,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        var settings = await settingsStore.GetLdapSettingsAsync(cancellationToken);
+        var result = await ldap.AuthenticateAsync(
+            settings, request.Username!, request.Password!, cancellationToken);
+        if (result.Succeeded)
+        {
+            return new User(0, request.Username!, result.Role!, "", MustChangePassword: false);
+        }
+
+        // the caller gets 401 and nothing else whichever of these it was; the operator needs to
+        // know which, or a misconfigured baseDn is indistinguishable from a typo'd password
+        logger.LogWarning(
+            "LDAP sign-in refused for {Username}: {Reason}", request.Username, result.Failure);
+        return null;
     }
 
     private static async Task<IResult> LogoutAsync(HttpContext context)
@@ -126,6 +173,7 @@ public static class AuthEndpoints
     {
         var claims = new List<Claim>
         {
+            // 0 for a directory principal (AuthService.DirectoryPrincipalId): no local row to point at
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Username),
             new(ClaimTypes.Role, user.Role),

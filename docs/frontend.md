@@ -27,7 +27,8 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 /signals     List, create, edit, delete signals
 /alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
 /settings    API key management, archive/retention settings, backup download
-             (admin only), user management (admin only), health status, sign out
+             (admin only), user management (admin only), directory sign-in
+             (LDAP, admin only), health status, sign out
 
 Nav order: Dashboard (home, /), Events, Requests, Exceptions, Queries, Services,
 Users, Analysis, Signals, Alerts, Settings — every link carries a small inline
@@ -36,8 +37,14 @@ was reverted the same day by user preference — the classic top bar stays; the
 lens pages it introduced remain.)
 
 Auth is enabled automatically once at least one user account exists (LOGHARBOR_ADMIN_PASSWORD
-seeds the first admin on startup). While enabled, a login screen (username + password)
-gates the whole SPA until the session cookie is issued (GET /api/auth/status drives this).
+seeds the first admin on startup) OR once directory sign-in is turned on — an LDAP-only install
+has no local accounts, and counting them alone left the whole server open. While enabled, a
+login screen gates the whole SPA until the session cookie is issued (GET /api/auth/status
+drives this, and its ldapEnabled decides whether the login page's LDAP tab is usable).
+The login card carries a Standard / LDAP segmented control; the choice is remembered in
+localStorage, and a remembered LDAP choice falls back to Standard when the directory is
+switched off. A directory user has no row in the users table, so the Users page lists local
+accounts only (docs/ldap.md).
 Viewers see every page but mutating controls (create/edit/delete forms, API key and
 archive-setting changes) are hidden; the Users section under Settings is admin-only.
 

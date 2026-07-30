@@ -11,6 +11,9 @@
     <!-- build-time protoc only; GrpcServices=None below keeps the gRPC server stack out -->
     <PackageReference Include="Grpc.Tools" Version="2.82.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!-- cross-platform LDAP; on Linux it binds the system libldap at runtime, which the
+         aspnet:8.0 runtime image already carries (libldap-2.5, verified in the container) -->
+    <PackageReference Include="System.DirectoryServices.Protocols" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -63,6 +63,19 @@ public sealed record LdapSettings
     /// member:1.2.840.113556.1.4.1941: matching rule, which no other directory implements.</summary>
     public bool NestedGroups { get; init; }
 
+    /// <summary>
+    /// Accept a server certificate that does not validate — self-signed, expired, or issued to
+    /// another name.
+    /// </summary>
+    /// <remarks>
+    /// An escape hatch, off by default, because it turns the encrypted connection into one that
+    /// cannot tell the directory from anything standing in front of it. It exists because
+    /// self-signed is what a test directory has, and the alternative — no way to point this at
+    /// anything but a properly issued certificate — means the TLS paths never get exercised
+    /// before production.
+    /// </remarks>
+    public bool AllowInvalidCertificate { get; init; }
+
     public bool UsesDnBind => UserDnPattern.Length > 0;
 
     /// <summary>

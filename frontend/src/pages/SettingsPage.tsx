@@ -15,6 +15,7 @@ import { formatTimestamp } from '../lib/dates'
 import type { CreatedApiKey, StorageForecast, UserRole } from '../types'
 import { ArchiveSegments } from '../components/ArchiveSegments'
 import { Card } from '../components/ui/Card'
+import { LdapCard } from '../components/settings/LdapCard'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Button } from '../components/ui/Button'
@@ -561,10 +562,19 @@ export function SettingsPage() {
       )}
 
       {isAdmin && (
-        <section>
+        <section className="mb-6">
           <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.users}</h2>
           <Card className="p-4">
             <UsersCard />
+          </Card>
+        </section>
+      )}
+
+      {isAdmin && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.ldapTitle}</h2>
+          <Card className="p-4">
+            <LdapCard />
           </Card>
         </section>
       )}

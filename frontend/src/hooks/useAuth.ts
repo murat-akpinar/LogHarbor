@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { changePassword, getAuthStatus, login, logout } from '../api/settings'
+import type { LoginMethod } from '../types'
 
 const AUTH_KEY = ['auth', 'status']
 
@@ -10,7 +11,15 @@ export function useAuthStatus() {
 export function useLogin() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ username, password }: { username: string; password: string }) => login(username, password),
+    mutationFn: ({
+      username,
+      password,
+      method,
+    }: {
+      username: string
+      password: string
+      method?: LoginMethod
+    }) => login(username, password, method),
     // a fresh session changes what every other query may read
     onSuccess: () => queryClient.invalidateQueries(),
   })

@@ -5,7 +5,9 @@ All responses JSON. Errors use ProblemDetails (RFC 7807).
 
 --- AUTH ---
 
-Multi-user auth, enabled automatically once at least one user account exists.
+Multi-user auth, enabled automatically once at least one user account exists, or once
+directory sign-in is configured — an LDAP-only install legitimately has no local accounts,
+and counting them alone left every endpoint open on a server that looked configured.
 The first start seeds an 'admin' account, so a fresh install is never reachable without a
 login; after that, accounts are managed under /api/users. Roles: admin (full access) and
 viewer (read-only: GETs, /api/query/validate and /api/archive/hydrate only).
@@ -26,7 +28,11 @@ install safe: default credentials exist, but they cannot read a single log line.
 LogHarbor:SeedDefaultAdmin=false turns the seeding off entirely (tests, and installs that manage
 the user table themselves).
 
-POST /api/auth/login     body { username, password }
+POST /api/auth/login     body { username, password, method? }
+                         method: 'standard' (default, the local user table) or 'ldap'
+                         (the configured directory, docs/ldap.md). A directory sign-in
+                         creates no local account; the role comes from group membership
+                         and is re-read on every login.
                          200: { authenticated, username, role, mustChangePassword } | 401
                          429 after repeated failures
 POST /api/auth/logout    204
@@ -34,7 +40,10 @@ POST /api/auth/password  body { currentPassword, newPassword }  changes the call
                          204 | 400 (newPassword under 8 chars, or same as the current one)
                          401 (no session, or currentPassword wrong) | 429, rate limited like login
 GET  /api/auth/status    200: { "authRequired": bool, "authenticated": bool, "username": string|null,
-                                "role": "admin"|"viewer", "mustChangePassword": bool }
+                                "role": "admin"|"viewer", "mustChangePassword": bool,
+                                "ldapEnabled": bool }
+                         ldapEnabled is readable unauthenticated on purpose: the login page has
+                         to know whether to offer the directory tab before anyone has signed in.
 
 --- USERS (admin only) ---
 
@@ -256,6 +265,32 @@ GET /api/stats/service-status
   200: { "staleMinutes": N, "asOf": "<to>",
          "services": [ { host, kind, service, status, state, health, lastSeen,
                          secondsSinceLastSeen } ] }
+
+GET /api/settings/ldap
+  Admin only, unlike the other settings: it describes somebody else's infrastructure —
+  directory host, base DN, and the name of the group that grants admin.
+  200: { enabled, host, port, security, baseDn, upnSuffix, userDnPattern, adminGroup,
+         viewerGroup, nestedGroups, allowInvalidCertificate, usesDnBind }
+  Holds no password by design: LogHarbor binds as the user signing in, so there is no
+  service account and nothing secret to store (docs/ldap.md).
+
+PUT /api/settings/ldap
+  Admin only. Same body; validated only when enabled is true, because a half-filled card
+  saved with the feature off is someone still typing. 400 when: neither upnSuffix nor
+  userDnPattern is set (nothing to bind as), userDnPattern has no {0}, both group names
+  are blank (no directory user could earn a role), security is not
+  ldaps/starttls/none, or port is outside 1..65535.
+  Saving enabled=true turns authentication on for the whole server even with no local
+  accounts, and takes effect without a restart.
+  200: the saved settings
+
+POST /api/settings/ldap/test
+  Admin only. Body: { username, password, settings? }. Asks the directory what it would
+  say about these credentials and creates NO session. Uses `settings` when sent, so the
+  Settings card can test what is on screen before saving; falls back to the stored ones.
+  200: { bound, succeeded, role, groups, detail }
+  `detail` names the reason a sign-in would fail — safe here and nowhere else, because
+  this endpoint is admin-only. The login path answers 401 with none of it.
 
 GET /api/stats/operations
   Query: routeProperty? default Path, methodProperty? default Method

@@ -12,7 +12,7 @@ const authStatus: AuthStatus = {
   authenticated: true,
   username: 'admin',
   role: 'admin',
-  mustChangePassword: false,
+  mustChangePassword: false, ldapEnabled: false,
 }
 
 vi.mock('../api/settings', () => ({

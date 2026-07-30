@@ -2,17 +2,21 @@ import { useState } from 'react'
 import type { ComponentPropsWithoutRef, FormEvent, ReactNode } from 'react'
 import { useAuthStatus, useChangePassword, useLogin } from '../hooks/useAuth'
 import { useI18n } from '../i18n'
-import type { Level } from '../types'
+import type { Level, LoginMethod } from '../types'
 import { LEVEL_CODE, LEVEL_TEXT } from '../lib/levels'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 import { Card } from './ui/Card'
 
-/** Standard is the local account table; ldap is the directory sign-in of todo.md Phase 21. */
-type LoginMethod = 'standard' | 'ldap'
-
 /** The tabs select a mode for this form, so they have to point at it. */
 const LOGIN_FORM_ID = 'login-form'
+
+/** A domain user should not have to re-pick LDAP every morning. */
+const METHOD_STORAGE_KEY = 'logharbor-login-method'
+
+function rememberedMethod(): LoginMethod {
+  return localStorage.getItem(METHOD_STORAGE_KEY) === 'ldap' ? 'ldap' : 'standard'
+}
 
 /** One ordinary minute on a LogHarbor instance, standing in for the product behind the
  *  sign-in card. Machine text, so it is not translated — real log lines are not either. */
@@ -134,8 +138,8 @@ function Field({ label, ...rest }: { label: string } & ComponentPropsWithoutRef<
   )
 }
 
-/** Where a directory sign-in will live. Both tabs are shown before LDAP exists so the choice is
- *  visible from the start; the LDAP side says what is missing instead of pretending to work. */
+/** The tabs stay visible even before a directory is configured, so the choice has a home and the
+ *  LDAP side can say what is missing — an empty slot teaches nothing. */
 function MethodTabs({ method, onChange }: { method: LoginMethod; onChange: (next: LoginMethod) => void }) {
   const { t } = useI18n()
   const tabs: { id: LoginMethod; label: string }[] = [
@@ -165,17 +169,29 @@ function MethodTabs({ method, onChange }: { method: LoginMethod; onChange: (next
 
 function LoginForm() {
   const { t } = useI18n()
+  const { data: status } = useAuthStatus()
   const loginMutation = useLogin()
-  const [method, setMethod] = useState<LoginMethod>('standard')
+  const [method, setMethod] = useState<LoginMethod>(rememberedMethod)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  const ldapAvailable = status?.ldapEnabled ?? false
+  // a remembered choice must not strand someone on a tab that no longer works, e.g. after an
+  // admin turns the directory off again
+  const active: LoginMethod = method === 'ldap' && !ldapAvailable ? 'standard' : method
+
+  function chooseMethod(next: LoginMethod) {
+    setMethod(next)
+    setError(null)
+    localStorage.setItem(METHOD_STORAGE_KEY, next)
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
     try {
-      await loginMutation.mutateAsync({ username, password })
+      await loginMutation.mutateAsync({ username, password, method: active })
       setUsername('')
       setPassword('')
     } catch (loginError) {
@@ -183,20 +199,22 @@ function LoginForm() {
     }
   }
 
-  const ldap = method === 'ldap'
+  // the tab is selectable before a directory exists so the feature has a visible home; what it
+  // cannot do is accept credentials it has nowhere to send
+  const unconfigured = method === 'ldap' && !ldapAvailable
 
   return (
     <Shell title={t.login.signIn} subtitle={t.login.cardSubtitle}>
-      <MethodTabs method={method} onChange={setMethod} />
+      <MethodTabs method={method} onChange={chooseMethod} />
       <form id={LOGIN_FORM_ID} role="tabpanel" onSubmit={handleSubmit}>
         <Field
-          label={t.login.username}
+          label={active === 'ldap' ? t.login.directoryUsername : t.login.username}
           type="text"
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           autoFocus
           autoComplete="username"
-          disabled={ldap}
+          disabled={unconfigured}
         />
         <Field
           label={t.login.password}
@@ -204,17 +222,22 @@ function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           autoComplete="current-password"
-          disabled={ldap}
+          disabled={unconfigured}
         />
         <Button
           type="submit"
           variant="primary"
-          disabled={ldap || loginMutation.isPending}
+          disabled={unconfigured || loginMutation.isPending}
           className="mt-1 w-full py-2"
         >
           {loginMutation.isPending ? t.login.signingIn : `${t.login.signIn} →`}
         </Button>
-        {ldap && <p className="mt-3 text-xs leading-relaxed text-fg-muted">{t.login.ldapNotConfigured}</p>}
+        {unconfigured && (
+          <p className="mt-3 text-xs leading-relaxed text-fg-muted">{t.login.ldapNotConfigured}</p>
+        )}
+        {!unconfigured && active === 'ldap' && (
+          <p className="mt-3 text-xs leading-relaxed text-fg-muted">{t.login.ldapHint}</p>
+        )}
         {error && <p className="mt-3 text-xs text-level-error">{error}</p>}
       </form>
     </Shell>
