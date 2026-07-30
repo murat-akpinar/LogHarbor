@@ -276,6 +276,63 @@ public sealed class SqliteEventStoreTests : IDisposable
         Assert.Null(job.Method);
     }
 
+    /// <summary>An app that logs the raw path instead of the route template gave every request
+    /// its own group: one row per order id, each with a total of 1 and a p95 measured over that
+    /// single sample, while the route they all belong to never appeared at all.</summary>
+    [Fact]
+    public async Task OperationOverview_FoldsIdsOutOfRawPathsIntoOneRoute()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"Method":"GET","Path":"/api/orders/41973","Elapsed":10}""")
+                with { MessageTemplate = "HTTP {Method} {Path} responded" },
+            MakeEvent("b", """{"Method":"GET","Path":"/api/orders/8","Elapsed":90}""")
+                with { MessageTemplate = "HTTP {Method} {Path} responded", Level = "Error" },
+            MakeEvent("c", """{"Method":"GET","Path":"/api/orders/3f2504e0-4f89-11d3-9a0c-0305e82c3301","Elapsed":50}""")
+                with { MessageTemplate = "HTTP {Method} {Path} responded" },
+            // no id to fold: this route stays exactly as it was logged
+            MakeEvent("d", """{"Method":"GET","Path":"/api/orders","Elapsed":5}""")
+                with { MessageTemplate = "HTTP {Method} {Path} responded" },
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+
+        Assert.Equal(2, rows.Count);
+
+        var byId = rows.Single(row => row.Route == "/api/orders/{id}");
+        Assert.Equal(3, byId.Total);
+        Assert.Equal(1, byId.ErrorCount);
+        Assert.Equal(90, byId.P95ElapsedMs);
+        // the deep link cannot use "Path = '/api/orders/{id}'": no event carries that text
+        Assert.True(byId.Folded);
+
+        var list = rows.Single(row => row.Route == "/api/orders");
+        Assert.Equal(1, list.Total);
+        Assert.False(list.Folded);
+    }
+
+    /// <summary>The install whose sink already logs route templates is the one that reads well
+    /// today, so folding has to leave it byte for byte alone — and leave it filterable by "=".</summary>
+    [Fact]
+    public async Task OperationOverview_LeavesTemplatedPathsUnfolded()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"Method":"GET","Path":"/api/orders/{id}","Elapsed":10}""")
+                with { MessageTemplate = "HTTP {Method} {Path} responded" },
+            MakeEvent("b", """{"Method":"DELETE","Path":"/api/carts/{cartId}/items/{itemId}","Elapsed":20}""")
+                with { MessageTemplate = "HTTP {Method} {Path} responded" },
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+
+        Assert.Equal("/api/orders/{id}", rows.Single(row => row.Method == "GET").Route);
+        Assert.Equal("/api/carts/{cartId}/items/{itemId}", rows.Single(row => row.Method == "DELETE").Route);
+        Assert.All(rows, row => Assert.False(row.Folded));
+    }
+
     /// <summary>Serilog writes RequestPath, OTel writes http.route: the names are settings.</summary>
     [Fact]
     public async Task OperationOverview_TakesTheRoutePropertyNameFromTheCaller()

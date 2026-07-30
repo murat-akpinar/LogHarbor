@@ -1,3 +1,4 @@
+using LogHarbor.Core.Events;
 using Microsoft.Data.Sqlite;
 
 namespace LogHarbor.Core.Storage;
@@ -29,6 +30,9 @@ public sealed class LogHarborDb
         // auto_vacuum are persistent and set once by MigrationRunner
         command.CommandText = "PRAGMA busy_timeout=5000; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;";
         command.ExecuteNonQuery();
+        // route grouping needs it and SQLite has no way to express it: no regexp, and a recursive
+        // CTE over every path measured three times slower than the callback (RoutePath)
+        connection.CreateFunction("fold_route", (string? path) => path is null ? null : RoutePath.Fold(path));
         return connection;
     }
 

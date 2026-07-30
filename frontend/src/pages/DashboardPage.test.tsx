@@ -29,7 +29,7 @@ const SLOW = {
 }
 const OPERATIONS = {
   operations: [
-    { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
+    { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512, folded: false },
   ],
 }
 const USERS = { users: [{ value: 'user-7', total: 33, errorCount: 3, lastSeen: ISO }] }
@@ -156,8 +156,8 @@ describe('DashboardPage', () => {
   it('shows routes even when busier operations are not routes', async () => {
     vi.mocked(stats.getOperations).mockResolvedValue({
       operations: [
-        { template: 'Processed job {JobId}', method: null, route: null, total: 400, errorCount: 0, p95ElapsedMs: 20 },
-        { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
+        { template: 'Processed job {JobId}', method: null, route: null, total: 400, errorCount: 0, p95ElapsedMs: 20, folded: false },
+        { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512, folded: false },
       ],
     })
     renderPage()
@@ -169,8 +169,8 @@ describe('DashboardPage', () => {
   it('counts the routes over the latency line', async () => {
     vi.mocked(stats.getOperations).mockResolvedValue({
       operations: [
-        { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512 },
-        { template: 'POST /orders', method: 'POST', route: '/orders', total: 40, errorCount: 0, p95ElapsedMs: 2450 },
+        { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512, folded: false },
+        { template: 'POST /orders', method: 'POST', route: '/orders', total: 40, errorCount: 0, p95ElapsedMs: 2450, folded: false },
       ],
     })
     renderPage()

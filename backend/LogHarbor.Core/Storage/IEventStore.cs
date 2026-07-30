@@ -38,19 +38,22 @@ public sealed record HeatmapCell(int DayOfWeek, int Hour, long Count);
 /// <summary>RED numbers for one service; P95ElapsedMs is null when no event carried Elapsed.</summary>
 public sealed record ServiceOverview(string Service, long Total, long ErrorCount, double? P95ElapsedMs);
 
-/// <summary>RED numbers for one operation (CLEF message template); P95ElapsedMs is null when no event carried Elapsed.</summary>
-/// <summary>One operation group. When the events carried the configured route property the group
-/// is a route — Method and Route are filled and Template is the "GET /orders/{id}" label built
-/// from them; otherwise the group is a message template and both are null. Grouping by template
-/// alone put every request an app makes into one row, which is no answer to "which route is
-/// slow": the template is the same string for all of them.</summary>
+/// <summary>One operation group; P95ElapsedMs is null when no event carried Elapsed. When the
+/// events carried the configured route property the group is a route — Method and Route are
+/// filled and Template is the "GET /orders/{id}" label built from them; otherwise the group is a
+/// message template and both are null. Grouping by template alone put every request an app makes
+/// into one row, which is no answer to "which route is slow": the template is the same string for
+/// all of them. Folded says the route holds {id} placeholders this server put there rather than
+/// text the events carried, so a filter built from it has to match the pattern, not the literal
+/// (RoutePath).</summary>
 public sealed record OperationOverview(
     string Template,
     long Total,
     long ErrorCount,
     double? P95ElapsedMs,
     string? Method = null,
-    string? Route = null);
+    string? Route = null,
+    bool Folded = false);
 
 /// <summary>Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen timestamp.</summary>
 public sealed record UserActivity(string Value, long Total, long ErrorCount, string LastSeen);

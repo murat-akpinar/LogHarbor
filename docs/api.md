@@ -270,11 +270,20 @@ GET /api/stats/operations
   which is why the route properties decide the grouping and not the template.
   Property names differ per sink: Path/Method here, RequestPath/RequestMethod under
   Serilog's ASP.NET middleware, http.route/http.request.method under OTel.
-  Note the cardinality: grouping is only useful if the app logs the route template
-  ("/orders/{id}"). An app that logs the raw path produces one group per request.
+  Ids are folded out of the path before grouping, so an app that logs the raw path
+  ("/api/orders/41973") groups as "/api/orders/{id}" instead of producing one group per
+  request. A segment is an id when it is all digits, or a hex/uuid run of 16 characters or
+  more; a path that carries no id is passed through byte for byte, which is why an install
+  whose sink already logs route templates sees no difference. Measured on 200k events:
+  126,267 groups became 12, and the busiest route in the app (59,980 requests, absent from
+  the response entirely because each of its rows held one hit) became the top row.
+  folded says the route holds {id} placeholders this server put there. No event carries that
+  text, so a filter built from a folded row has to match the pattern — replace each {id} with
+  % and use `like` — while an unfolded row still filters with `=`.
   errorCount counts Error + Fatal levels; p95ElapsedMs is the p95 of the numeric Elapsed
   property, null when no event of the group carried Elapsed. Ordered by total descending.
-  200: { "operations": [ { template, total, errorCount, p95ElapsedMs, method, route } ] }
+  200: { "operations": [ { template, total, errorCount, p95ElapsedMs, method, route,
+                           folded } ] }
 
 GET /api/stats/user-activity
   Query: property? default UserId ([A-Za-z0-9_.] only), limit? default 50

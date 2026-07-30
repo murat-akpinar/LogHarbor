@@ -189,6 +189,8 @@ export interface OperationOverview {
   /** Set when the events carried the route property; null for template groups (jobs, probes). */
   method: string | null
   route: string | null
+  /** The route holds {id} placeholders the server put there, so no event carries it literally. */
+  folded: boolean
 }
 
 /** Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen. */

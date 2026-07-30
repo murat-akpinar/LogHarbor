@@ -167,7 +167,10 @@ opens Events at that slice; dragging across bars freezes+zooms.
 Section "Analysis" (-> Analysis): compact top-5 panels — top errors, top exceptions,
 Routes (busiest operations by /api/stats/operations, message template + p95 latency)
 and slowest operations. Error, route and slow-op rows deep-link to filtered Events;
-exception rows don't (no @ExceptionType builtin).
+exception rows don't (no @ExceptionType builtin). A route row the server folded
+(operation.folded — the {id} in it is the server's, not the app's) deep-links with
+`Path like '/api/orders/%'` instead of `=`, because no event carries the folded text;
+lib/operations.ts builds both forms.
 Section "Services & users": Service health (per-service error %, -> Services) and
 Users (top UserId values by event count, -> Users); rows deep-link to filtered Events.
 Heatmap: hour-of-day x day-of-week density grid (/api/stats/heatmap, UTC),
@@ -231,12 +234,17 @@ Live toggle: the page follows the dashboard's rolling last-hour auto-refresh
 (pausing shows the TimeRangePicker) — same as Exceptions and Queries.
 
 Operations RED table as its own lens (Nightwatch's "Requests" view):
-/api/stats/operations (limit 50), per-operation RED grouped by message
-template — events/min, error % (tinted red when non-zero), p95 Elapsed
-(em dash when the operation carries no Elapsed) and a template-filtered
-sparkline; events without a message template are excluded. The numeric
-column headers re-sort the table client-side (descending). Row click:
-navigates to Events with @MessageTemplate = '...' and the range as from/to.
+/api/stats/operations (limit 50), per-operation RED grouped by route where
+the events carry one and by message template otherwise — events/min, error %
+(tinted red when non-zero), p95 Elapsed (em dash when the operation carries
+no Elapsed) and a filtered sparkline. The route and method property names are
+inputs on the page (Path/Method by default, RequestPath/RequestMethod under
+Serilog's ASP.NET middleware, http.route under OTel); blank falls back to
+template grouping. The numeric column headers re-sort the table client-side
+(descending). Row click: navigates to Events with the range as from/to and
+the filter the row was grouped on — the route and method properties, `like`
+with % where the server folded ids out of the path, or @MessageTemplate for
+a template group (lib/operations.ts).
 
 --- EXCEPTIONS PAGE ---
 
