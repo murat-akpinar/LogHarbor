@@ -17,7 +17,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage'
 import { formatTimestamp } from '../lib/dates'
 import { formatDuration } from '../lib/duration'
 import { quote } from '../lib/filter'
-import { LEVEL_HEX } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -225,7 +225,7 @@ export function QueriesPage() {
                   </Link>
                 </div>
                 <div className="mt-2">
-                  <Sparkline filter={selectedFilter} color={LEVEL_HEX.Information} from={range.from} to={range.to} />
+                  <Sparkline filter={selectedFilter} color={LEVEL_CHART.Information} from={range.from} to={range.to} />
                 </div>
                 <ul className="mt-2">
                   {(occurrences.data?.events ?? []).map((event) => {

@@ -4,22 +4,11 @@ import { useI18n } from '../../i18n'
 import { operationFilter } from '../../lib/operations'
 import { formatDuration } from '../../lib/duration'
 import { PulsePanel } from './PulsePanel'
+import { METHOD_CLASS } from '../OperationName'
 
 /** Where a route stops being fast. Not configurable yet: one number the whole panel is read
  *  against beats a per-row judgement nobody has calibrated. */
 const SLOW_MS = 1000
-
-/** The verb decides the colour, so a write standing out among reads is visible before reading
- *  a single path. Level hues, so both themes and their contrast floor still hold. */
-const METHOD_CLASS: Record<string, string> = {
-  GET: 'text-level-information',
-  HEAD: 'text-level-information',
-  OPTIONS: 'text-fg-muted',
-  POST: 'text-accent',
-  PUT: 'text-level-verbose',
-  PATCH: 'text-level-verbose',
-  DELETE: 'text-level-error',
-}
 
 /** The server groups by the route property when the events carry one and hands back the verb and
  *  path apart; a template group (a job, a heartbeat) arrives with both null and is shown whole. */

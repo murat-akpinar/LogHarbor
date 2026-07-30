@@ -8,7 +8,7 @@ import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
-import { LEVEL_HEX } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -106,7 +106,7 @@ export function AnalysisPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={`@Level = '${row.level}' and @MessageTemplate = ${quote(row.template)}`}
-                      color={LEVEL_HEX[row.level]}
+                      color={LEVEL_CHART[row.level]}
                       from={range.from}
                       to={range.to}
                     />
@@ -187,7 +187,7 @@ export function AnalysisPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={`@MessageTemplate = ${quote(op.template)}`}
-                      color={LEVEL_HEX.Warning}
+                      color={LEVEL_CHART.Warning}
                       from={range.from}
                       to={range.to}
                     />

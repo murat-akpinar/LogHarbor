@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useHistogram } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
-import { LEVELS, LEVEL_HEX } from '../../lib/levels'
+import { LEVELS, LEVEL_CHART } from '../../lib/levels'
 import { formatTimestamp } from '../../lib/dates'
 import { niceCeil } from '../../lib/niceScale'
 import { useI18n } from '../../i18n'
@@ -19,9 +19,11 @@ export const STATUS_FILTERS = {
 export type StatusClass = keyof typeof STATUS_FILTERS
 
 const SERIES: { key: StatusClass; label: string; color: string }[] = [
-  { key: 'ok', label: '1/2/3xx', color: LEVEL_HEX.Information },
-  { key: 'client', label: '4xx', color: LEVEL_HEX.Warning },
-  { key: 'server', label: '5xx', color: LEVEL_HEX.Error },
+  // the healthy class draws neutral: a wall of colour says nothing, and 4xx/5xx have to be the
+  // only things in this chart that catch the eye
+  { key: 'ok', label: '1/2/3xx', color: LEVEL_CHART.Information },
+  { key: 'client', label: '4xx', color: LEVEL_CHART.Warning },
+  { key: 'server', label: '5xx', color: LEVEL_CHART.Error },
 ]
 
 interface StatusChartProps {

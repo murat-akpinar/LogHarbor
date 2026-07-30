@@ -7,7 +7,7 @@ import { Sparkline } from '../components/Sparkline'
 import { Card } from '../components/ui/Card'
 import { formatTimestamp } from '../lib/dates'
 import { exceptionStartsWith } from '../lib/filter'
-import { LEVEL_HEX } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -72,7 +72,7 @@ export function ExceptionsPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={exceptionStartsWith(row.type)}
-                      color={LEVEL_HEX.Error}
+                      color={LEVEL_CHART.Error}
                       from={range.from}
                       to={range.to}
                     />

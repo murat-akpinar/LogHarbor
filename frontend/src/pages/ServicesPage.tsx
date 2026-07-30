@@ -6,7 +6,7 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Card } from '../components/ui/Card'
 import { quote } from '../lib/filter'
-import { LEVEL_HEX } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 import type { ServiceStatusRow } from '../types'
 
@@ -98,7 +98,7 @@ export function ServicesPage() {
                 <td className={TD_CLASS}>
                   <Sparkline
                     filter={serviceFilter(row.service)}
-                    color={row.errorCount > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
+                    color={row.errorCount > 0 ? LEVEL_CHART.Error : LEVEL_CHART.Information}
                     from={range.from}
                     to={range.to}
                   />

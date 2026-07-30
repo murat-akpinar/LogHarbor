@@ -56,10 +56,11 @@ function bodyRowTexts(): string[] {
 
 it('lists operations with their RED numbers, busiest first', async () => {
   renderPage()
-  expect(await screen.findByText('GET /api/orders/{id}')).toBeDefined()
+  expect(await screen.findByText('/api/orders/{id}')).toBeDefined()
   // error % = 5 / 10 = 50.0%
   expect(screen.getByText('50.0%')).toBeDefined()
-  expect(bodyRowTexts()[0]).toContain('GET /api/orders/{id}')
+  expect(bodyRowTexts()[0]).toContain('GET')
+  expect(bodyRowTexts()[0]).toContain('/api/orders/{id}')
 })
 
 it('stacks status-class series with their totals in the legend', async () => {
@@ -87,7 +88,7 @@ it('starts live, and keeps the range picker alongside in both states', async () 
 
 it('isolates a status class and narrows the table to it', async () => {
   renderPage()
-  await screen.findByText('GET /api/orders/{id}')
+  await screen.findByText('/api/orders/{id}')
 
   const only5xx = screen.getByRole('button', { name: /5xx/ })
   only5xx.click()
@@ -103,9 +104,11 @@ it('isolates a status class and narrows the table to it', async () => {
 
 it('re-sorts by error % when that header is clicked', async () => {
   renderPage()
-  await screen.findByText('GET /api/orders/{id}')
+  await screen.findByText('/api/orders/{id}')
   screen.getByRole('button', { name: 'Error %' }).click()
   await waitFor(() => {
-    expect(bodyRowTexts()[0]).toContain('POST /api/orders')
+    // the verb and the path are separate elements now, so the row text has no space between them
+    expect(bodyRowTexts()[0]).toContain('POST')
+    expect(bodyRowTexts()[1]).toContain('GET')
   })
 })

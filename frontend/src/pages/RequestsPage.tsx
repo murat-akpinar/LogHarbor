@@ -5,12 +5,13 @@ import { useOperations } from '../hooks/useStats'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
+import { OperationName } from '../components/OperationName'
 import { StatusChart, STATUS_FILTERS } from '../components/requests/StatusChart'
 import type { StatusClass } from '../components/requests/StatusChart'
 import { Card } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
 import { METHOD_PROPERTY, ROUTE_PROPERTY, operationFilter } from '../lib/operations'
-import { LEVEL_HEX } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -142,15 +143,24 @@ export function RequestsPage() {
                   onClick={() => openEvents(op)}
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
                 >
-                  <td className={`${TD_CLASS} font-mono`}>{op.template}</td>
+                  <td className={TD_CLASS}>
+                    <OperationName operation={op} />
+                  </td>
                   <td className={`${TD_CLASS} tabular text-right`}>
                     {(op.total / rangeMinutes).toLocaleString(lang, {
                       minimumFractionDigits: 1,
                       maximumFractionDigits: 1,
                     })}
                   </td>
-                  <td className={`${TD_CLASS} tabular text-right ${errorPct > 0 ? 'text-level-error' : ''}`}>
-                    {errorPct.toFixed(1)}%
+                  {/* a mark, not a coloured row: only the figure that is wrong changes colour */}
+                  <td className={`${TD_CLASS} tabular text-right`}>
+                    {errorPct > 0 ? (
+                      <span className="inline-block rounded bg-level-error/12 px-1.5 py-0.5 text-level-error">
+                        {errorPct.toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-fg-subtle">{errorPct.toFixed(1)}%</span>
+                    )}
                   </td>
                   <td className={`${TD_CLASS} tabular text-right`}>
                     {op.p95ElapsedMs === null ? '—' : formatMs(op.p95ElapsedMs, lang)}
@@ -158,7 +168,7 @@ export function RequestsPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={rowFilter(op)}
-                      color={errorPct > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
+                      color={errorPct > 0 ? LEVEL_CHART.Error : LEVEL_CHART.Information}
                       from={range.from}
                       to={range.to}
                     />
