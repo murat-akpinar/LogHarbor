@@ -147,6 +147,10 @@
   --font-mono: "CaskaydiaMono NF", ui-monospace, monospace;
 
   --radius-card: 10px;
+  /* a section is a bigger object than a card and is shaped like one: the outer frame carries
+     the softer corner, the wells inside it the tighter one */
+  --radius-section: 16px;
+  --radius-well: 12px;
   --shadow-card: var(--logharbor-shadow-card);
 
   /* type scale: 11/13/15/18px. Line-heights are tight for xs/sm (the density used in the

@@ -39,13 +39,10 @@ export function RoutesPanel({ operations, from, to }: RoutesPanelProps) {
   const limit = formatDuration(SLOW_MS, lang)
   // counted over the rows on screen, and worded that way: this panel holds the busiest few,
   // not every route the server has seen
-  const lead = (
-    <p className="text-sm font-semibold text-fg">
-      {slow > 0
-        ? t.dashboard.routesOver(slow, operations.length, limit)
-        : t.dashboard.routesAllUnder(operations.length, limit)}
-    </p>
-  )
+  const lead =
+    slow > 0
+      ? t.dashboard.routesOver(slow, operations.length, limit)
+      : t.dashboard.routesAllUnder(operations.length, limit)
 
   return (
     <PulsePanel

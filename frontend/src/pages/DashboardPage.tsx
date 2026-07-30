@@ -16,7 +16,8 @@ import {
 import { MetricCard } from '../components/dashboard/MetricCard'
 import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
-import { SectionHeader } from '../components/dashboard/SectionHeader'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { TopErrorsPanel } from '../components/dashboard/TopErrorsPanel'
@@ -100,7 +101,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-fg">{t.dashboard.title}</h1>
         <LiveRangeControls
@@ -134,15 +135,19 @@ export function DashboardPage() {
 
       {/* Activity: the pulse of raw volume and errors over time. The figures that used to sit
           in a band of tiles above this are the same figures these cards already lead with. */}
-      <section>
-        <SectionHeader title={t.dashboard.activity} icon="events" to="/events" linkLabel={t.dashboard.viewAll} />
+      <SectionBlock
+        icon="events"
+        title={t.dashboard.activity}
+        to="/events"
+        linkLabel={t.dashboard.viewAll}
+      >
         {/* sits above the volume charts on purpose: it says whether to trust their x-axis */}
         {ingestionLag.data && (
           <div className="mb-3">
             <IngestionLagStrip lag={ingestionLag.data.lag} />
           </div>
         )}
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           <MetricCard
             eyebrow={t.nav.events}
             value={compact(total)}
@@ -192,43 +197,45 @@ export function DashboardPage() {
             )}
           </MetricCard>
         </div>
-      </section>
+      </SectionBlock>
 
       {/* Analysis: what is failing and what is slow */}
-      <section>
-        <SectionHeader title={t.analysis.title} icon="analysis" to="/analysis" linkLabel={t.dashboard.viewAll} />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <SectionBlock
+        icon="analysis"
+        title={t.analysis.title}
+        to="/analysis"
+        linkLabel={t.dashboard.viewAll}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <TopErrorsPanel errors={topErrors.data?.errors ?? []} from={range.from} to={range.to} />
           <ExceptionsPanel exceptions={topExceptions.data?.exceptions ?? []} />
           <RoutesPanel operations={routeRows} from={range.from} to={range.to} />
           <SlowOpsPanel result={slow.data} from={range.from} to={range.to} />
         </div>
-      </section>
+      </SectionBlock>
 
       {/* Who and where: services and the users behind the traffic */}
-      <section>
-        <SectionHeader
-          title={t.dashboard.servicesUsers}
-          icon="services"
-          meta={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
-        />
-        <div className="grid gap-4 lg:grid-cols-2">
+      <SectionBlock
+        icon="services"
+        title={t.dashboard.servicesUsers}
+        meta={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
+      >
+        <div className="grid gap-3 lg:grid-cols-2">
           <ServicesPanel services={(services.data?.services ?? []).slice(0, PANEL_LIMIT)} from={range.from} to={range.to} />
           <UsersPanel users={users.data?.users ?? []} from={range.from} to={range.to} />
         </div>
-      </section>
+      </SectionBlock>
 
-      <section>
-        <SectionHeader title={t.dashboard.activityByHour} icon="dashboard" />
-        <Card className="p-4">
+      <SectionBlock icon="dashboard" title={t.dashboard.activityByHour}>
+        <Panel className="p-4">
           {heatmap.isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
           {heatmap.data && (
             <div className={heatmap.isFetching ? 'opacity-60 transition-opacity' : ''}>
               <Heatmap cells={heatmap.data.cells} />
             </div>
           )}
-        </Card>
-      </section>
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

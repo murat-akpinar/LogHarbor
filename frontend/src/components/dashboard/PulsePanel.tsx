@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Card } from '../ui/Card'
+import { Panel } from '../ui/Panel'
 import { PillLink } from '../ui/PillLink'
 import { useI18n } from '../../i18n'
 
@@ -9,31 +9,32 @@ interface PulsePanelProps {
   to: string
   isEmpty: boolean
   emptyText: ReactNode
-  /** One line above the rows saying what they add up to. */
+  /** What the rows add up to, said as a sentence. Set large: it is the answer, and the rows
+   *  under it are the evidence. */
   lead?: ReactNode
-  /** Rows as separate cards instead of a divided list, for rows that carry two lines each. */
+  /** Rows as separate plates instead of a divided list, for rows that carry two lines each. */
   cards?: boolean
   children: ReactNode
 }
 
-/** A compact top-N card for the dashboard: titled header with a deep link, then a row list. */
+/** A top-N well for the dashboard: an eyebrow with a deep link, an optional lead, then rows. */
 export function PulsePanel({ title, to, isEmpty, emptyText, lead, cards = false, children }: PulsePanelProps) {
   const { t } = useI18n()
   return (
-    <Card className="flex flex-col">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-        <h2 className="truncate text-sm font-semibold text-fg">{title}</h2>
+    <Panel className="flex flex-col p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="truncate text-xs font-semibold tracking-[0.12em] text-fg-subtle uppercase">{title}</h3>
         <PillLink to={to}>{t.dashboard.viewAll}</PillLink>
       </div>
       {isEmpty ? (
-        <p className="px-4 py-6 text-sm text-fg-muted">{emptyText}</p>
+        <p className="py-6 text-sm text-fg-muted">{emptyText}</p>
       ) : (
         <>
-          {lead && <div className="px-4 pt-3">{lead}</div>}
-          <ul className={cards ? 'space-y-2 p-3' : 'divide-y divide-border'}>{children}</ul>
+          {lead && <p className="mb-4 text-lg leading-snug font-semibold text-balance text-fg">{lead}</p>}
+          <ul className={cards ? 'space-y-1.5' : '-mx-2 divide-y divide-border/60'}>{children}</ul>
         </>
       )}
-    </Card>
+    </Panel>
   )
 }
 
@@ -46,7 +47,7 @@ interface PulseRowProps {
 /** One list row: a truncating label on the left, a fixed metric on the right. */
 export function PulseRow({ onClick, left, right }: PulseRowProps) {
   const body = (
-    <div className="flex items-center justify-between gap-3 px-4 py-2">
+    <div className="flex items-center justify-between gap-3 px-2 py-2">
       <div className="flex min-w-0 items-center gap-2">{left}</div>
       <div className="tabular shrink-0 text-sm">{right}</div>
     </div>
@@ -57,7 +58,7 @@ export function PulseRow({ onClick, left, right }: PulseRowProps) {
         <button
           type="button"
           onClick={onClick}
-          className="block w-full text-left transition-colors duration-150 hover:bg-surface-hover"
+          className="block w-full rounded-lg text-left transition-colors duration-150 hover:bg-surface-hover"
         >
           {body}
         </button>

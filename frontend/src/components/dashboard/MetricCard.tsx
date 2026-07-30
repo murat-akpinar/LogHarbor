@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Card } from '../ui/Card'
+import { Panel } from '../ui/Panel'
 import { MetricHeader } from '../ui/MetricHeader'
 import type { MetricSeries } from '../ui/MetricHeader'
 
@@ -16,15 +16,16 @@ interface MetricCardProps {
 }
 
 /**
- * The dashboard's signature card: the figure the chart is about, the series inside it, and the
- * chart. The header does all the labelling, which is why the card carries no icon of its own —
- * the section above it already says which part of the app this belongs to.
+ * The figure a chart is about, the series inside it, and the chart, in a well.
+ *
+ * No frame and no icon: the section around it already says which part of the app this belongs
+ * to, and the header does all the labelling.
  */
 export function MetricCard({ eyebrow, value, delta, upIsBad, breakdown, children }: MetricCardProps) {
   return (
-    <Card className="flex flex-col p-4">
+    <Panel className="flex flex-col p-5">
       <MetricHeader label={eyebrow} value={value} series={breakdown} delta={delta} upIsBad={upIsBad} />
-      {children && <div className="mt-4">{children}</div>}
-    </Card>
+      {children && <div className="mt-5">{children}</div>}
+    </Panel>
   )
 }
