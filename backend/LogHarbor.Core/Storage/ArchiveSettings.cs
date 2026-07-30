@@ -30,4 +30,9 @@ public interface ISettingsStore
     Task<ArchiveSettings> GetArchiveSettingsAsync(CancellationToken cancellationToken = default);
 
     Task SaveArchiveSettingsAsync(ArchiveSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Directory sign-in configuration. Holds no password — see LdapSettings.</summary>
+    Task<Auth.LdapSettings> GetLdapSettingsAsync(CancellationToken cancellationToken = default);
+
+    Task SaveLdapSettingsAsync(Auth.LdapSettings settings, CancellationToken cancellationToken = default);
 }

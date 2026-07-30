@@ -1,3 +1,4 @@
+using LogHarbor.Core.Auth;
 using LogHarbor.Core.Storage;
 
 namespace LogHarbor.Api.Endpoints;
@@ -74,5 +75,103 @@ public static class SettingsEndpoints
             await store.SaveArchiveSettingsAsync(settings, cancellationToken);
             return Results.Ok(settings);
         });
+
+        group.MapGet("/ldap", async (ISettingsStore store, CancellationToken cancellationToken) =>
+            Results.Ok(await store.GetLdapSettingsAsync(cancellationToken)));
+
+        group.MapPut("/ldap", async (
+            LdapSettingsRequest request, ISettingsStore store, CancellationToken cancellationToken) =>
+        {
+            var settings = request.ToSettings();
+            var errors = Validate(settings);
+            if (errors.Count > 0)
+            {
+                return Results.ValidationProblem(errors);
+            }
+            await store.SaveLdapSettingsAsync(settings, cancellationToken);
+            return Results.Ok(settings);
+        });
+    }
+
+    public sealed record LdapSettingsRequest(
+        bool? Enabled,
+        string? Host,
+        int? Port,
+        string? Security,
+        string? BaseDn,
+        string? UpnSuffix,
+        string? UserDnPattern,
+        string? AdminGroup,
+        string? ViewerGroup,
+        bool? NestedGroups)
+    {
+        public LdapSettings ToSettings() => new()
+        {
+            Enabled = Enabled ?? false,
+            Host = (Host ?? "").Trim(),
+            Port = Port ?? 636,
+            Security = (Security ?? LdapSecurity.Ldaps).Trim().ToLowerInvariant(),
+            BaseDn = (BaseDn ?? "").Trim(),
+            UpnSuffix = (UpnSuffix ?? "").Trim(),
+            UserDnPattern = (UserDnPattern ?? "").Trim(),
+            AdminGroup = (AdminGroup ?? "").Trim(),
+            ViewerGroup = (ViewerGroup ?? "").Trim(),
+            NestedGroups = NestedGroups ?? false,
+        };
+    }
+
+    /// <summary>
+    /// Everything that would otherwise only show up as a 401 with no reason attached.
+    /// </summary>
+    /// <remarks>
+    /// Only enforced when LDAP is being switched on: a half-filled card that is saved disabled
+    /// is someone still typing, and refusing to save it loses their work.
+    /// </remarks>
+    private static Dictionary<string, string[]> Validate(LdapSettings settings)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (!LdapSecurity.IsValid(settings.Security))
+        {
+            errors["security"] = [$"Must be one of {LdapSecurity.Ldaps}, {LdapSecurity.StartTls}, {LdapSecurity.None}."];
+        }
+        if (settings.Port is < 1 or > 65535)
+        {
+            errors["port"] = ["Must be between 1 and 65535."];
+        }
+        if (!settings.Enabled)
+        {
+            return errors;
+        }
+
+        if (settings.Host.Length == 0)
+        {
+            errors["host"] = ["Required when LDAP sign-in is enabled."];
+        }
+        if (settings.BaseDn.Length == 0)
+        {
+            errors["baseDn"] = ["Required when LDAP sign-in is enabled."];
+        }
+        // without one of these there is no way to turn a username into something to bind as,
+        // and every sign-in fails identically no matter what the user types
+        if (settings.UserDnPattern.Length == 0 && settings.UpnSuffix.Length == 0)
+        {
+            var message = "Set a UPN suffix (Active Directory) or a user DN pattern (anything else); " +
+                          "without one there is nothing to bind as.";
+            errors["upnSuffix"] = [message];
+            errors["userDnPattern"] = [message];
+        }
+        if (settings.UserDnPattern.Length > 0 && !settings.UserDnPattern.Contains("{0}", StringComparison.Ordinal))
+        {
+            errors["userDnPattern"] = ["Must contain {0}, which is replaced with the username."];
+        }
+        // both empty means nobody can ever be granted a role, so every correct password is
+        // still a 401 — the single most confusing way for this feature to be misconfigured
+        if (settings.AdminGroup.Length == 0 && settings.ViewerGroup.Length == 0)
+        {
+            var message = "Set at least one group, otherwise no directory user can be granted a role.";
+            errors["adminGroup"] = [message];
+            errors["viewerGroup"] = [message];
+        }
+        return errors;
     }
 }

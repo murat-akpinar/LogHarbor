@@ -26,13 +26,21 @@ public static class AuthPolicy
 
     /// <summary>
     /// Viewers are read-only: reads, live tail, filter validation and archive extraction
-    /// stay open to them; every other mutation and all of /api/users, /api/admin and
-    /// /swagger is admin-only — /api/admin holds the reads that expose the whole database
-    /// (backup), and the Swagger explorer advertises the full API surface.
+    /// stay open to them; every other mutation and all of /api/users, /api/admin,
+    /// /api/settings/ldap and /swagger is admin-only — /api/admin holds the reads that expose
+    /// the whole database (backup), and the Swagger explorer advertises the full API surface.
     /// </summary>
+    /// <remarks>
+    /// The LDAP settings are read-gated where the archive settings are not, because they are not
+    /// a policy but a description of somebody else's infrastructure: the directory host, the base
+    /// DN and the name of the group that grants admin. It holds no password, but handing a
+    /// read-only account the address of the directory and the group to get into is a map, and
+    /// there is no reason a viewer needs it.
+    /// </remarks>
     public static bool RequiresAdmin(PathString path, string method)
     {
         if (path.StartsWithSegments("/api/users") || path.StartsWithSegments("/api/admin")
+            || path.StartsWithSegments("/api/settings/ldap")
             || path.StartsWithSegments("/swagger"))
         {
             return true;
