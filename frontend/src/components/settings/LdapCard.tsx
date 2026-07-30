@@ -83,12 +83,10 @@ function Toggle({
 }
 
 /**
- * Directory sign-in configuration, and the button that says whether it works.
- *
- * The test button is the point of the card. A wrong base DN, a group spelled differently in this
- * domain, a certificate nobody trusts — none of it shows up until somebody tries to sign in, and
- * then it is a 401 with no reason attached. This asks the directory the same question the login
- * page will, and reports the groups it actually returned.
+ * Directory sign-in configuration, and the button that says whether it works. The test button is
+ * the point of the card: a wrong base DN, a group spelled differently in this domain or an
+ * untrusted certificate are invisible until someone tries to sign in, and then they are a 401
+ * with no reason attached.
  */
 export function LdapCard() {
   const { t } = useI18n()

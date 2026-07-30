@@ -90,17 +90,15 @@ public static class SettingsEndpoints
                 return Results.ValidationProblem(errors);
             }
             await store.SaveLdapSettingsAsync(settings, cancellationToken);
-            // enabling LDAP turns authentication on even with no local users; the gate caches
-            // that answer, so it has to be told
+            // enabling LDAP turns authentication on even with no local users, and the gate
+            // caches that answer
             authService.Invalidate();
             return Results.Ok(settings);
         });
 
-        // The point of the card. Everything that can be wrong here — a wrong baseDn, a group
-        // spelled differently in this domain, a certificate nobody trusts — is invisible until
-        // somebody tries to sign in, and then it is a 401 with no reason attached. This answers
-        // with the groups the directory actually returned and the role they map to, and creates
-        // no session, so an admin can find out before the users do.
+        // The point of the card: a wrong baseDn, a group spelled differently in this domain or
+        // an untrusted certificate are all invisible until someone tries to sign in, and then
+        // they are a 401 with no reason. Creates no session.
         group.MapPost("/ldap/test", async (
             LdapTestRequest request,
             ISettingsStore store,
@@ -113,10 +111,9 @@ public static class SettingsEndpoints
                     title: "Invalid request", detail: "username and password are required.");
             }
 
-            // test what is on screen when it is sent, so the button can be pressed before saving;
-            // falls back to what is stored when the caller sends credentials only
+            // what is on screen, so the button works before saving; stored settings otherwise
             var settings = request.Settings?.ToSettings() ?? await store.GetLdapSettingsAsync(cancellationToken);
-            // "enabled" is about whether the login page offers it, not about whether a test may run
+            // Enabled decides whether the login page offers LDAP, not whether a test may run
             var result = await ldap.AuthenticateAsync(
                 settings with { Enabled = true }, request.Username, request.Password, cancellationToken);
 
@@ -125,8 +122,10 @@ public static class SettingsEndpoints
                 bound = result.Bound,
                 succeeded = result.Succeeded,
                 role = result.Role,
+                // groups name a person's departments and projects, and detail says exactly why
+                // a sign-in failed: both are for an admin diagnosing the card, never for the
+                // login response or the log
                 groups = result.Groups,
-                // safe here and nowhere else: this endpoint is admin-only and creates no session
                 detail = result.Failure,
             });
         });
@@ -163,13 +162,9 @@ public static class SettingsEndpoints
         };
     }
 
-    /// <summary>
-    /// Everything that would otherwise only show up as a 401 with no reason attached.
-    /// </summary>
-    /// <remarks>
-    /// Only enforced when LDAP is being switched on: a half-filled card that is saved disabled
-    /// is someone still typing, and refusing to save it loses their work.
-    /// </remarks>
+    /// <summary>Catches what would otherwise surface only as a 401 with no reason. Enforced
+    /// only when LDAP is switched on — a half-filled card saved disabled is someone still
+    /// typing.</summary>
     private static Dictionary<string, string[]> Validate(LdapSettings settings)
     {
         var errors = new Dictionary<string, string[]>();

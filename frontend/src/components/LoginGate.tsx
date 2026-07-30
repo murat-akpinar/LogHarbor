@@ -138,8 +138,8 @@ function Field({ label, ...rest }: { label: string } & ComponentPropsWithoutRef<
   )
 }
 
-/** The tabs stay visible even before a directory is configured, so the choice has a home and the
- *  LDAP side can say what is missing — an empty slot teaches nothing. */
+/** Both tabs stay visible before a directory exists, so the LDAP side can say what is missing
+ *  rather than leaving an empty slot that teaches nothing. */
 function MethodTabs({ method, onChange }: { method: LoginMethod; onChange: (next: LoginMethod) => void }) {
   const { t } = useI18n()
   const tabs: { id: LoginMethod; label: string }[] = [
@@ -177,8 +177,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null)
 
   const ldapAvailable = status?.ldapEnabled ?? false
-  // a remembered choice must not strand someone on a tab that no longer works, e.g. after an
-  // admin turns the directory off again
+  // a remembered choice must not strand someone on a tab that stopped working
   const active: LoginMethod = method === 'ldap' && !ldapAvailable ? 'standard' : method
 
   function chooseMethod(next: LoginMethod) {
@@ -199,8 +198,6 @@ function LoginForm() {
     }
   }
 
-  // the tab is selectable before a directory exists so the feature has a visible home; what it
-  // cannot do is accept credentials it has nowhere to send
   const unconfigured = method === 'ldap' && !ldapAvailable
 
   return (

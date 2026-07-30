@@ -4,10 +4,11 @@ namespace LogHarbor.Core.Auth;
 /// The outcome of one directory sign-in attempt.
 /// </summary>
 /// <remarks>
-/// Carries the reason it failed as well as the fact that it did, because the two go to
-/// different places: the login endpoint answers 401 with nothing attached whatever happened,
-/// and the reason goes to the server log and to the Settings test button. "No such user" and
-/// "in none of the LogHarbor groups" are both answers an attacker would like.
+/// Failure and Groups go to different places. The login endpoint answers 401 with neither of
+/// them: "no such user" and "in none of the LogHarbor groups" are both answers an attacker
+/// would like. Failure goes to the server log, and Groups only to the admin-only test button —
+/// a real directory puts a person in a dozen groups naming their department and projects, and
+/// a failed login must not write that profile into a log file.
 /// </remarks>
 public sealed record LdapAuthResult
 {
@@ -19,16 +20,14 @@ public sealed record LdapAuthResult
         Failure = failure;
     }
 
-    /// <summary>The credentials were accepted by the directory.</summary>
     public bool Bound { get; }
 
-    /// <summary>The role the groups earn, null when they earn none.</summary>
     public string? Role { get; }
 
-    /// <summary>Every group the directory reported, whether or not it mapped to a role.</summary>
+    /// <summary>Every group the directory reported. Personal data — see the remarks above.</summary>
     public IReadOnlyList<string> Groups { get; }
 
-    /// <summary>Why this attempt did not produce a session. Never sent to an unauthenticated caller.</summary>
+    /// <summary>Why this attempt produced no session. Safe to log; never sent to the caller.</summary>
     public string? Failure { get; }
 
     public bool Succeeded => Bound && Role is not null;
@@ -36,12 +35,9 @@ public sealed record LdapAuthResult
     public static LdapAuthResult Success(string role, IReadOnlyList<string> groups) =>
         new(bound: true, role, groups, failure: null);
 
-    /// <summary>Bound, but the directory put them in none of the configured groups.</summary>
     public static LdapAuthResult NoRole(IReadOnlyList<string> groups) =>
         new(bound: true, role: null, groups,
-            failure: groups.Count == 0
-                ? "the directory reported no group memberships"
-                : $"in none of the configured groups (member of: {string.Join(", ", groups)})");
+            failure: $"in none of the configured groups ({groups.Count} membership(s) found)");
 
     public static LdapAuthResult Failed(string failure) => new(bound: false, null, [], failure);
 }
@@ -49,8 +45,8 @@ public sealed record LdapAuthResult
 public interface ILdapAuthenticator
 {
     /// <summary>
-    /// Binds as the user and reads their groups back. Never throws for a bad password or an
-    /// unreachable directory — those come back as a failed result with the reason attached.
+    /// Binds as the user and reads their groups back. A bad password or an unreachable
+    /// directory comes back as a failed result rather than an exception.
     /// </summary>
     Task<LdapAuthResult> AuthenticateAsync(
         LdapSettings settings, string username, string password, CancellationToken cancellationToken = default);

@@ -12,22 +12,18 @@ public static class LdapSecurity
     /// <summary>Plain connection upgraded with StartTLS, normally port 389.</summary>
     public const string StartTls = "starttls";
 
-    /// <summary>No encryption. Puts a domain password on the wire; refused unless the host
-    /// sets LogHarbor:AllowInsecureLdap, the same shape as AllowInsecureCookie.</summary>
+    /// <summary>No encryption: a domain password crosses the network in the clear. Never the
+    /// default, and the Settings card warns when it is picked.</summary>
     public const string None = "none";
 
     public static bool IsValid(string value) => value is Ldaps or StartTls or None;
 }
 
 /// <summary>
-/// Directory sign-in configuration, stored as JSON under the "ldap" settings key.
+/// Directory sign-in configuration, stored as JSON under the "ldap" settings key. Holds no
+/// password: binding as the signing-in user both authenticates them and reads their own
+/// groups, so nothing secret needs to live in the database.
 /// </summary>
-/// <remarks>
-/// Deliberately holds no password. A direct bind as the signing-in user is enough to both
-/// authenticate them and read their own groups, so nothing secret needs to live in the
-/// database; a directory that refuses the self-read needs a service account, and then its
-/// password comes from LOGHARBOR_LDAP_BIND_PASSWORD, never through the API.
-/// </remarks>
 public sealed record LdapSettings
 {
     public bool Enabled { get; init; }
@@ -40,19 +36,12 @@ public sealed record LdapSettings
 
     public string BaseDn { get; init; } = "";
 
-    /// <summary>Active Directory accepts a bind as user@suffix, which needs no knowledge of
-    /// where in the tree the account lives.</summary>
+    /// <summary>Active Directory binds as user@suffix, needing no knowledge of where in the
+    /// tree the account lives.</summary>
     public string UpnSuffix { get; init; } = "";
 
-    /// <summary>
-    /// Bind DN template with {0} for the username, e.g. uid={0},ou=users,dc=test,dc=local.
-    /// </summary>
-    /// <remarks>
-    /// Present because UPN is an Active Directory extension and nothing else implements it —
-    /// OpenLDAP binds by DN. Without this the feature could only ever be pointed at a real
-    /// domain controller, which means it could not be exercised against the test directory
-    /// while being written. Takes precedence over UpnSuffix when both are set.
-    /// </remarks>
+    /// <summary>Bind DN template with {0} for the username. UPN bind is an Active Directory
+    /// extension, so everything else needs this. Wins over UpnSuffix when both are set.</summary>
     public string UserDnPattern { get; init; } = "";
 
     public string AdminGroup { get; init; } = "logharbor-admin";
@@ -63,24 +52,14 @@ public sealed record LdapSettings
     /// member:1.2.840.113556.1.4.1941: matching rule, which no other directory implements.</summary>
     public bool NestedGroups { get; init; }
 
-    /// <summary>
-    /// Accept a server certificate that does not validate — self-signed, expired, or issued to
-    /// another name.
-    /// </summary>
-    /// <remarks>
-    /// An escape hatch, off by default, because it turns the encrypted connection into one that
-    /// cannot tell the directory from anything standing in front of it. It exists because
-    /// self-signed is what a test directory has, and the alternative — no way to point this at
-    /// anything but a properly issued certificate — means the TLS paths never get exercised
-    /// before production.
-    /// </remarks>
+    /// <summary>Accept a certificate that does not validate. Off by default: it leaves the
+    /// connection encrypted but unable to tell the directory from anything standing in front
+    /// of it. Exists so a self-signed test directory can exercise the TLS paths.</summary>
     public bool AllowInvalidCertificate { get; init; }
 
     public bool UsesDnBind => UserDnPattern.Length > 0;
 
-    /// <summary>
-    /// The string to bind with for this username, or null when neither bind form is configured.
-    /// </summary>
+    /// <summary>What to bind as, or null when neither bind form is configured.</summary>
     public string? BindNameFor(string username)
     {
         if (username.Length == 0)
@@ -116,15 +95,9 @@ public sealed record LdapSettings
         return viewer ? UserRole.Viewer : null;
     }
 
-    /// <summary>
-    /// Whether a memberOf value names the configured group.
-    /// </summary>
-    /// <remarks>
-    /// memberOf comes back as a whole DN — cn=logharbor-admin,ou=groups,dc=test,dc=local —
-    /// so comparing it to the configured "logharbor-admin" as a string never matches and every
-    /// user maps to no role. The setting is also accepted as a full DN, because an admin who
-    /// copied one out of the directory browser has given an unambiguous answer.
-    /// </remarks>
+    /// <summary>memberOf arrives as a whole DN, so a plain string compare against the
+    /// configured group name would match nothing and leave every user without a role. A group
+    /// configured as a full DN is accepted too.</summary>
     private static bool Matches(string memberOfValue, string configured)
     {
         if (configured.Length == 0)
@@ -160,14 +133,8 @@ public sealed record LdapSettings
         return equals < 0 ? rdn.Trim() : rdn[(equals + 1)..].Trim();
     }
 
-    /// <summary>
-    /// RFC 4514 escaping for a value going into a DN.
-    /// </summary>
-    /// <remarks>
-    /// The username is attacker-supplied and lands in the middle of a DN template. Unescaped,
-    /// a comma turns one RDN into two and the bind is attempted against a DN the operator never
-    /// configured.
-    /// </remarks>
+    /// <summary>RFC 4514 escaping. The username lands inside a DN template; unescaped, a comma
+    /// turns one RDN into two and the bind targets a DN the operator never configured.</summary>
     private static string EscapeDnValue(string value)
     {
         var escaped = new StringBuilder(value.Length);
