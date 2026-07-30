@@ -80,8 +80,9 @@ afterEach(() => {
 describe('DashboardPage', () => {
   it('shows the error rate and level breakdown from the summary', async () => {
     renderPage()
-    // ERRORS card rate = (Error 10 + Fatal 10) / total 200 = 10.0%
-    expect(await screen.findByText('10.0%')).toBeDefined()
+    // rate = (Error 10 + Fatal 10) / total 200 = 10.0%, shown twice on purpose: once as the
+    // glance tile and once as the Errors card's own breakdown
+    expect(await screen.findAllByText('10.0%')).toHaveLength(2)
     // EVENTS card breakdown shows the warning count
     expect(screen.getByText('57')).toBeDefined()
   })

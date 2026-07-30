@@ -5,6 +5,7 @@ import {
   useHistogram,
   useIngestionLag,
   useIngestRejections,
+  useLatency,
   useOperations,
   useServices,
   useSlowOperations,
@@ -18,6 +19,10 @@ import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { StatTile } from '../components/StatTile'
+import { TrendLine } from '../components/Sparkline'
+import { formatDuration } from '../lib/duration'
+import { formatTimestamp } from '../lib/dates'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { TopErrorsPanel } from '../components/dashboard/TopErrorsPanel'
@@ -29,7 +34,8 @@ import { UsersPanel } from '../components/dashboard/UsersPanel'
 import { Histogram } from '../components/Histogram'
 import { Heatmap } from '../components/Heatmap'
 import { Card } from '../components/ui/Card'
-import { LEVEL_CHART } from '../lib/levels'
+import type { HistogramBucket } from '../types'
+import { LEVELS, LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 // A skyline, not a bar chart: enough columns that the shape of an hour is legible and each
@@ -43,6 +49,11 @@ const ERROR_FILTER = "@Level = 'Error' or @Level = 'Fatal'"
 // deliberately not tied to the page's time range: a client that broke on Friday is still
 // broken on Monday, and the operator needs to see that on a dashboard set to "last hour"
 const REJECTION_DAYS = 7
+
+/** Bucket counts collapsed to one number per bucket: the shape, not the breakdown. */
+function trendOf(buckets: HistogramBucket[] | undefined): number[] {
+  return (buckets ?? []).map((bucket) => LEVELS.reduce((total, level) => total + bucket.counts[level], 0))
+}
 
 /** Null when the previous window held nothing: "up from zero" is not a percentage, and showing
  *  one would put an invented number next to a real one. */
@@ -69,6 +80,7 @@ export function DashboardPage() {
   const errorHistogram = useHistogram({ ...range, buckets: BUCKET_COUNT, filter: ERROR_FILTER })
   const heatmap = useHeatmap(range)
   const ingestionLag = useIngestionLag(range)
+  const latency = useLatency({ ...range, buckets: BUCKET_COUNT })
   const rejections = useIngestRejections(REJECTION_DAYS)
   const topErrors = useTopErrors({ ...range, limit: PANEL_LIMIT })
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
@@ -86,6 +98,12 @@ export function DashboardPage() {
 
   const previousByLevel = previousSummary.data?.byLevel
   const previousErrors = (previousByLevel?.Error ?? 0) + (previousByLevel?.Fatal ?? 0)
+  const eventTrend = trendOf(histogram.data?.buckets)
+  const errorTrend = trendOf(errorHistogram.data?.buckets)
+  // a gap in a latency series is "nothing was timed here", and the line carries it as a flat
+  // stretch rather than a drop to zero, which would read as "it got fast"
+  const avgTrend = (latency.data?.buckets ?? []).map((bucket) => bucket.avgMs ?? 0)
+  const p95Trend = (latency.data?.buckets ?? []).map((bucket) => bucket.p95Ms ?? 0)
   const serviceCount = services.data?.services.length ?? 0
 
   // a panel called Routes shows routes; an install whose events carry no route property has none
@@ -135,6 +153,53 @@ export function DashboardPage() {
         />
       )}
 
+      {/* The glance band: five figures, each with the shape it took getting there and whether
+          that is more or less than the window before it */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <StatTile
+          label={t.nav.events}
+          value={compact(total)}
+          icon="events"
+          trend={eventTrend}
+          trendColor={LEVEL_CHART.Information}
+          delta={percentChange(total, previousSummary.data?.total ?? 0)}
+        />
+        <StatTile
+          label={t.dashboard.errorRate}
+          value={`${errorRate.toFixed(1)}%`}
+          icon="exceptions"
+          plate="error"
+          trend={errorTrend}
+          trendColor={LEVEL_CHART.Error}
+          delta={percentChange(errors, previousErrors)}
+          upIsBad
+        />
+        <StatTile
+          label={t.dashboard.avgLatency}
+          value={formatDuration(latency.data?.avgMs ?? null, lang)}
+          icon="requests"
+          plate="info"
+          trend={avgTrend}
+          trendColor={LEVEL_CHART.Information}
+          upIsBad
+        />
+        <StatTile
+          label={t.dashboard.p95Latency}
+          value={formatDuration(latency.data?.p95Ms ?? null, lang)}
+          icon="queries"
+          plate="warning"
+          trend={p95Trend}
+          trendColor={LEVEL_CHART.Warning}
+          upIsBad
+        />
+        <StatTile
+          label={t.dashboard.activeServices}
+          value={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
+          icon="services"
+          plate="accent"
+        />
+      </div>
+
       {/* Activity: the pulse of raw volume and errors over time. The figures that used to sit
           in a band of tiles above this are the same figures these cards already lead with. */}
       <SectionBlock
@@ -171,6 +236,45 @@ export function DashboardPage() {
                   onBrush={(from, to) => setRange({ from, to })}
                   showLegend={false}
                 />
+              </div>
+            )}
+          </MetricCard>
+
+          {/* The reference's second Activity chart: how long things took, not how many there
+              were. Two lines on one scale, because an average drawn against its own maximum
+              would sit at the same height as the p95 above it and hide the gap. */}
+          <MetricCard
+            eyebrow={t.dashboard.duration}
+            value={
+              latency.data && latency.data.sampled > 0
+                ? `${formatDuration(latency.data.avgMs, lang)} — ${formatDuration(latency.data.p95Ms, lang)}`
+                : '—'
+            }
+            breakdown={[
+              { label: t.dashboard.avg, value: formatDuration(latency.data?.avgMs ?? null, lang), color: LEVEL_CHART.Information },
+              { label: t.analysis.p95, value: formatDuration(latency.data?.p95Ms ?? null, lang), color: LEVEL_CHART.Warning },
+            ]}
+          >
+            {latency.data && (
+              <div className={latency.isFetching ? 'opacity-60 transition-opacity' : ''}>
+                {latency.data.sampled > 0 ? (
+                  <>
+                    <TrendLine
+                      series={[
+                        { values: avgTrend, color: LEVEL_CHART.Information },
+                        { values: p95Trend, color: LEVEL_CHART.Warning },
+                      ]}
+                      className="h-40 w-full"
+                    />
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
+                      <span>{formatTimestamp(range.from, lang)}</span>
+                      <span>{formatTimestamp(range.to, lang)}</span>
+                    </div>
+                  </>
+                ) : (
+                  // "nothing here was timed" is a different answer from "everything was quick"
+                  <p className="py-10 text-center text-sm text-fg-muted">{t.dashboard.nothingTimed}</p>
+                )}
               </div>
             )}
           </MetricCard>

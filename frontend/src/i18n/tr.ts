@@ -163,6 +163,12 @@ export const tr: Messages = {
   dashboard: {
     title: 'Panel',
     activity: 'Etkinlik',
+    duration: 'Süre',
+    avg: 'Ort.',
+    nothingTimed: 'Bu aralıktaki hiçbir olay Elapsed alanı taşımıyor, ölçülecek bir süre yok.',
+    avgLatency: 'Ort. gecikme',
+    p95Latency: 'P95 gecikme',
+    activeServices: 'Aktif servisler',
     ingestionLag: 'Toplama gecikmesi',
     lagUnits: { s: 'sn', m: 'dk', h: 'sa', d: 'g' },
     lagWorst: 'en kötü',

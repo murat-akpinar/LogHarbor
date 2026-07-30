@@ -162,6 +162,12 @@ export const en = {
   dashboard: {
     title: 'Dashboard',
     activity: 'Activity',
+    duration: 'Duration',
+    avg: 'Avg',
+    nothingTimed: 'No event in this range carried an Elapsed property, so there is nothing to time.',
+    avgLatency: 'Avg latency',
+    p95Latency: 'P95 latency',
+    activeServices: 'Active services',
     ingestionLag: 'Ingestion lag',
     lagUnits: { s: 's', m: 'm', h: 'h', d: 'd' },
     lagWorst: 'worst',
