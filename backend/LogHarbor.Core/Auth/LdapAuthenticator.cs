@@ -130,9 +130,13 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
         // referral mid-login is a hang waiting to happen
         connection.SessionOptions.ReferralChasing = ReferralChasingOptions.None;
 
-        if (settings.AllowInvalidCertificate)
+        // Windows only, and the guard is not a formality: on Linux this callback is not merely
+        // ignored, it breaks the connection. With it set, even a plain ldap:// bind that worked a
+        // moment earlier came back as "error 81, server unavailable" — a setting named after
+        // certificates taking down a connection that has no TLS in it at all. Linux gets the same
+        // behaviour from libldap's TLS_REQCERT (AllowUntrustedCertificates).
+        if (settings.AllowInvalidCertificate && OperatingSystem.IsWindows())
         {
-            // Windows honours this; Linux ignores it entirely (see AllowUntrustedCertificates)
             connection.SessionOptions.VerifyServerCertificate = (_, _) => true;
         }
         if (settings.Security == LdapSecurity.Ldaps)
