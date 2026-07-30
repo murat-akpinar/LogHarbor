@@ -36,7 +36,29 @@ public sealed class LdapAuthenticator : ILdapAuthenticator
     /// which is why this runs at startup rather than per connection.
     /// </remarks>
     public static void AllowUntrustedCertificates()
-        => Environment.SetEnvironmentVariable("LDAPTLS_REQCERT", "never");
+    {
+        Environment.SetEnvironmentVariable("LDAPTLS_REQCERT", "never");
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+        // and again through libc, because the managed call is not enough: on Unix
+        // Environment.SetEnvironmentVariable updates .NET's own copy of the environment and
+        // never calls setenv, so getenv inside libldap still sees nothing. Measured — the
+        // managed call alone left every TLS bind failing exactly as before.
+        try
+        {
+            SetEnv("LDAPTLS_REQCERT", "never", 1);
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+            // a platform without libc: TLS then verifies as usual, which is the safe direction
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "setenv",
+        CharSet = System.Runtime.InteropServices.CharSet.Ansi)]
+    private static extern int SetEnv(string name, string value, int overwrite);
 
     public Task<LdapAuthResult> AuthenticateAsync(
         LdapSettings settings, string username, string password,
