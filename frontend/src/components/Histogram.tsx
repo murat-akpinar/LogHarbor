@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { HistogramBucket, Level } from '../types'
-import { LEVELS, LEVEL_HEX } from '../lib/levels'
+import { ALERT_LEVELS, LEVELS, LEVEL_CHART, LEVEL_HEX, QUIET_LEVELS } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
 import { niceCeil } from '../lib/niceScale'
 import { useI18n } from '../i18n'
@@ -12,8 +12,25 @@ function sumCounts(counts: Record<Level, number>): number {
   return LEVELS.reduce((total, level) => total + counts[level], 0)
 }
 
-function formatTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+interface Segment {
+  key: string
+  count: number
+  color: string
+}
+
+/**
+ * One bar's parts, bottom up.
+ *
+ * The quiet levels are summed into a single neutral block rather than stacked as three: drawn
+ * separately they are three bands of the same colour, and the seams read as data that is not
+ * there. Warning and above keep their own segment because that is the thing worth seeing.
+ */
+function segmentsOf(counts: Record<Level, number>): Segment[] {
+  const quiet = QUIET_LEVELS.reduce((total, level) => total + counts[level], 0)
+  return [
+    { key: 'quiet', count: quiet, color: LEVEL_CHART.Information },
+    ...ALERT_LEVELS.map((level) => ({ key: level, count: counts[level], color: LEVEL_CHART[level] })),
+  ].filter((segment) => segment.count > 0)
 }
 
 interface TooltipProps {
@@ -77,24 +94,13 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
   }
 
   const niceMax = niceCeil(Math.max(1, ...buckets.map((bucket) => sumCounts(bucket.counts))))
-  const labelEvery = Math.max(1, Math.ceil(buckets.length / 6))
 
   return (
     <div>
-      <div className="flex gap-2">
-        <div
-          className="flex w-10 shrink-0 flex-col justify-between text-right text-xs text-fg-muted"
-          style={{ height: PLOT_HEIGHT_PX }}
-        >
-          <span className="tabular">{niceMax.toLocaleString(lang)}</span>
-          <span className="tabular">0</span>
-        </div>
-        <div
-          className="flex min-w-0 flex-1 items-end gap-0.5 border-b border-border"
-          style={{ height: PLOT_HEIGHT_PX }}
-        >
-          {buckets.map((bucket, index) => {
+      <div className="flex min-w-0 items-end gap-0.5" style={{ height: PLOT_HEIGHT_PX }}>
+        {buckets.map((bucket, index) => {
             const total = sumCounts(bucket.counts)
+            const segments = segmentsOf(bucket.counts)
             return (
               <button
                 key={bucket.start}
@@ -111,7 +117,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                 onMouseLeave={() => setHoveredIndex(null)}
                 onFocus={() => setHoveredIndex(index)}
                 onBlur={() => setHoveredIndex(null)}
-                className="group relative flex h-full min-w-0 flex-1 flex-col-reverse gap-0.5 select-none"
+                className="group relative flex h-full min-w-0 flex-1 flex-col-reverse select-none"
                 aria-label={t.dashboard.bucketAria(formatTimestamp(bucket.start, lang), total)}
               >
                 <span
@@ -119,37 +125,35 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                     isBrushed(index) ? 'bg-accent/20' : 'group-hover:bg-surface-hover'
                   }`}
                 />
-                {LEVELS.map((level) => {
-                  const heightPct = (bucket.counts[level] / niceMax) * 100
-                  return heightPct > 0 ? (
-                    <span
-                      key={level}
-                      className="relative w-full shrink-0 rounded-sm"
-                      style={{ height: `${heightPct}%`, backgroundColor: LEVEL_HEX[level] }}
-                    />
-                  ) : null
-                })}
+                {segments.map((segment, segmentIndex) => (
+                  <span
+                    key={segment.key}
+                    className={`relative w-full shrink-0 ${
+                      segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
+                    }`}
+                    style={{ height: `${(segment.count / niceMax) * 100}%`, backgroundColor: segment.color }}
+                  />
+                ))}
                 {hoveredIndex === index && <BucketTooltip bucket={bucket} />}
               </button>
             )
           })}
-        </div>
       </div>
 
-      {/* mirrors the bars row's flex layout exactly so each label sits under its bucket */}
-      <div className="ml-12 flex gap-0.5">
-        {buckets.map((bucket, index) => (
-          <span key={bucket.start} className="min-w-0 flex-1 truncate text-center text-xs text-fg-muted">
-            {index % labelEvery === 0 ? formatTime(bucket.start, lang) : ''}
-          </span>
-        ))}
-      </div>
+      {/* No axis and no per-bucket ticks: the window's two ends are the only labels a reader
+          needs to place a bar, and the exact numbers are already one hover away. */}
+      {buckets.length > 0 && (
+        <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
+          <span>{formatTimestamp(buckets[0].start, lang)}</span>
+          <span>{formatTimestamp(rangeEnd, lang)}</span>
+        </div>
+      )}
 
       {showLegend && (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
           {LEVELS.map((level) => (
             <div key={level} className="flex items-center gap-1.5 text-xs text-fg-muted">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_HEX[level] }} />
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_CHART[level] }} />
               <span>{level}</span>
               <span className="tabular">
                 ({buckets.reduce((total, bucket) => total + bucket.counts[level], 0).toLocaleString(lang)})
