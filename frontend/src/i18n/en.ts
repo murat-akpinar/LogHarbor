@@ -218,7 +218,6 @@ export const en = {
     serviceHealth: 'Service health',
     slowestOps: 'Slowest operations',
     viewAll: 'View all',
-    totalEvents: 'Total events',
     errors: 'Errors',
     warnings: 'Warnings',
     topError: 'Top error',

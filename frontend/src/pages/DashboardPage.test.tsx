@@ -100,7 +100,8 @@ describe('DashboardPage', () => {
     )
 
     const { container } = renderPage()
-    expect(await screen.findByText('Total events')).toBeDefined()
+    // the headline figures live in the Activity cards; there is no separate band of tiles
+    expect(await screen.findByText('Activity')).toBeDefined()
 
     // events 200 against 100, errors 20 against 40
     await waitFor(() => expect(container.textContent).toContain('↑ 100%'))
@@ -114,7 +115,8 @@ describe('DashboardPage', () => {
     vi.mocked(stats.getSummary).mockImplementation(async (params) => (params.to < cutoff ? EMPTY : SUMMARY))
 
     const { container } = renderPage()
-    expect(await screen.findByText('Total events')).toBeDefined()
+    // the headline figures live in the Activity cards; there is no separate band of tiles
+    expect(await screen.findByText('Activity')).toBeDefined()
 
     await waitFor(() => expect(container.textContent).toContain('200'))
     expect(container.textContent).not.toContain('vs previous period')

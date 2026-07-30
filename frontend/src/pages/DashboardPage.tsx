@@ -14,8 +14,7 @@ import {
   useUserActivity,
 } from '../hooks/useStats'
 import { MetricCard } from '../components/dashboard/MetricCard'
-import { StatTile } from '../components/StatTile'
-import { IngestionLagStrip, formatLag } from '../components/dashboard/IngestionLagStrip'
+import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionHeader } from '../components/dashboard/SectionHeader'
 import { LiveRangeControls } from '../components/LiveRangeControls'
@@ -29,24 +28,18 @@ import { UsersPanel } from '../components/dashboard/UsersPanel'
 import { Histogram } from '../components/Histogram'
 import { Heatmap } from '../components/Heatmap'
 import { Card } from '../components/ui/Card'
-import type { HistogramBucket } from '../types'
-import { LEVELS, LEVEL_HEX } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
 const BUCKET_COUNT = 24
 const PANEL_LIMIT = 5
-// the services panel shows the top few, but the tile counts them, so the query has to see more
-// than five. 100 is the endpoint's ceiling, which is why the tile says "100+" when it hits it
+// the services panel shows the top few, but the section header counts them, so the query has to
+// see more than five. 100 is the endpoint's ceiling, which is why it says "100+" when it hits it
 const SERVICE_SCAN_LIMIT = 100
 const ERROR_FILTER = "@Level = 'Error' or @Level = 'Fatal'"
 // deliberately not tied to the page's time range: a client that broke on Friday is still
 // broken on Monday, and the operator needs to see that on a dashboard set to "last hour"
 const REJECTION_DAYS = 7
-
-/** Bucket counts collapsed to one number per bucket: the shape, not the breakdown. */
-function trendOf(buckets: HistogramBucket[] | undefined): number[] {
-  return (buckets ?? []).map((bucket) => LEVELS.reduce((total, level) => total + bucket.counts[level], 0))
-}
 
 /** Null when the previous window held nothing: "up from zero" is not a percentage, and showing
  *  one would put an invented number next to a real one. */
@@ -90,9 +83,6 @@ export function DashboardPage() {
 
   const previousByLevel = previousSummary.data?.byLevel
   const previousErrors = (previousByLevel?.Error ?? 0) + (previousByLevel?.Fatal ?? 0)
-  const eventTrend = trendOf(histogram.data?.buckets)
-  const errorTrend = trendOf(errorHistogram.data?.buckets)
-  const lag = ingestionLag.data?.lag
   const serviceCount = services.data?.services.length ?? 0
 
   // a panel called Routes shows routes; an install whose events carry no route property has none
@@ -142,43 +132,10 @@ export function DashboardPage() {
         />
       )}
 
-      {/* The glance band: four figures and whether each is more or less than the window before */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          label={t.dashboard.totalEvents}
-          value={compact(total)}
-          icon="events"
-          trend={eventTrend}
-          trendColor={LEVEL_HEX.Information}
-          delta={percentChange(total, previousSummary.data?.total ?? 0)}
-        />
-        <StatTile
-          label={t.dashboard.errors}
-          value={compact(errors)}
-          icon="exceptions"
-          plate="error"
-          trend={errorTrend}
-          trendColor={LEVEL_HEX.Error}
-          delta={percentChange(errors, previousErrors)}
-          upIsBad
-        />
-        <StatTile
-          label={t.nav.services}
-          value={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
-          icon="services"
-          plate="info"
-        />
-        <StatTile
-          label={t.dashboard.ingestionLag}
-          value={lag && lag.total > 0 ? formatLag(lag.maxSeconds, t.dashboard.lagUnits) : '—'}
-          icon="requests"
-          plate="warning"
-        />
-      </div>
-
-      {/* Activity: the pulse of raw volume and errors over time */}
+      {/* Activity: the pulse of raw volume and errors over time. The figures that used to sit
+          in a band of tiles above this are the same figures these cards already lead with. */}
       <section>
-        <SectionHeader title={t.dashboard.activity} to="/events" linkLabel={t.dashboard.viewAll} />
+        <SectionHeader title={t.dashboard.activity} icon="events" to="/events" linkLabel={t.dashboard.viewAll} />
         {/* sits above the volume charts on purpose: it says whether to trust their x-axis */}
         {ingestionLag.data && (
           <div className="mb-3">
@@ -189,11 +146,13 @@ export function DashboardPage() {
           <MetricCard
             eyebrow={t.nav.events}
             value={compact(total)}
-            icon="events"
+            delta={percentChange(total, previousSummary.data?.total ?? 0)}
+            // the swatches are the chart's key, so they take the chart's colours: everything
+            // below Warning draws neutral, which is what the Information swatch says here
             breakdown={[
-              { label: t.dashboard.info, value: compact(byLevel?.Information ?? 0), color: LEVEL_HEX.Information },
-              { label: t.dashboard.warn, value: compact(byLevel?.Warning ?? 0), color: LEVEL_HEX.Warning, tone: 'warning' },
-              { label: t.dashboard.errors, value: compact(errors), color: LEVEL_HEX.Error, tone: 'error' },
+              { label: t.dashboard.info, value: compact(byLevel?.Information ?? 0), color: LEVEL_CHART.Information },
+              { label: t.dashboard.warn, value: compact(byLevel?.Warning ?? 0), color: LEVEL_CHART.Warning },
+              { label: t.dashboard.errors, value: compact(errors), color: LEVEL_CHART.Error },
             ]}
           >
             {histogram.data && (
@@ -212,11 +171,12 @@ export function DashboardPage() {
           <MetricCard
             eyebrow={t.dashboard.errors}
             value={compact(errors)}
-            icon="exceptions"
-            plate="error"
+            delta={percentChange(errors, previousErrors)}
+            upIsBad
             breakdown={[
-              { label: t.dashboard.rate, value: `${errorRate.toFixed(1)}%`, tone: errorRate > 0 ? 'error' : 'default' },
-              { label: t.dashboard.fatal, value: compact(byLevel?.Fatal ?? 0), color: LEVEL_HEX.Fatal, tone: 'error' },
+              // a rate is not a series in the chart below, so it carries no swatch
+              { label: t.dashboard.rate, value: `${errorRate.toFixed(1)}%` },
+              { label: t.dashboard.fatal, value: compact(byLevel?.Fatal ?? 0), color: LEVEL_CHART.Fatal },
             ]}
           >
             {errorHistogram.data && (
@@ -236,7 +196,7 @@ export function DashboardPage() {
 
       {/* Analysis: what is failing and what is slow */}
       <section>
-        <SectionHeader title={t.analysis.title} to="/analysis" linkLabel={t.dashboard.viewAll} />
+        <SectionHeader title={t.analysis.title} icon="analysis" to="/analysis" linkLabel={t.dashboard.viewAll} />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <TopErrorsPanel errors={topErrors.data?.errors ?? []} from={range.from} to={range.to} />
           <ExceptionsPanel exceptions={topExceptions.data?.exceptions ?? []} />
@@ -247,7 +207,11 @@ export function DashboardPage() {
 
       {/* Who and where: services and the users behind the traffic */}
       <section>
-        <SectionHeader title={t.dashboard.servicesUsers} />
+        <SectionHeader
+          title={t.dashboard.servicesUsers}
+          icon="services"
+          meta={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
+        />
         <div className="grid gap-4 lg:grid-cols-2">
           <ServicesPanel services={(services.data?.services ?? []).slice(0, PANEL_LIMIT)} from={range.from} to={range.to} />
           <UsersPanel users={users.data?.users ?? []} from={range.from} to={range.to} />
@@ -255,7 +219,7 @@ export function DashboardPage() {
       </section>
 
       <section>
-        <SectionHeader title={t.dashboard.activityByHour} />
+        <SectionHeader title={t.dashboard.activityByHour} icon="dashboard" />
         <Card className="p-4">
           {heatmap.isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
           {heatmap.data && (

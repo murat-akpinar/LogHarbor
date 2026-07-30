@@ -219,7 +219,6 @@ export const tr: Messages = {
     serviceHealth: 'Servis sağlığı',
     slowestOps: 'En yavaş işlemler',
     viewAll: 'Tümünü gör',
-    totalEvents: 'Toplam olay',
     errors: 'Hatalar',
     warnings: 'Uyarılar',
     topError: 'En sık hata',
