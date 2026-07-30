@@ -44,6 +44,69 @@ public sealed class SqliteEventStoreTests : IDisposable
         };
     }
 
+    /// <summary>Event at a given minute past 10:00 carrying an Elapsed of <paramref name="ms"/>.</summary>
+    private static Event Timed(int minute, double? ms)
+    {
+        var stamped = DateTimeOffset.Parse("2026-07-13T10:00:00Z").AddMinutes(minute);
+        return MakeEvent($"op at {minute}", ms is null ? null : $"{{\"Elapsed\":{ms}}}") with
+        {
+            Timestamp = ClefParser.FormatTimestamp(stamped),
+        };
+    }
+
+    private static readonly DateTimeOffset LatencyFrom = DateTimeOffset.Parse("2026-07-13T10:00:00Z");
+    private static readonly DateTimeOffset LatencyTo = DateTimeOffset.Parse("2026-07-13T10:40:00Z");
+
+    [Fact]
+    public async Task Latency_AveragesAndRanksTheRangeAndEachBucket()
+    {
+        // four 10-minute buckets: the first slow, the second quick, the fourth slow again
+        await _store.WriteBatchAsync(
+        [
+            Timed(0, 100), Timed(1, 200), Timed(2, 300),
+            Timed(10, 10), Timed(11, 20),
+            Timed(30, 900), Timed(31, 1000),
+        ]);
+
+        var result = await _store.GetLatencyAsync(null, LatencyFrom, LatencyTo, buckets: 4);
+
+        Assert.Equal(7, result.Sampled);
+        Assert.Equal(361.43, Math.Round(result.AvgMs!.Value, 2));
+        // ranked over all seven, so the p95 is the slowest sample rather than any bucket's own
+        Assert.Equal(1000, result.P95Ms);
+        Assert.Equal(4, result.Buckets.Count);
+        Assert.Equal(200, result.Buckets[0].AvgMs);
+        Assert.Equal(15, result.Buckets[1].AvgMs);
+        Assert.Equal(950, result.Buckets[3].AvgMs);
+    }
+
+    [Fact]
+    public async Task Latency_SaysNothingRatherThanZeroWhereNoEventWasTimed()
+    {
+        await _store.WriteBatchAsync([Timed(0, 100), Timed(11, null)]);
+
+        var result = await _store.GetLatencyAsync(null, LatencyFrom, LatencyTo, buckets: 4);
+
+        // an untimed bucket is not a fast one, and a chart that drew it as 0 would say it was
+        Assert.Equal(100, result.Buckets[0].AvgMs);
+        Assert.Null(result.Buckets[1].AvgMs);
+        Assert.Null(result.Buckets[2].P95Ms);
+        Assert.Equal(1, result.Sampled);
+    }
+
+    [Fact]
+    public async Task Latency_ReportsNothingSampledWhenNothingCarriesElapsed()
+    {
+        await _store.WriteBatchAsync([Timed(0, null), Timed(20, null)]);
+
+        var result = await _store.GetLatencyAsync(null, LatencyFrom, LatencyTo, buckets: 4);
+
+        Assert.Equal(0, result.Sampled);
+        Assert.Null(result.AvgMs);
+        Assert.Null(result.P95Ms);
+        Assert.All(result.Buckets, bucket => Assert.Null(bucket.AvgMs));
+    }
+
     [Fact]
     public async Task IngestionLag_ReportsPercentilesAndTheWorstArrival()
     {

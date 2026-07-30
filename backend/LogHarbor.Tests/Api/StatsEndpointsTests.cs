@@ -193,6 +193,31 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Latency_AnswersWithTheRangeFiguresAndTheSeries()
+    {
+        var response = await _client.GetAsync(
+            "/api/stats/latency?from=2026-07-13T10:00:00Z&to=2026-07-13T11:00:00Z&buckets=4");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(4, body.GetProperty("buckets").GetArrayLength());
+        // the seeded events carry no Elapsed, so the honest answer is "nothing was timed"
+        Assert.Equal(0, body.GetProperty("sampled").GetInt64());
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("avgMs").ValueKind);
+        Assert.Equal(JsonValueKind.Null, body.GetProperty("p95Ms").ValueKind);
+    }
+
+    [Theory]
+    [InlineData("/api/stats/latency?from=not-a-date&to=2026-07-13T11:00:00Z")]
+    [InlineData("/api/stats/latency?from=2026-07-13T10:00:00Z&to=2026-07-13T11:00:00Z&buckets=501")]
+    public async Task Latency_RejectsABadRange(string url)
+    {
+        var response = await _client.GetAsync(url);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Histogram_WithFilter_OnlyCountsMatching()
     {
         var response = await _client.GetAsync(

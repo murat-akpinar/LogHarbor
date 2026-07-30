@@ -13,6 +13,15 @@ public sealed record HistogramBucket(string Start, IReadOnlyDictionary<string, l
 
 public sealed record StatsSummary(long Total, IReadOnlyDictionary<string, long> ByLevel);
 
+/// <summary>One time bucket of the latency series. Both figures are null where no event in the
+/// bucket carried an Elapsed property, which is not the same as a bucket that was fast.</summary>
+public sealed record LatencyBucket(string Start, double? AvgMs, double? P95Ms);
+
+/// <summary>Latency over a range and across it. Sampled counts the events that carried Elapsed,
+/// so a caller can tell "nothing is timed here" from "everything was quick".</summary>
+public sealed record LatencyOverview(
+    double? AvgMs, double? P95Ms, long Sampled, IReadOnlyList<LatencyBucket> Buckets);
+
 /// <summary>One error group: all events sharing a CLEF message template and level.</summary>
 public sealed record TopError(string Template, string Level, long Count, string FirstSeen, string LastSeen);
 
@@ -107,6 +116,10 @@ public interface IEventStore
 
     /// <summary>Splits [from, to] into equal-width buckets and counts matching events per level in each.</summary>
     Task<IReadOnlyList<HistogramBucket>> GetHistogramAsync(
+        QuerySql? filter, DateTimeOffset from, DateTimeOffset to, int buckets, CancellationToken cancellationToken = default);
+
+    /// <summary>Average and p95 of the Elapsed property over [from, to] and per equal-width bucket.</summary>
+    Task<LatencyOverview> GetLatencyAsync(
         QuerySql? filter, DateTimeOffset from, DateTimeOffset to, int buckets, CancellationToken cancellationToken = default);
 
     Task<StatsSummary> GetSummaryAsync(
