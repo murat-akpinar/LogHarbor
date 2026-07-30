@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import type { Event } from '../types'
 import { formatRelative, formatTimestamp } from '../lib/dates'
-import { LEVEL_BAR } from '../lib/levels'
+import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 import { LevelBadge } from './LevelBadge'
 import { Highlighted } from './Highlighted'
@@ -57,8 +57,12 @@ export function EventRow({
         isSelected ? 'bg-surface-raised' : isError ? 'bg-level-error/[0.06]' : ''
       } ${isNew ? 'animate-tail-in' : ''}`}
     >
+      {/* Chart rule, not level rule: six lit stripes down a list of ten thousand rows make the
+          one that matters harder to find, and the badge beside it already spells the level out.
+          Warning and above keep their hue; everything quieter draws neutral. */}
       <span
-        className={`absolute inset-y-0 left-0 w-0.5 ${isSelected ? 'bg-accent' : LEVEL_BAR[event.level]}`}
+        className={`absolute inset-y-0 left-0 w-0.5 ${isSelected ? 'bg-accent' : ''}`}
+        style={isSelected ? undefined : { backgroundColor: LEVEL_CHART[event.level] }}
         aria-hidden="true"
       />
       <span

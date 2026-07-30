@@ -13,15 +13,6 @@ export const LEVEL_TEXT: Record<Level, string> = {
   Fatal: 'text-level-fatal',
 }
 
-export const LEVEL_BAR: Record<Level, string> = {
-  Verbose: 'bg-level-verbose',
-  Debug: 'bg-level-debug',
-  Information: 'bg-level-information',
-  Warning: 'bg-level-warning',
-  Error: 'bg-level-error',
-  Fatal: 'bg-level-fatal',
-}
-
 export const LEVEL_CODE: Record<Level, string> = {
   Verbose: 'VRB',
   Debug: 'DBG',
