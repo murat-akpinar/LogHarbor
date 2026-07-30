@@ -48,6 +48,17 @@
   --logharbor-level-debug: #0e7490;
   --logharbor-level-verbose: #7c3aed;
 
+  /* Chart series default to neutral so colour means trouble and nothing else: a healthy
+     window is a grey skyline and a bad hour is visible without reading the legend. Only
+     warning and error levels take their own colour in a chart. */
+  --logharbor-chart-neutral: #a9a9b4;
+  /* the second, quieter line in a two-line chart (avg under p95) */
+  --logharbor-chart-line: #8f8f9a;
+
+  --logharbor-chip-bg: #f0f0f2;
+  /* the dotted rule that carries the eye from a label to its value in detail panels */
+  --logharbor-leader: #dcdce1;
+
   /* drop shadows read on light backgrounds; on dark they are replaced by a border */
   --logharbor-shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px rgb(16 24 40 / 0.06);
 }
@@ -81,6 +92,12 @@
   --logharbor-level-information: #60a5fa;
   --logharbor-level-debug: #22d3ee;
   --logharbor-level-verbose: #a78bfa;
+
+  --logharbor-chart-neutral: #4b4b55;
+  --logharbor-chart-line: #5b5b66;
+
+  --logharbor-chip-bg: #212127;
+  --logharbor-leader: #2b2b33;
 
   --logharbor-shadow-card: 0 0 0 1px rgb(255 255 255 / 0.03), 0 1px 2px rgb(0 0 0 / 0.5);
 
@@ -117,8 +134,17 @@
   --color-level-debug: var(--logharbor-level-debug);
   --color-level-verbose: var(--logharbor-level-verbose);
 
-  --font-sans: "CaskaydiaMono NF", ui-monospace, monospace;
-  --font-mono: "CaskaydiaMono NF", ui-monospace, monospace;
+  --color-chart-neutral: var(--logharbor-chart-neutral);
+  --color-chart-line: var(--logharbor-chart-line);
+  --color-chip-bg: var(--logharbor-chip-bg);
+  --color-leader: var(--logharbor-leader);
+
+  /* Two faces doing two jobs: the interface speaks in sans, the data speaks in mono.
+     A path, a timestamp, a duration or an id is machine text and is set in mono; a label,
+     a heading or a sentence is ours and is set in sans. Both were the same monospace face
+     before, which left nothing to tell the two apart with. */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "CaskaydiaMono NF", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-card: 10px;
   --shadow-card: var(--logharbor-shadow-card);
