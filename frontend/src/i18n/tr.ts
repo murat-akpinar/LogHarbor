@@ -145,6 +145,9 @@ export const tr: Messages = {
     backToEvents: 'Olaylar sayfasına dön',
   },
   trace: {
+    total: 'Toplam',
+    spans: 'Span',
+    failures: 'Hata',
     title: 'İz zaman çizelgesi',
     noSpan: '(span yok)',
     noSpanIds: 'Bu iz span kimliği taşımıyor; olaylar tek zaman çizgisinde.',

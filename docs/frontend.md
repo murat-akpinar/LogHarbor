@@ -133,6 +133,24 @@ Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
   from log timestamps: one row per span_id, bounds from the span's earliest/latest
   event (a lower bound on real duration), a dot per event. Both paths are pure frontend;
   a note appears when the log fetch (count=1000, newest first) is truncated.
+
+  Restyled 2026-07-31 — reported as "zaman çizgisi vardı ama anlaşılmıyordu, katman
+  katman yap". Four things were missing, and they were the four a trace is opened for:
+    * WHICH CALL RAN INSIDE WHICH. Indentation at 12px is a convention the reader has
+      to already know and could not see anyway. SpanTimeline draws rails now: one
+      vertical rule per ancestor level plus a stub into the row's own label, the same
+      drawing a file tree uses, for the same reason.
+    * WHERE EACH CALL STARTED AND ENDED. The bar was an 8px translucent sliver at 40%
+      opacity. It is drawn like every other bar in the app now (lib/series barFill),
+      with a brighter cap at each end so both edges are marks rather than fades.
+    * WHERE IT WENT WRONG. Error spans take barGlow and error/fatal dots are lit, so
+      the failure is findable before a label is read — the same "only trouble glows"
+      rule the histograms follow.
+    * WHAT THE WHOLE THING COST. The panel header names the root span's operation,
+      then three chips: total duration, span count, and failures in red when there are
+      any. Those are the numbers somebody opens a trace to find, before reading bars.
+  LABEL_W and DURATION_W are exported because the cursor test does the same pixel maths;
+  a copy of the number in the test went stale the moment the label column grew.
 Live tail: the shared Live control connects to /hubs/tail with the current filter (its dot
   carries the socket state: green connected, amber connecting, red dropped); new events prepend
   with a highlight

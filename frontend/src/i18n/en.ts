@@ -144,6 +144,9 @@ export const en = {
     backToEvents: 'Back to Events',
   },
   trace: {
+    total: 'Total',
+    spans: 'Spans',
+    failures: 'Failed',
     title: 'Trace timeline',
     noSpan: '(no span)',
     noSpanIds: 'This trace carries no span ids; events sit on one timeline.',
