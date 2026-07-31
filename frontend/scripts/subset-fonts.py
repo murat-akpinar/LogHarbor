@@ -91,6 +91,11 @@ def subset_one(source: pathlib.Path) -> tuple[int, int, int]:
     # Keep the default layout features: this is a coding font and its ligatures
     # and kerning are part of how the UI already looks.
     options.drop_tables += ["FFTM"]
+    # 13 and 14 are the licence and its URL, and pyftsubset drops both by default.
+    # The OFL wants the notice to travel with every copy, and the .woff2 is the only
+    # copy that reaches a browser -- the LICENSE file beside it never leaves the repo.
+    # 16 is the typographic family, kept so the two weights still pair up.
+    options.name_IDs = [0, 1, 2, 3, 4, 5, 6, 13, 14, 16]
 
     font = TTFont(source)
     subsetter = subset.Subsetter(options=options)

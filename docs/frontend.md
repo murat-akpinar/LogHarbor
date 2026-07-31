@@ -534,6 +534,13 @@ copy) that the upstream font never had and that already render in the browser's 
 src/assets/fonts/fonts.test.ts keeps @font-face pointed at the subsets: swapping a URL
 back to a neighbouring original would look identical and silently cost 2.3 MB again.
 
+Licence: the OFL permits subsetting. Its Reserved Font Name is "Cascadia Code", which is
+exactly why the Nerd Fonts build is called Caskaydia -- keep that name and clause 3 is
+satisfied, rename toward "Cascadia" and it is not. Clause 2 wants the notice to travel
+with every copy, so the subset keeps name IDs 13 and 14 (licence and URL) that pyftsubset
+drops by default; the .woff2 is the only copy a browser ever sees, since the LICENSE file
+beside it stays in the repo. That metadata costs ~1.5 KB a weight.
+
 --- THEME: ONE, AND IT IS DARK ---
 
 There is no theme switch. The light theme was cut on 2026-07-31 (owner's call) rather than
