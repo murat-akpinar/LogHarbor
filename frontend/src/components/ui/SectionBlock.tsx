@@ -33,13 +33,13 @@ export function SectionBlock({
   children: ReactNode
   className?: string
   /** Position down the page. Sections arrive in sequence rather than all at once, which reads
-   *  as the page assembling itself; the whole run is over inside half a second. */
+   *  as the page assembling itself; the whole run is over inside a quarter second. */
   index?: number
 }) {
   return (
     <section
       className={`glass animate-rise rounded-section border border-border bg-surface p-3 shadow-card ${className}`}
-      style={{ '--delay': `${index * 70}ms` } as CSSProperties}
+      style={{ '--delay': `${index * 30}ms` } as CSSProperties}
     >
       {title && (
         <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">

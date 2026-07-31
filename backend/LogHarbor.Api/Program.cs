@@ -1,7 +1,9 @@
+using System.IO.Compression;
 using System.Net;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
@@ -72,6 +74,25 @@ if (builder.Configuration.GetValue("LogHarbor:RunBackgroundJobs", true))
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<TailSubscriptions>();
 builder.Services.AddSingleton<TailBroadcaster>();
+
+// The SPA bundle went out uncompressed: 555 KB of JavaScript and 56 KB of CSS on every cold
+// load, which gzip takes to 155 KB and 10 KB. Kestrel serves wwwroot itself here — there is no
+// reverse proxy in the single-container deployment to do this for us.
+builder.Services.AddResponseCompression(options =>
+{
+    // the bundle is fetched over plain HTTP inside the container's network as often as not, and
+    // BREACH needs a secret in the response body to be worth anything: static assets have none
+    options.EnableForHttps = true;
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+    [
+        "application/javascript",
+        "text/javascript",
+        "image/svg+xml",
+        "application/json",
+    ]);
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
 
 builder.Services.AddSingleton<IUserStore, SqliteUserStore>();
 builder.Services.AddSingleton<AuthService>();
@@ -318,6 +339,9 @@ app.MapBackup();
 app.MapHub<TailHub>("/hubs/tail");
 
 // single deployable: the SPA build is served from wwwroot, unknown paths fall back to index.html
+// compression sits in front of the static files it shrinks; the woff2 fonts are already
+// compressed and are left alone by the MIME list above
+app.UseResponseCompression();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.MapFallback(async context =>

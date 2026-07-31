@@ -53,6 +53,10 @@ public static class StatsEndpoints
     // events before this predate the server; used as the open-ended baseline start for slow-operations
     private const string BaselineStart = "2000-01-01T00:00:00.0000000Z";
 
+    // widest trend strip any page draws is 24 columns in a table cell; the ceiling leaves room to
+    // grow one without being an invitation to ask for a thousand
+    private const int MaxTrendBuckets = 120;
+
     private static async Task<IResult> TopErrorsAsync(
         IEventStore eventStore,
         CancellationToken cancellationToken,
@@ -185,7 +189,8 @@ public static class StatsEndpoints
         string? filter = null,
         string routeProperty = "Path",
         string methodProperty = "Method",
-        int limit = 50)
+        int limit = 50,
+        int trendBuckets = 0)
     {
         if (!TryValidateCommon(from, to, filter, limit, out var fromValue, out var toValue, out var filterSql, out var error))
         {
@@ -200,10 +205,17 @@ public static class StatsEndpoints
                     "property names must contain only letters, digits, underscores, or dots.");
             }
         }
+        // a caller that wants no strips pays for none; the ceiling is the widest strip any page
+        // draws, and asking for more columns than that only makes the response bigger
+        if (trendBuckets < 0 || trendBuckets > MaxTrendBuckets)
+        {
+            return Problems.BadRequest("Invalid query",
+                $"trendBuckets must be between 0 and {MaxTrendBuckets}.");
+        }
 
         var operations = await eventStore.GetOperationOverviewAsync(
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
-            routeProperty, methodProperty, limit, cancellationToken);
+            routeProperty, methodProperty, limit, trendBuckets, cancellationToken);
         return Results.Ok(new { operations });
     }
 

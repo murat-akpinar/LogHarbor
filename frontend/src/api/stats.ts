@@ -60,7 +60,13 @@ export function getServiceStatus(
 }
 
 export function getOperations(
-  params: StatsRangeParams & { routeProperty?: string; methodProperty?: string; limit?: number },
+  params: StatsRangeParams & {
+    routeProperty?: string
+    methodProperty?: string
+    limit?: number
+    /** Columns of trend to send down with each row. Omit for callers that draw no strip. */
+    trendBuckets?: number
+  },
 ): Promise<{ operations: OperationOverview[] }> {
   return api.get<{ operations: OperationOverview[] }>(`/api/stats/operations${buildQuery(params)}`)
 }

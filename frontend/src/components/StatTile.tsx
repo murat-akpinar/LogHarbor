@@ -67,7 +67,7 @@ export function StatTile({
   return (
     <Panel
       className={`animate-rise relative overflow-hidden px-4 pt-3 ${hasTrend ? TREND_CLEARANCE : 'pb-4'}`}
-      style={{ '--delay': `${index * 60}ms` } as CSSProperties}
+      style={{ '--delay': `${index * 26}ms` } as CSSProperties}
     >
       {/* drawn even for a figure that has no shape, so a tile without one still belongs to the
           band rather than reading as an empty card that wandered in */}

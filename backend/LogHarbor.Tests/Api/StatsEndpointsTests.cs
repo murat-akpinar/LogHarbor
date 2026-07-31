@@ -99,6 +99,63 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Operations_CarriesEachRowsTrend_WhenTrendBucketsAsked()
+    {
+        // 2026-07-13: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            // two in the first quarter of the window, one in the last: a shape, not a flat line
+            new Event(0, "2026-07-13T10:00:00.0000000Z", "Information", "ok", "GET /a",
+                """{"Path":"/a","Method":"GET"}""", null, "2026-07-13T10:00:00.0000000Z"),
+            new Event(0, "2026-07-13T10:05:00.0000000Z", "Information", "ok", "GET /a",
+                """{"Path":"/a","Method":"GET"}""", null, "2026-07-13T10:05:00.0000000Z"),
+            new Event(0, "2026-07-13T10:50:00.0000000Z", "Information", "ok", "GET /a",
+                """{"Path":"/a","Method":"GET"}""", null, "2026-07-13T10:50:00.0000000Z"),
+            // a second operation, so the trends cannot be one series handed to every row
+            new Event(0, "2026-07-13T10:30:00.0000000Z", "Information", "ok", "GET /b",
+                """{"Path":"/b","Method":"GET"}""", null, "2026-07-13T10:30:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/operations?from=2026-07-13T10:00:00Z&to=2026-07-13T11:00:00Z&trendBuckets=4");
+
+        var rows = page.GetProperty("operations").EnumerateArray()
+            .ToDictionary(row => row.GetProperty("template").GetString()!);
+
+        // four buckets of fifteen minutes: 10:00 and 10:05 land in the first, 10:50 in the last
+        var a = rows["GET /a"].GetProperty("trend").EnumerateArray().Select(v => v.GetInt64()).ToArray();
+        Assert.Equal([2, 0, 0, 1], a);
+        // and the other row carries its own, in the bucket its one event belongs to
+        var b = rows["GET /b"].GetProperty("trend").EnumerateArray().Select(v => v.GetInt64()).ToArray();
+        Assert.Equal([0, 0, 1, 0], b);
+        // the strip has to agree with the total beside it
+        Assert.Equal(3, rows["GET /a"].GetProperty("total").GetInt64());
+    }
+
+    [Fact]
+    public async Task Operations_OmitsTrend_WhenNotAsked()
+    {
+        // callers that draw no strip should not pay for the aggregation
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/operations?from=2026-07-17T10:00:00Z&to=2026-07-17T11:00:00Z");
+
+        foreach (var row in page.GetProperty("operations").EnumerateArray())
+        {
+            Assert.Equal(JsonValueKind.Null, row.GetProperty("trend").ValueKind);
+        }
+    }
+
+    [Fact]
+    public async Task Operations_RejectsAnAbsurdTrendWidth()
+    {
+        var response = await _client.GetAsync(
+            "/api/stats/operations?from=2026-07-17T10:00:00Z&to=2026-07-17T11:00:00Z&trendBuckets=5000");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Queries_GroupsBySqlText_WithDurations()
     {
         // 2026-07-19: a day the shared seeds never touch

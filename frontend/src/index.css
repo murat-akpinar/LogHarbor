@@ -249,6 +249,14 @@ textarea {
    Motion. Charts draw themselves in, cards arrive in sequence, live data
    announces itself. Everything here is entrance-only and short: a dashboard
    that re-animates while you are reading it is a dashboard you stop reading.
+
+   "Short" is a budget, not a mood: the whole entrance has to be over inside
+   ~400ms of the data landing. Measured on the dashboard, the data was ready at
+   200ms and the last animation stopped at 1128ms — the page was not loading
+   slowly, it was *appearing* slowly, and a second of that reads as lag. Every
+   duration below is half what it was; the stagger multipliers at the call sites
+   (SectionBlock, StatTile, Heatmap, plotScale's SWEEP_MS) were cut with them,
+   because a delay is part of the same budget as a duration.
    --------------------------------------------------------------------------- */
 
 /* a plate arriving: up and in. --delay staggers a row of them from the caller */
@@ -265,7 +273,7 @@ textarea {
 
 .animate-rise {
   opacity: 0;
-  animation: lh-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: lh-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: var(--delay, 0ms);
 }
 
@@ -284,7 +292,7 @@ textarea {
 
 .animate-grow {
   transform-origin: bottom;
-  animation: lh-grow 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lh-grow 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--delay, 0ms);
 }
 
@@ -301,7 +309,7 @@ textarea {
 
 .animate-draw {
   stroke-dasharray: var(--length);
-  animation: lh-draw 900ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  animation: lh-draw 460ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 @keyframes lh-wash {
@@ -314,7 +322,7 @@ textarea {
 }
 
 .animate-wash {
-  animation: lh-wash 700ms ease-out 300ms both;
+  animation: lh-wash 340ms ease-out 120ms both;
 }
 
 /* live-tail arrival flash (docs/frontend.md: new events prepend with highlight) */

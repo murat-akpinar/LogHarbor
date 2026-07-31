@@ -304,7 +304,7 @@ POST /api/settings/ldap/test
 
 GET /api/stats/operations
   Query: routeProperty? default Path, methodProperty? default Method
-         (both [A-Za-z0-9_.] only), limit? default 50
+         (both [A-Za-z0-9_.] only), limit? default 50, trendBuckets? default 0 (max 120)
   Per-operation RED numbers. An event carrying BOTH properties is grouped as a route and
   comes back with method + route filled and template set to "GET /orders/{id}"; anything
   else falls back to its CLEF message_template (method and route null), so jobs and probes
@@ -322,6 +322,12 @@ GET /api/stats/operations
   whose sink already logs route templates sees no difference. Measured on 200k events:
   126,267 groups became 12, and the busiest route in the app (59,980 requests, absent from
   the response entirely because each of its rows held one hit) became the top row.
+  trendBuckets asks for each row's shape over the window: trend comes back as that many event
+  counts, cut on the same bucket arithmetic as /api/stats/histogram, or null when it was not
+  asked for. It exists so a table of trend strips costs no requests of its own — the Requests
+  page drew one histogram per row, which at fifty rows was fifty round trips that could not
+  start until this endpoint had answered. The counts respect `filter`, so a table narrowed to
+  5xx gets 5xx-only strips.
   folded says the route holds {id} placeholders this server put there. No event carries that
   text, so a filter built from a folded row has to match the pattern — replace each {id} with
   % and use `like` — while an unfolded row still filters with `=`.

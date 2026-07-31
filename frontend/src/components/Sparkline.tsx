@@ -18,17 +18,20 @@ export function TrendBars({
 }) {
   const max = Math.max(1, ...values)
   return (
-    <div className={`flex items-end gap-px ${className}`} aria-hidden="true">
+    // one animation for the strip, not one per bar. A table of 50 rows puts 50 of these on the
+    // page; at a bar each that was 1,200 animations running at once, which the compositor pays
+    // for on every frame of the entrance — and a 24-bar stagger inside a strip 96px wide is not
+    // a sweep anyone can see anyway. Growing the whole strip off the floor looks the same.
+    <div className={`animate-grow flex items-end gap-px ${className}`} aria-hidden="true">
       {values.map((total, index) => (
         <span
           key={index}
-          className="animate-grow min-w-0 flex-1 rounded-t-[1px]"
+          className="min-w-0 flex-1 rounded-t-[1px]"
           // 8% floor keeps single events visible next to the peak bucket
           style={
             {
               height: total > 0 ? `${Math.max(8, (total / max) * 100)}%` : '0%',
               background: barFill(color),
-              '--delay': `${index * 8}ms`,
             } as CSSProperties
           }
         />

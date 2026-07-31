@@ -4,7 +4,7 @@ import type { OperationOverview } from '../types'
 import { useOperations } from '../hooks/useStats'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
-import { Sparkline } from '../components/Sparkline'
+import { TrendBars } from '../components/Sparkline'
 import { OperationName } from '../components/OperationName'
 import { StatusChart } from '../components/requests/StatusChart'
 import { STATUS_FILTERS } from '../lib/status'
@@ -17,6 +17,10 @@ import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
+// columns in each row's trend strip. They arrive with the rows rather than as a histogram
+// request per row: at fifty rows that was fifty round trips which could not start until this
+// page's one real query had already answered, and the table sat half-drawn until they landed.
+const TREND_BUCKETS = 24
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -56,6 +60,7 @@ export function RequestsPage() {
     routeProperty: routeProperty || ROUTE_PROPERTY,
     methodProperty: methodProperty || METHOD_PROPERTY,
     limit: ROW_LIMIT,
+    trendBuckets: TREND_BUCKETS,
   })
   const rangeMinutes = Math.max(1, (new Date(range.to).getTime() - new Date(range.from).getTime()) / 60_000)
 
@@ -179,12 +184,7 @@ export function RequestsPage() {
                     {op.p95ElapsedMs === null ? '—' : formatMs(op.p95ElapsedMs, lang)}
                   </td>
                   <td className={TD_CLASS}>
-                    <Sparkline
-                      filter={rowFilter(op)}
-                      color={SERIES.volume}
-                      from={range.from}
-                      to={range.to}
-                    />
+                    <TrendBars values={op.trend ?? []} color={SERIES.volume} />
                   </td>
                 </tr>
               )

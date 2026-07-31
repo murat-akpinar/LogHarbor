@@ -65,7 +65,7 @@ export function Heatmap({ cells }: HeatmapProps) {
                     // the busiest hours are lit, the same way an alert bar is: the week's peak
                     // is findable without hunting for the darkest red
                     boxShadow: cellGlow(count, max),
-                    '--delay': `${(dayOfWeek + hour) * 12}ms`,
+                    '--delay': `${(dayOfWeek + hour) * 5}ms`,
                   } as CSSProperties
                 }
               />

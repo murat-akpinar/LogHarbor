@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Query;
@@ -551,12 +553,16 @@ public sealed class SqliteEventStore : IEventStore
 
     public async Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, string routeProperty, string methodProperty,
-        int limit, CancellationToken cancellationToken = default)
+        int limit, int trendBuckets = 0, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
+        var wantsTrend = trendBuckets > 0;
         var source = await BuildStatsSourceAsync(
-            connection, command, filter, "message_template, level, properties", fromUtc, toUtc, cancellationToken);
+            connection, command,
+            filter,
+            wantsTrend ? "message_template, level, properties, timestamp" : "message_template, level, properties",
+            fromUtc, toUtc, cancellationToken);
 
         // safe to embed: both names are restricted to [A-Za-z0-9_.] at the API boundary, and the
         // quoted step keeps dots literal (http.route is one key, not a path into an object)
@@ -573,15 +579,29 @@ public sealed class SqliteEventStore : IEventStore
         // so json_extract ran once per *reference* — route and method are each named three times
         // below — rather than once per row. Forcing it to materialize cut the whole query by 41%
         // on 200k events (1254 ms -> 740 ms), which is what pays for the fold underneath it.
+        // the trend rides along in this same query rather than in one histogram request per row:
+        // the rows are already grouped here, and counting them per bucket costs one more GROUP BY
+        // over a CTE that has been materialized anyway
+        var bucketSeconds = wantsTrend
+            ? Math.Max(
+                double.Epsilon,
+                (DateTimeOffset.Parse(toUtc, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal)
+                 - DateTimeOffset.Parse(fromUtc, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal))
+                .TotalSeconds / trendBuckets)
+            : 0;
+        var trendTs = wantsTrend ? ", timestamp AS ts" : "";
+        var carryTs = wantsTrend ? ", ts" : "";
+
         command.CommandText =
             "WITH v AS MATERIALIZED (" +
             $"SELECT message_template AS tmpl, CAST({route} AS TEXT) AS raw, " +
             $"CAST({method} AS TEXT) AS method, level, " +
-            "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms " +
+            "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms" +
+            $"{trendTs} " +
             $"FROM {source}), " +
             // ids folded out of the path, so /api/orders/41973 counts as /api/orders/{id} rather
             // than as an operation of its own (RoutePath explains what that was doing to the panel)
-            "w AS (SELECT tmpl, raw, fold_route(raw) AS route, method, level, ms FROM v), " +
+            $"w AS (SELECT tmpl, raw, fold_route(raw) AS route, method, level, ms{carryTs} FROM v), " +
             // a route is a verb and a path: a log line that mentions the path without one (a
             // "slow request" warning, say) is about that path, not about all its traffic, and
             // grouping it as a route would put a second row under the same name whose p95 is
@@ -593,7 +613,8 @@ public sealed class SqliteEventStore : IEventStore
             // whether this group had to be folded, so a deep link back to the events knows to
             // match the pattern instead of the literal path it no longer carries
             "CASE WHEN route IS NOT NULL AND method IS NOT NULL AND route <> raw THEN 1 ELSE 0 END AS folded, " +
-            "level, ms " +
+            "level, ms" +
+            $"{carryTs} " +
             "FROM w WHERE (route IS NOT NULL AND method IS NOT NULL) OR tmpl IS NOT NULL), " +
             "s AS (SELECT label, MAX(method) AS method, MAX(route) AS route, MAX(folded) AS folded, " +
             "COUNT(*) AS total, " +
@@ -602,10 +623,26 @@ public sealed class SqliteEventStore : IEventStore
             "r AS (SELECT label, ms, ROW_NUMBER() OVER (PARTITION BY label ORDER BY ms) AS rn, " +
             "COUNT(*) OVER (PARTITION BY label) AS n FROM k WHERE ms IS NOT NULL), " +
             "p AS (SELECT label, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY label) " +
-            "SELECT s.label, s.total, s.errors, p.p95, s.method, s.route, s.folded " +
-            "FROM s LEFT JOIN p ON p.label = s.label " +
-            "ORDER BY s.total DESC, s.label LIMIT @limit;";
+            (wantsTrend
+                // one [bucket, count] pair per bucket the group actually has events in. Sparse on
+                // purpose: an idle route over 24 buckets is two numbers here instead of twenty-four,
+                // and C# fills the gaps with zeroes anyway. Same bucket_index arithmetic as
+                // GetHistogramAsync, so a row's strip and the chart above it cut time identically.
+                ? ", b AS (SELECT label, " +
+                  "CAST((julianday(ts) - julianday(@from)) * 86400.0 / @bucketSeconds AS INTEGER) AS bi, " +
+                  "COUNT(*) AS c FROM k GROUP BY label, bi), " +
+                  "t AS (SELECT label, json_group_array(json_array(bi, c)) AS trend FROM b GROUP BY label) " +
+                  "SELECT s.label, s.total, s.errors, p.p95, s.method, s.route, s.folded, t.trend " +
+                  "FROM s LEFT JOIN p ON p.label = s.label LEFT JOIN t ON t.label = s.label " +
+                  "ORDER BY s.total DESC, s.label LIMIT @limit;"
+                : "SELECT s.label, s.total, s.errors, p.p95, s.method, s.route, s.folded, NULL AS trend " +
+                  "FROM s LEFT JOIN p ON p.label = s.label " +
+                  "ORDER BY s.total DESC, s.label LIMIT @limit;");
         command.Parameters.AddWithValue("@limit", limit);
+        if (wantsTrend)
+        {
+            command.Parameters.AddWithValue("@bucketSeconds", bucketSeconds);
+        }
 
         var rows = new List<OperationOverview>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -616,9 +653,31 @@ public sealed class SqliteEventStore : IEventStore
                 reader.IsDBNull(3) ? null : reader.GetDouble(3),
                 reader.IsDBNull(4) ? null : reader.GetString(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
-                reader.GetInt64(6) != 0));
+                reader.GetInt64(6) != 0,
+                wantsTrend && !reader.IsDBNull(7) ? ExpandTrend(reader.GetString(7), trendBuckets) : null));
         }
         return rows;
+    }
+
+    /// <summary>
+    /// The sparse [[bucket, count], ...] SQLite aggregated, widened to one number per bucket.
+    /// </summary>
+    /// <remarks>
+    /// Out-of-range indices are clamped rather than dropped, for the same reason
+    /// GetHistogramAsync clamps: an event landing exactly on `to` can float-round one bucket past
+    /// the end, and losing it would make a row's strip disagree with its own total.
+    /// </remarks>
+    private static long[] ExpandTrend(string json, int buckets)
+    {
+        var counts = new long[buckets];
+        using var document = JsonDocument.Parse(json);
+        foreach (var pair in document.RootElement.EnumerateArray())
+        {
+            if (pair.GetArrayLength() < 2) continue;
+            var index = (int)Math.Clamp(pair[0].GetInt64(), 0, buckets - 1);
+            counts[index] += pair[1].GetInt64();
+        }
+        return counts;
     }
 
     public async Task<IReadOnlyList<UserActivity>> GetUserActivityAsync(

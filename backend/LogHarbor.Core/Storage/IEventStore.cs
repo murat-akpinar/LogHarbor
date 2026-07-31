@@ -62,7 +62,12 @@ public sealed record OperationOverview(
     double? P95ElapsedMs,
     string? Method = null,
     string? Route = null,
-    bool Folded = false);
+    bool Folded = false,
+    /// <summary>Event counts per bucket across the requested window, for the row's trend strip.
+    /// It rides along with the group it describes because the alternative was one histogram
+    /// request per row: fifty rows meant fifty round trips that could not even start until this
+    /// query had answered.</summary>
+    IReadOnlyList<long>? Trend = null);
 
 /// <summary>Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen timestamp.</summary>
 public sealed record UserActivity(string Value, long Total, long ErrorCount, string LastSeen);
@@ -193,9 +198,10 @@ public interface IEventStore
     /// property names must be bare identifiers ([A-Za-z0-9_.]); the API boundary validates them.
     /// Searches hot + hydrated data.
     /// </summary>
+    /// <param name="trendBuckets">Columns in each row's trend strip. 0 skips the aggregation.</param>
     Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, string routeProperty, string methodProperty,
-        int limit, CancellationToken cancellationToken = default);
+        int limit, int trendBuckets = 0, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Per-value activity for one user-identifying <paramref name="property"/> (totals, Error+Fatal

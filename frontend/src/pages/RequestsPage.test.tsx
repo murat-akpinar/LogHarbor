@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
-import { getOperations } from '../api/stats'
+import { getHistogram, getOperations } from '../api/stats'
 import { RequestsPage } from './RequestsPage'
 
 const EMPTY_COUNTS = { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 }
@@ -16,8 +16,8 @@ function bucketOf(count: number) {
 vi.mock('../api/stats', () => ({
   getOperations: vi.fn(async () => ({
     operations: [
-      { template: 'GET /api/orders/{id}', method: 'GET', route: '/api/orders/{id}', total: 90, errorCount: 0, p95ElapsedMs: 120 },
-      { template: 'POST /api/orders', method: 'POST', route: '/api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300 },
+      { template: 'GET /api/orders/{id}', method: 'GET', route: '/api/orders/{id}', total: 90, errorCount: 0, p95ElapsedMs: 120, trend: [1, 4, 2] },
+      { template: 'POST /api/orders', method: 'POST', route: '/api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300, trend: [0, 1, 0] },
     ],
   })),
   getHistogram: vi.fn(async ({ filter }: { filter?: string }) => {
@@ -129,4 +129,27 @@ it('re-sorts by error % when that header is clicked', async () => {
     expect(bodyRowTexts()[0]).toContain('POST')
     expect(bodyRowTexts()[1]).toContain('GET')
   })
+})
+
+// the trend column used to be one histogram request per row: fifty rows meant fifty round trips
+// that could not start until getOperations had answered, and the table sat half-drawn until they
+// landed. The strip comes down with the row now, so the only request this table makes is its own.
+it('draws each row its trend without asking for one', async () => {
+  renderPage()
+  await screen.findByText('/api/orders/{id}')
+
+  await waitFor(() => {
+    expect(vi.mocked(getOperations).mock.calls.some(([params]) => params.trendBuckets === 24)).toBe(true)
+  })
+
+  // no row asked for a histogram of its own; the three that were requested are the status chart's
+  const rowRequests = vi
+    .mocked(getHistogram)
+    .mock.calls.filter(([params]) => !params.filter?.includes('StatusCode'))
+  expect(rowRequests).toHaveLength(0)
+
+  // and the strip is actually drawn, one bar per bucket the row carried
+  const strips = document.querySelectorAll('tbody .animate-grow')
+  expect(strips).toHaveLength(2)
+  expect(strips[0].children).toHaveLength(3)
 })

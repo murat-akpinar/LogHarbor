@@ -207,6 +207,9 @@ export interface OperationOverview {
   route: string | null
   /** The route holds {id} placeholders the server put there, so no event carries it literally. */
   folded: boolean
+  /** Counts per bucket over the requested window, present only when trendBuckets was asked for.
+   *  It comes down with the row so a table of them costs no requests of its own. */
+  trend?: number[] | null
 }
 
 /** Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen. */

@@ -10,7 +10,7 @@ export function plotMax(values: number[]): number {
 }
 
 /** How long a chart takes to finish growing in, however many columns it has. */
-export const SWEEP_MS = 380
+export const SWEEP_MS = 180
 
 /**
  * One column's share of the entrance sweep, in milliseconds.
