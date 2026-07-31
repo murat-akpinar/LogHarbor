@@ -347,13 +347,34 @@ numeric-aware — `UserId = 42` for numeric ids, `UserId = 'user-42'` for text �
 the deep link and sparkline match how the value is stored.
 
 Detail panel (right side, on row click): level badge + relative timestamp
-(absolute in the title), identity chips for the well-known properties
-(Service/service.name, StatusCode, Method, Path, UserId, connection) that
-filter the list on click, the message and exception with copy buttons plus the
-exception's parsed source location (path:line), the trace section with "View
-trace", per-property rows with filter/copy actions (nested values keep the
-JSON tree), an "events around this" control that narrows the range to ±2
-minutes, and the raw JSON collapsed behind a disclosure.
+(absolute in the title, and again under it in full), identity chips for the
+well-known properties (Service/service.name, StatusCode, Method, Path, UserId,
+connection) that filter the list on click, the message and exception with copy
+buttons plus the exception's parsed source location (path:line), the trace
+section with "View trace", per-property rows with filter/copy actions (nested
+values keep the JSON tree), an "events around this" control that narrows the
+range to ±2 minutes, and the raw JSON collapsed behind a disclosure.
+
+Restyled 2026-07-31, having been skipped by the visual pass on the grounds that
+the reference's two-column layout does not fit 28rem without losing the
+click-to-filter rows. It did not need that layout, it needed the app's own:
+  * a hairline of the level's hue along the very top edge, so which kind of
+    event this is lands before a word of it is read, and LevelBadge grew a
+    `pill` variant tinted in that hue. The list keeps the bare-text badge —
+    ten thousand rows would be ten thousand plates.
+  * a fixed header over a scrolling body. On an event with forty properties
+    the level, the time and the way out are exactly what you still want when
+    you are at the bottom of the list.
+  * the plate-and-well rhythm the pages use, at 28rem scale: the message gets
+    the first well because it is what the reader clicked for, then a section
+    per block with an eyebrow, a count and its own well. It was flat text
+    under bare small-caps headings, which made a stack trace and a property
+    list look like the same kind of thing.
+  * the two header actions became real targets with drawn icons instead of ⇕
+    and ✕ sitting loose in the text.
+  * a property row lights up under the pointer, which is what says its filter
+    and copy actions are there at all; they stay hidden otherwise, because
+    forty rows times two glyphs is noise rather than affordance.
 
 --- REQUESTS PAGE ---
 
