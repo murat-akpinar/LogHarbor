@@ -35,14 +35,17 @@ vi.mock('../api/archive', () => ({
   startHydration: vi.fn(async () => ({ segments: [] })),
   getHydrationStatus: vi.fn(async () => ({ segments: [{ day: '2026-07-23', status: 'hydrated' }] })),
 }))
+// spied rather than stubbed: the point of the tests below is *what the page asks for*,
+// specifically whether the tail is enabled, so the argument has to be recorded
+const useLiveTailSpy = vi.fn((_params: { filter: string; enabled: boolean; paused: boolean }) => ({
+  events: [] as never[],
+  pendingCount: 0,
+  status: 'disconnected' as const,
+  error: null,
+  flush: () => {},
+}))
 vi.mock('../hooks/useLiveTail', () => ({
-  useLiveTail: () => ({
-    events: [],
-    pendingCount: 0,
-    status: 'disconnected',
-    error: null,
-    flush: () => {},
-  }),
+  useLiveTail: (params: { filter: string; enabled: boolean; paused: boolean }) => useLiveTailSpy(params),
 }))
 
 // jsdom has no ResizeObserver; VirtualizedEventList needs one to mount
@@ -161,4 +164,39 @@ it('keeps the trace panel hidden for non-trace filters', async () => {
 
   expect(await screen.findByText('hello there')).toBeDefined()
   expect(screen.queryByText('Trace timeline')).toBeNull()
+})
+
+// Events used to keep a private live flag, so the button in the same corner meant the rolling
+// window on every other page and the tail here — and turning it on threw the chosen range away
+// and showed "All time". One flag now: live rolls the window and streams into it.
+it('opens live, like every other page, and streams while it is on', async () => {
+  renderPage()
+
+  const toggle = await screen.findByRole('button', { name: /Live/ })
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  // the tail follows the same flag rather than a private one
+  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true })
+})
+
+it('keeps the window when live is on, instead of jumping to all time', async () => {
+  renderPage()
+  await screen.findByRole('button', { name: /Live/ })
+
+  // live and a bounded rolling window coexist: new events are inside "the last hour" anyway
+  expect(screen.queryByText('All time')).toBeNull()
+  expect(vi.mocked(getEvents).mock.calls.at(-1)?.[0]).toEqual(
+    expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
+  )
+})
+
+it('stops the tail when a range is picked, since that window is not "now"', async () => {
+  renderPage()
+  const toggle = await screen.findByRole('button', { name: /Live/ })
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+
+  screen.getByTitle('Time range').click()
+  ;(await screen.findByText('Last 15 minutes')).click()
+
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
+  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: false })
 })

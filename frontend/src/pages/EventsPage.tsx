@@ -70,17 +70,14 @@ export function EventsPage() {
   const [filterSeed, setFilterSeed] = useState(0)
   const [activeLevels, setActiveLevels] = useState<Set<Level>>(new Set())
   const [activeSignalIds, setActiveSignalIds] = useState<Set<number>>(new Set())
-  // the app's one window, shared with every other page — see hooks/useLiveRange
-  const { range: sharedRange, setRange } = useSharedRange()
+  // The app's one window and its one live flag — see hooks/useLiveRange. Live means the same
+  // thing here as everywhere else: the window rolls, and on this page the tail streams into it
+  // as well. Events kept a private flag for a while and it made the button in the corner mean
+  // two different things depending on which page you were on.
+  const { range, setRange, live: isLive, toggleLive } = useSharedRange()
   const [selectedEvent, setSelectedEvent] = useState<Event | undefined>(undefined)
-  const [isLive, setIsLive] = useState(false)
   const [isAtTop, setIsAtTop] = useState(true)
   const [showHelp, setShowHelp] = useState(false)
-
-  // A live tail is "now", so while it runs the search under it is unbounded — but only here.
-  // Writing that open range into the shared store would reset every other page's window
-  // because somebody watched the stream for a minute.
-  const range = isLive ? { from: undefined, to: undefined } : sharedRange
 
   // ?from=&to= from a dashboard or analysis deep link sets the shared window, once
   const deepFrom = searchParams.get('from')
@@ -183,15 +180,9 @@ export function EventsPage() {
   }
 
   // an explicit window and a live tail contradict each other, so picking one leaves the other
-  function chooseRange(next: { from: string | undefined; to: string | undefined }) {
-    setRange(next)
-    setIsLive(false)
-  }
-
-  function toggleLive() {
-    // the range the tail implies is applied locally above, not written to the shared store
-    setIsLive((current) => !current)
-  }
+  // setRange already drops out of live — an explicit window contradicts "now" — so the tail
+  // stops with it rather than streaming events the chosen window would not have matched
+  const chooseRange = setRange
 
   function resume() {
     tail.flush()

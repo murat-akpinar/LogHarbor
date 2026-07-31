@@ -122,6 +122,8 @@ function useStore(): TimeRangeStore {
 export function useSharedRange(): {
   range: OpenRange
   setRange: (next: OpenRange) => void
+  live: boolean
+  toggleLive: () => void
 } {
   const store = useStore()
   const range = useMemo<OpenRange>(() => {
@@ -131,7 +133,7 @@ export function useSharedRange(): {
       to: new Date(store.now).toISOString(),
     }
   }, [store.live, store.frozen, store.now])
-  return { range, setRange: store.setRange }
+  return { range, setRange: store.setRange, live: store.live, toggleLive: store.toggleLive }
 }
 
 /**
