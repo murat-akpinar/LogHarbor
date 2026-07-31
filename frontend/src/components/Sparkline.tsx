@@ -36,15 +36,8 @@ export function TrendBars({
  * this size is for. The curve still passes through every point, so no peak is smoothed away.
  */
 function smoothPath(values: number[], max: number, centered: boolean): string {
-  if (values.length === 0) return ''
-  const points = values.map((value, index) => ({
-    x: centered
-      ? ((index + 0.5) / values.length) * 100
-      : values.length === 1
-        ? 50
-        : (index / (values.length - 1)) * 100,
-    y: 100 - (value / max) * 100,
-  }))
+  const points = plotPoints(values, max, centered)
+  if (points.length === 0) return ''
   if (points.length === 1) return `M0,${points[0].y} L100,${points[0].y}`
 
   let path = `M${points[0].x},${points[0].y}`
@@ -62,6 +55,27 @@ function smoothPath(values: number[], max: number, centered: boolean): string {
   return path
 }
 
+function plotPoints(values: number[], max: number, centered: boolean) {
+  return values.map((value, index) => ({
+    x: centered
+      ? ((index + 0.5) / values.length) * 100
+      : values.length === 1
+        ? 50
+        : (index / (values.length - 1)) * 100,
+    y: 100 - (value / max) * 100,
+  }))
+}
+
+/** The same curve, closed down to the floor so it can be filled. */
+function areaPath(values: number[], max: number, centered: boolean): string {
+  const line = smoothPath(values, max, centered)
+  if (!line) return ''
+  const points = plotPoints(values, max, centered)
+  const first = points.length === 1 ? 0 : points[0].x
+  const last = points.length === 1 ? 100 : points[points.length - 1].x
+  return `${line} L${last},100 L${first},100 Z`
+}
+
 export interface TrendSeries {
   values: number[]
   color: string
@@ -77,12 +91,16 @@ export function TrendLine({
   series,
   className = 'h-5 w-16',
   centered = false,
+  fill = false,
 }: {
   series: TrendSeries[]
   className?: string
   /** Puts each point over its bucket's centre instead of spanning edge to edge — what a line
    *  drawn over bucketed bars needs, so a peak in the line sits on the bar that caused it. */
   centered?: boolean
+  /** Washes the area under each line in its own colour, for a line that has to hold a lane of
+   *  its own between two sets of bars. A sparkline in a tile stays a stroke. */
+  fill?: boolean
 }) {
   const max = Math.max(1, ...series.flatMap((line) => line.values))
   return (
@@ -93,6 +111,10 @@ export function TrendLine({
       fill="none"
       aria-hidden="true"
     >
+      {fill &&
+        series.map((line) => (
+          <path key={`fill-${line.color}`} d={areaPath(line.values, max, centered)} fill={line.color} opacity={0.14} />
+        ))}
       {series.map((line) => (
         <path
           key={line.color}

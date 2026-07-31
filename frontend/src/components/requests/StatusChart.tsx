@@ -7,7 +7,7 @@ import { LEVELS } from '../../lib/levels'
 import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
-import { niceCeil } from '../../lib/niceScale'
+import { plotMax } from '../../lib/plotScale'
 import { useI18n } from '../../i18n'
 
 // matches the volume chart: enough columns to read the shape of an hour, each thin enough to
@@ -54,8 +54,8 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
   const bucketCount = Math.max(...series.map((s) => s.data.length), 0)
   const visible = series.filter((s) => !s.dimmed)
 
-  const niceMax = niceCeil(
-    Math.max(1, ...Array.from({ length: bucketCount }, (_, i) => visible.reduce((sum, s) => sum + (s.data[i] ?? 0), 0))),
+  const max = plotMax(
+    Array.from({ length: bucketCount }, (_, i) => visible.reduce((sum, s) => sum + (s.data[i] ?? 0), 0)),
   )
   const grandTotal = series.reduce((sum, s) => sum + s.data.reduce((a, b) => a + b, 0), 0)
   const compact = (value: number) =>
@@ -106,7 +106,7 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
                       <span
                         key={key}
                         className="relative w-full shrink-0 transition-[height] duration-300"
-                        style={{ height: `${(count / niceMax) * 100}%`, backgroundColor: color }}
+                        style={{ height: `${(count / max) * 100}%`, minHeight: '1px', backgroundColor: color }}
                       />
                     )
                   })}

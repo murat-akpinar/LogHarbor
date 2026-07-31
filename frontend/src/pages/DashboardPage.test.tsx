@@ -172,6 +172,24 @@ describe('DashboardPage', () => {
     )
   })
 
+  // the request chips isolated their class from the start; a legend that reads the same on the
+  // other two lanes has to behave the same, which the owner spotted immediately
+  it('lets every lane isolate one of its series', async () => {
+    renderPage()
+
+    const warn = await screen.findByRole('button', { name: /^Warn/ })
+    expect(warn.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(warn)
+    await waitFor(() => expect(warn.getAttribute('aria-pressed')).toBe('true'))
+
+    const avg = screen.getByRole('button', { name: /^Avg/ })
+    fireEvent.click(avg)
+    await waitFor(() => expect(avg.getAttribute('aria-pressed')).toBe('true'))
+
+    // each lane is its own lens: picking a line does not clear the level above it
+    expect(warn.getAttribute('aria-pressed')).toBe('true')
+  })
+
   // four charts with four time axes made the reader measure across the page; one axis means a
   // slow minute and the errors inside it are the same column
   it('draws volume, duration and requests as lanes of one timeline', async () => {

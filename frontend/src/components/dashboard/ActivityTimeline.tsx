@@ -7,7 +7,7 @@ import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
 import { formatDuration } from '../../lib/duration'
-import { niceCeil } from '../../lib/niceScale'
+import { plotMax } from '../../lib/plotScale'
 import { useI18n } from '../../i18n'
 import { Card } from '../ui/Card'
 import { Panel } from '../ui/Panel'
@@ -15,13 +15,21 @@ import { PillLink } from '../ui/PillLink'
 import { SeriesChip } from '../ui/SeriesChip'
 import { TrendLine } from '../Sparkline'
 
-/** The timeline's resolution. Callers fetch their own series at this width so every lane lands
- *  on the same columns — one hour of columns thin enough to read as ticks rather than slabs. */
-export const TIMELINE_BUCKETS = 60
+/**
+ * The timeline's resolution. Callers fetch their own series at this width so every lane lands
+ * on the same columns.
+ *
+ * 120, not the 60 a chart in a half-width card used: this card is as wide as the page, and 60
+ * columns stretched across it are slabs rather than the skyline the shape needs. The gap goes
+ * to 1px for the same reason — at this width 2px eats a fifth of every bar.
+ */
+export const TIMELINE_BUCKETS = 120
 
-const VOLUME_HEIGHT_PX = 148
-const DURATION_HEIGHT_PX = 64
-const STATUS_HEIGHT_PX = 52
+const VOLUME_HEIGHT_PX = 152
+const DURATION_HEIGHT_PX = 72
+const STATUS_HEIGHT_PX = 60
+/** Bars and the hit areas over them are two flex rows that have to line up exactly. */
+const COLUMN_GAP = 'gap-px'
 
 /**
  * Nulls carried as the last known reading.
@@ -83,7 +91,7 @@ interface ColumnsProps {
  */
 function Columns({ count, hovered, isBrushed, onHover, onPress, onClick, columnLabel }: ColumnsProps) {
   return (
-    <div className="absolute inset-0 flex gap-[2px]">
+    <div className={`absolute inset-0 flex ${COLUMN_GAP}`}>
       {Array.from({ length: count }, (_, index) => {
         const handlers = {
           onMouseEnter: () => onHover(index),
@@ -163,8 +171,10 @@ export function ActivityTimeline({
   // while every lane draws the crosshair for the same column
   const [hovered, setHovered] = useState<{ index: number; lane: LaneName } | null>(null)
   const [drag, setDrag] = useState<{ anchor: number; head: number } | null>(null)
-  // isolating a status class is a way of looking at the request lane, not a filter on the
-  // dashboard: the lanes above it and the panels around it keep answering about everything
+  // every lane's legend isolates its own series: a way of looking at that lane, not a filter on
+  // the dashboard, so the other lanes and the panels around them keep answering about everything
+  const [levelPick, setLevelPick] = useState<string | null>(null)
+  const [durationPick, setDurationPick] = useState<'avg' | 'p95' | null>(null)
   const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
 
   const shared = { from, to, buckets: TIMELINE_BUCKETS }
@@ -219,22 +229,36 @@ export function ActivityTimeline({
   const compact = (value: number) =>
     new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
-  const volumeMax = niceCeil(Math.max(1, ...buckets.map((bucket) => sumLevels(bucket.counts))))
   const levelTotal = (level: Level) => buckets.reduce((total, bucket) => total + bucket.counts[level], 0)
   const quietTotal = QUIET_LEVELS.reduce((total, level) => total + levelTotal(level), 0)
+  const volumeSeries = [
+    { key: 'quiet', label: t.dashboard.info, color: LEVEL_CHART.Information, total: quietTotal },
+    { key: 'Warning', label: t.dashboard.warn, color: LEVEL_CHART.Warning, total: levelTotal('Warning') },
+    { key: 'Error', label: t.dashboard.errors, color: LEVEL_CHART.Error, total: levelTotal('Error') },
+    { key: 'Fatal', label: t.dashboard.fatal, color: LEVEL_CHART.Fatal, total: levelTotal('Fatal') },
+  ]
+  // isolating a level rescales the lane to it, which is the point of being able to: forty errors
+  // under a thousand info lines are a flat red smear until they are drawn against their own max
+  const volumeBars = buckets.map((bucket) =>
+    barSegments(bucket.counts).filter((segment) => levelPick === null || segment.key === levelPick),
+  )
+  const volumeMax = plotMax(volumeBars.map((segments) => segments.reduce((sum, segment) => sum + segment.count, 0)))
 
   const latencyBuckets = latency?.buckets ?? []
-  const avgTrend = carryGaps(latencyBuckets.map((bucket) => bucket.avgMs))
-  const p95Trend = carryGaps(latencyBuckets.map((bucket) => bucket.p95Ms))
+  const durationSeries = [
+    { key: 'avg' as const, label: t.dashboard.avg, color: LEVEL_CHART.Information, ms: latency?.avgMs ?? null },
+    { key: 'p95' as const, label: t.analysis.p95, color: LEVEL_CHART.Warning, ms: latency?.p95Ms ?? null },
+  ]
+  const durationLines = [
+    { key: 'avg', values: carryGaps(latencyBuckets.map((bucket) => bucket.avgMs)), color: LEVEL_CHART.Information },
+    { key: 'p95', values: carryGaps(latencyBuckets.map((bucket) => bucket.p95Ms)), color: LEVEL_CHART.Warning },
+  ].filter((line) => durationPick === null || durationPick === line.key)
   const timed = (latency?.sampled ?? 0) > 0
 
   const visibleStatus = statusSeries.filter((series) => !series.dimmed)
-  const statusMax = niceCeil(
-    Math.max(
-      1,
-      ...Array.from({ length: columns }, (_, index) =>
-        visibleStatus.reduce((sum, series) => sum + (series.data[index] ?? 0), 0),
-      ),
+  const statusMax = plotMax(
+    Array.from({ length: columns }, (_, index) =>
+      visibleStatus.reduce((sum, series) => sum + (series.data[index] ?? 0), 0),
     ),
   )
   const statusTotal = statusSeries.reduce((sum, series) => sum + series.data.reduce((a, b) => a + b, 0), 0)
@@ -267,31 +291,41 @@ export function ActivityTimeline({
       <div className="relative">
         <Lane
           label={t.nav.events}
-          chips={
-            <>
-              <SeriesChip color={LEVEL_CHART.Information} label={t.dashboard.info} value={compact(quietTotal)} />
-              <SeriesChip color={LEVEL_CHART.Warning} label={t.dashboard.warn} value={compact(levelTotal('Warning'))} />
-              <SeriesChip color={LEVEL_CHART.Error} label={t.dashboard.errors} value={compact(levelTotal('Error'))} />
-              <SeriesChip color={LEVEL_CHART.Fatal} label={t.dashboard.fatal} value={compact(levelTotal('Fatal'))} />
-            </>
-          }
+          chips={volumeSeries.map(({ key, label, color, total }) => (
+            <SeriesChip
+              key={key}
+              color={color}
+              label={label}
+              value={compact(total)}
+              pressed={levelPick === key}
+              dimmed={levelPick !== null && levelPick !== key}
+              onClick={() => setLevelPick(levelPick === key ? null : key)}
+              title={levelPick === key ? t.requests.showAll : t.requests.onlyThis(label)}
+            />
+          ))}
         >
           <div className="relative">
-            <div className="flex min-w-0 items-end gap-[2px]" style={{ height: VOLUME_HEIGHT_PX }} aria-hidden="true">
-              {buckets.map((bucket) => {
-                const segments = barSegments(bucket.counts)
-                return (
-                  <div key={bucket.start} className="flex h-full min-w-0 flex-1 flex-col-reverse">
-                    {segments.map((segment, segmentIndex) => (
-                      <span
-                        key={segment.key}
-                        className={`w-full shrink-0 ${segmentIndex === segments.length - 1 ? 'rounded-t-[1px]' : ''}`}
-                        style={{ height: `${(segment.count / volumeMax) * 100}%`, backgroundColor: segment.color }}
-                      />
-                    ))}
-                  </div>
-                )
-              })}
+            <div
+              className={`flex min-w-0 items-end ${COLUMN_GAP}`}
+              style={{ height: VOLUME_HEIGHT_PX }}
+              aria-hidden="true"
+            >
+              {volumeBars.map((segments, index) => (
+                <div key={starts[index] ?? index} className="flex h-full min-w-0 flex-1 flex-col-reverse">
+                  {segments.map((segment, segmentIndex) => (
+                    <span
+                      key={segment.key}
+                      className={`w-full shrink-0 ${segmentIndex === segments.length - 1 ? 'rounded-t-[1px]' : ''}`}
+                      style={{
+                        height: `${(segment.count / volumeMax) * 100}%`,
+                        // a bucket holding one event is not an empty bucket
+                        minHeight: '1px',
+                        backgroundColor: segment.color,
+                      }}
+                    />
+                  ))}
+                </div>
+              ))}
             </div>
             {readout('volume')}
             <Columns
@@ -313,31 +347,24 @@ export function ActivityTimeline({
 
         <Lane
           label={t.dashboard.duration}
-          chips={
-            <>
-              <SeriesChip
-                color={LEVEL_CHART.Information}
-                label={t.dashboard.avg}
-                value={formatDuration(latency?.avgMs ?? null, lang)}
-              />
-              <SeriesChip
-                color={LEVEL_CHART.Warning}
-                label={t.analysis.p95}
-                value={formatDuration(latency?.p95Ms ?? null, lang)}
-              />
-            </>
-          }
+          chips={durationSeries.map(({ key, label, color, ms }) => (
+            <SeriesChip
+              key={key}
+              color={color}
+              label={label}
+              value={formatDuration(ms, lang)}
+              pressed={durationPick === key}
+              dimmed={durationPick !== null && durationPick !== key}
+              onClick={() => setDurationPick(durationPick === key ? null : key)}
+              title={durationPick === key ? t.requests.showAll : t.requests.onlyThis(label)}
+            />
+          ))}
         >
           {timed ? (
             <div className="relative" style={{ height: DURATION_HEIGHT_PX }}>
-              <TrendLine
-                centered
-                series={[
-                  { values: avgTrend, color: LEVEL_CHART.Information },
-                  { values: p95Trend, color: LEVEL_CHART.Warning },
-                ]}
-                className="h-full w-full"
-              />
+              {/* filled, so the lane carries the weight of the bars above and below it instead
+                  of reading as a stray hairline between two charts */}
+              <TrendLine centered fill series={durationLines} className="h-full w-full" />
               {readout('duration')}
               <Columns
                 count={columns}
@@ -371,7 +398,11 @@ export function ActivityTimeline({
         >
           {statusTotal > 0 ? (
             <div className="relative">
-              <div className="flex min-w-0 items-end gap-[2px]" style={{ height: STATUS_HEIGHT_PX }} aria-hidden="true">
+              <div
+                className={`flex min-w-0 items-end ${COLUMN_GAP}`}
+                style={{ height: STATUS_HEIGHT_PX }}
+                aria-hidden="true"
+              >
                 {Array.from({ length: columns }, (_, index) => (
                   <div key={index} className="flex h-full min-w-0 flex-1 flex-col-reverse">
                     {statusSeries.map(({ key, color, data, dimmed }) => {
@@ -381,7 +412,7 @@ export function ActivityTimeline({
                         <span
                           key={key}
                           className="w-full shrink-0 transition-[height] duration-300"
-                          style={{ height: `${(count / statusMax) * 100}%`, backgroundColor: color }}
+                          style={{ height: `${(count / statusMax) * 100}%`, minHeight: '1px', backgroundColor: color }}
                         />
                       )
                     })}

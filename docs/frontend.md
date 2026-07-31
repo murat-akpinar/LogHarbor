@@ -182,10 +182,20 @@ second chart), DURATION (avg and p95 as two lines on one scale) and REQUESTS
 (1/2/3xx / 4xx / 5xx stacked, the class chips isolating one in the lane exactly as
 they do on the Requests page). They were four cards with four axes until 2026-07-31,
 which left the reader measuring across the page to line a latency spike up with the
-errors that caused it. Each lane's chips are its colour key and its readout; pointing
-at a column lights the same column in all three lanes and opens one card with every
-lane's numbers for that instant, over the lane the pointer is in. Clicking a column
-opens Events at that slice; dragging across columns freezes+zooms all three lanes.
+errors that caused it. Each lane's chips are its colour key, its readout and its
+control: clicking one isolates that series in its lane and rescales the lane to it
+(forty errors under a thousand info lines are a flat smear until drawn against their
+own maximum). Pointing at a column lights the same column in all three lanes and
+opens one card with every lane's numbers for that instant, over the lane the pointer
+is in. Clicking a column opens Events at that slice; dragging across columns
+freezes+zooms all three lanes.
+TIMELINE_BUCKETS is 120 with 1px gaps, twice the density of a chart in a half-width
+card, because this one is as wide as the page. Bars are drawn against lib/plotScale
+plotMax — the plain maximum plus a sliver, not a rounded one: no lane carries a
+y-axis, so rounding 22 up to 50 would buy no readable number and spend half the plot
+on air (the Events histogram and the Requests status chart use it for the same
+reason). The duration lane is filled under its lines so it carries weight between two
+sets of bars.
 Every series is fetched at ActivityTimeline's TIMELINE_BUCKETS width so the lanes
 land on the same columns; the error series is read out of the volume buckets rather
 than queried again. The glance band above (StatTile x5: events, error rate, avg, p95,

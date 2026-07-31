@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { HistogramBucket } from '../types'
 import { LEVELS, LEVEL_CHART, LEVEL_HEX, barSegments, sumLevels } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
-import { niceCeil } from '../lib/niceScale'
+import { plotMax } from '../lib/plotScale'
 import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
 
@@ -68,7 +68,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
     return drag !== null && index >= Math.min(drag.anchor, drag.head) && index <= Math.max(drag.anchor, drag.head)
   }
 
-  const niceMax = niceCeil(Math.max(1, ...buckets.map((bucket) => sumLevels(bucket.counts))))
+  const max = plotMax(buckets.map((bucket) => sumLevels(bucket.counts)))
 
   return (
     <div>
@@ -106,7 +106,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                     className={`relative w-full shrink-0 ${
                       segmentIndex === segments.length - 1 ? 'rounded-t-[1px]' : ''
                     }`}
-                    style={{ height: `${(segment.count / niceMax) * 100}%`, backgroundColor: segment.color }}
+                    style={{ height: `${(segment.count / max) * 100}%`, minHeight: '1px', backgroundColor: segment.color }}
                   />
                 ))}
                 {hoveredIndex === index && <BucketTooltip bucket={bucket} />}
