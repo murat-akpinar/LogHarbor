@@ -54,8 +54,14 @@ time_unix_nano -> timestamp (UTC fixed format, future clamp — same normalizati
   as CLEF @t); 0 -> observed_time_unix_nano; both 0 -> server time
 body            -> message (string bodies as-is, structured bodies as JSON text;
   empty/absent body falls back to the message_template text)
-message_template.text attribute -> message_template (Serilog's OTel sink sends it;
-  error grouping on the Analysis page works exactly like CLEF @mt)
+message_template.text OR {OriginalFormat} -> message_template (error grouping on the
+  Analysis page then works exactly like CLEF @mt). Serilog's OTel sink sends the first;
+  every bridge built on a structured logging API — .NET's ILogger, Python's logging,
+  Log4j2 — sends the second, which is the key the OTel spec itself names. Reading only
+  message_template.text until 2026-07-31 meant every non-Serilog OTel sender silently
+  lost its template and had its errors grouped by rendered message, which groups nothing
+  once the ids are inside it. Found by running the /send page's own snippet. Both are
+  consumed rather than kept as properties; message_template.text wins if both arrive.
 trace_id/span_id -> lowercase hex into the trace columns (@TraceId/@SpanId filters)
 attributes      -> properties; resource attributes (service.name, ...) merge in
   first, so a record attribute wins on key collision

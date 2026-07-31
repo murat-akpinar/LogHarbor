@@ -18,6 +18,16 @@ public static class OtlpLogParser
     private const string TemplateAttribute = "message_template.text";
     private const string TemplateHashAttribute = "message_template.hash.md5";
 
+    // What everything else calls the same thing. The OTel log bridges built on a structured
+    // logging API — .NET's ILogger, Python's logging, Java's Log4j2 — put the unformatted
+    // template under "{OriginalFormat}", which is the convention the OTel spec itself names.
+    // Only Serilog's own sink uses message_template.text, so reading that one alone meant
+    // every other OTel sender silently lost its template: the Analysis page grouped their
+    // errors by rendered message, which is to say not at all, since the ids are in it.
+    // Found by running the /send page's own OpenTelemetry snippet (2026-07-31) rather than
+    // by reading anything. message_template.text still wins when both are present.
+    private const string OriginalFormatAttribute = "{OriginalFormat}";
+
     // OTel semantic conventions for exceptions on log records
     private const string ExceptionTypeAttribute = "exception.type";
     private const string ExceptionMessageAttribute = "exception.message";
@@ -64,6 +74,7 @@ public static class OtlpLogParser
         }
 
         string? messageTemplate = null;
+        string? originalFormat = null;
         string? exceptionType = null;
         string? exceptionMessage = null;
         string? exceptionStacktrace = null;
@@ -73,6 +84,12 @@ public static class OtlpLogParser
             {
                 case TemplateAttribute when IsString(attribute.Value):
                     messageTemplate = attribute.Value.StringValue;
+                    break;
+                case OriginalFormatAttribute when IsString(attribute.Value):
+                    // not applied yet: message_template.text may still arrive later in the
+                    // same list and has to win, and either way this is the template rather
+                    // than a property, so it never joins the property bag
+                    originalFormat = attribute.Value.StringValue;
                     break;
                 case TemplateHashAttribute:
                     break; // consumed: useless once the template text is a first-class column
@@ -91,6 +108,8 @@ public static class OtlpLogParser
                     break;
             }
         }
+
+        messageTemplate ??= originalFormat;
 
         var message = record.Body?.ValueCase switch
         {

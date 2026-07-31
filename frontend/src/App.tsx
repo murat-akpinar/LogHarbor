@@ -13,6 +13,7 @@ import { AnalysisPage } from './pages/AnalysisPage'
 import { SignalsPage } from './pages/SignalsPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { SendLogsPage } from './pages/SendLogsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { LanguageProvider } from './i18n'
 
@@ -40,6 +41,7 @@ function App() {
                   <Route path="/signals" element={<SignalsPage />} />
                   <Route path="/alerts" element={<AlertsPage />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/send" element={<SendLogsPage />} />
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </main>

@@ -153,6 +153,48 @@ public sealed class OtlpLogParserTests
         Assert.Equal("""{"OrderId":42}""", parsed.Properties);
     }
 
+    // Every OTel bridge built on a structured logging API sends the template under this key —
+    // .NET's ILogger, Python's logging, Log4j2 — and only Serilog's own sink uses
+    // message_template.text. Reading that one alone meant an OpenTelemetry sender's errors
+    // grouped by rendered message on the Analysis page, which groups nothing at all once the
+    // ids are inside it. Caught by running the snippet, not by reading the spec.
+    [Fact]
+    public void OriginalFormatAttribute_BecomesMessageTemplate_AndIsConsumed()
+    {
+        var record = new LogRecord { TimeUnixNano = TenAm, Body = new AnyValue { StringValue = "Order 42 failed" } };
+        record.Attributes.Add(Attr("{OriginalFormat}", "Order {OrderId} failed"));
+        record.Attributes.Add(new KeyValue { Key = "OrderId", Value = new AnyValue { IntValue = 42 } });
+
+        var parsed = ParseSingle(record);
+
+        Assert.Equal("Order {OrderId} failed", parsed.MessageTemplate);
+        // the template is the template, not a property that happens to look like one
+        Assert.Equal("""{"OrderId":42}""", parsed.Properties);
+    }
+
+    // a sender that emits both (Serilog behind an ILogger bridge) must not depend on which
+    // attribute the exporter happened to write first
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void TemplateAttribute_WinsOverOriginalFormat_WhicheverArrivesFirst(bool templateFirst)
+    {
+        var record = new LogRecord { TimeUnixNano = TenAm, Body = new AnyValue { StringValue = "Order 42 failed" } };
+        if (templateFirst) record.Attributes.Add(Attr("message_template.text", "serilog {OrderId}"));
+        record.Attributes.Add(Attr("{OriginalFormat}", "bridge {OrderId}"));
+        if (!templateFirst) record.Attributes.Add(Attr("message_template.text", "serilog {OrderId}"));
+
+        Assert.Equal("serilog {OrderId}", ParseSingle(record).MessageTemplate);
+    }
+
+    [Fact]
+    public void EmptyBody_FallsBackToOriginalFormat()
+    {
+        var record = new LogRecord { TimeUnixNano = TenAm };
+        record.Attributes.Add(Attr("{OriginalFormat}", "tick {N}"));
+        Assert.Equal("tick {N}", ParseSingle(record).Message);
+    }
+
     [Fact]
     public void EmptyBody_FallsBackToTemplate()
     {

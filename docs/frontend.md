@@ -9,6 +9,8 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              lanes of a single time axis), Analysis (top errors, exceptions, slowest
              ops), Services & users, and an hour-of-day heatmap; a Live toggle
              auto-refreshes a rolling last-hour window. (/dashboard is an alias of /.)
+/send        Send logs: how to get data in, as a choice rather than a manual — see
+             SEND LOGS PAGE below
 /events      Events page: search bar (with autocomplete), level filter chips, event
              list, live tail toggle, export (JSON/CSV)
 /requests    Operations RED table as its own lens (events/min, error %, p95 Elapsed,
@@ -393,6 +395,28 @@ click-to-filter rows. It did not need that layout, it needed the app's own:
   * a property row lights up under the pointer, which is what says its filter
     and copy actions are there at all; they stay hidden otherwise, because
     forty rows times two glyphs is noise rather than affordance.
+
+--- SEND LOGS PAGE ---
+
+/send answers "how do I get data in", and does it as a choice: two named options
+(OpenTelemetry, Serilog) plus a raw-HTTP fallback, each with its snippet and — the
+part that makes it a page rather than a link to the docs — a list of what actually
+arrives if you pick it: level, message, message template, properties, trace id,
+service name. Those lists are records of a measurement, not a reading of the docs;
+lib/sendSnippets holds both the snippets and the facts so they cannot drift apart.
+
+The key section lists the instance's keys by title and can mint a new one inline. It
+can never fill an existing key's token into a snippet, because a token exists in
+plaintext exactly once, at creation, and is stored as a SHA-256 hash afterwards —
+picking an existing key names it in a comment above the snippet and leaves
+<your-api-key> standing. A viewer is told to ask an admin instead of being shown a
+create form that would 403.
+
+Reached from three places, which are the three where somebody realises they need it:
+the Settings -> Ingestion tab (one click from the key they just made), the first-run
+onboarding panel, and the dashboard's "no events yet" card. Deliberately NOT in the
+nav: eleven lenses already do not fit under ~1200px, and this is a setup task rather
+than a lens — the same reasoning that moved archive extraction into Settings.
 
 --- REQUESTS PAGE ---
 

@@ -2,6 +2,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { LanguageProvider } from '../i18n'
 import { OnboardingPanel } from './OnboardingPanel'
 
@@ -35,7 +36,10 @@ function renderPanel() {
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <OnboardingPanel />
+        {/* the panel links on to the full send-logs page, so it needs a router around it */}
+        <MemoryRouter>
+          <OnboardingPanel />
+        </MemoryRouter>
       </LanguageProvider>
     </QueryClientProvider>,
   )

@@ -63,6 +63,54 @@ export const en = {
     passwordMismatch: 'The two new passwords do not match.',
     passwordChangeFailed: 'Could not change the password.',
   },
+  send: {
+    title: 'Send logs here',
+    lead:
+      'Two ways in, and one fallback. Both land in the same table — the difference is what survives the trip, which is what the lists below measure.',
+    keyTitle: 'API key',
+    keyHint:
+      'Every option below needs one. Pick a key you already have to see its name in the snippets, or create one here — a token is shown once, at creation, and stored only as a hash afterwards.',
+    keyPick: 'Use an existing key',
+    keyNone: 'No key selected',
+    keyNoneYet: 'This server has no API keys yet.',
+    keyCreated: 'Copy this now. It is the only time the token is shown.',
+    keyAskAdmin: 'Ask an admin to create an API key; the snippets below work once you have one.',
+    pickIf: 'Pick this if',
+    otelPickIf:
+      'you already run OpenTelemetry, or you want nothing LogHarbor-specific in your code. Three environment variables and no code change, in any language with an OTel SDK.',
+    serilogPickIf:
+      'you are on .NET. Two lines of configuration, and the sink brings batching, retry and buffering with it. LogHarbor is wire-compatible with Seq, so the Seq sink needs only the URL and key changed.',
+    httpPickIf:
+      'your language has neither. One POST per batch of newline-delimited JSON — no library, no dependency.',
+    arrives: 'What arrives',
+    fields: {
+      level: 'Level',
+      message: 'Message',
+      template: 'Message template',
+      properties: 'Properties',
+      traceId: 'Trace id',
+      resource: 'Service name',
+    },
+    notes: {
+      levelOtel: 'severity_number mapped to the six levels, in blocks of four',
+      levelDirect: 'sent as-is',
+      messagePlain: 'the rendered line',
+      messageRendered: 'rendered from @mt and its properties, or send @m instead',
+      templateOtel: 'kept — Analysis groups every "Order {OrderId} failed" as one error',
+      templateDirect: 'kept — Analysis groups every "Order {OrderId} failed" as one error',
+      propertiesPlain: 'each one a filterable field, not text in a sentence',
+      traceIdSpan: 'carried whenever the log is written inside an active span',
+      traceIdActivity: 'carried whenever the log is written inside an active Activity',
+      traceIdManual: 'only if you send @tr and @sp yourself',
+      resourceOtel: 'service.name arrives free, with the rest of the resource attributes',
+      resourceEnrich: 'add it yourself: .Enrich.WithProperty("Service", "checkout")',
+      resourceManual: 'add it yourself as an ordinary property',
+    },
+    verified:
+      'Each snippet on this page was run against a live server and the event it produces read back field by field.',
+    longVersion: 'The long version, with Python, Node and the Docker route:',
+    seeEvents: 'Open Events',
+  },
   events: {
     relativeTime: 'Relative time',
     absoluteTime: 'Absolute time',

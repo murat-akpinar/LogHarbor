@@ -133,8 +133,8 @@ export function DashboardPage() {
       {summary.data && total === 0 && (
         <Card className="p-6 text-center">
           <p className="text-sm text-fg-muted">{t.dashboard.noEventsYet}</p>
-          <Link to="/events" className="mt-1 inline-block text-sm text-accent hover:underline">
-            {t.onboarding.title} →
+          <Link to="/send" className="mt-1 inline-block text-sm text-accent hover:underline">
+            {t.send.title} →
           </Link>
         </Card>
       )}

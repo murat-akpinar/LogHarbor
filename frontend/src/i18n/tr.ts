@@ -65,6 +65,54 @@ export const tr: Messages = {
     passwordMismatch: 'İki yeni parola birbiriyle eşleşmiyor.',
     passwordChangeFailed: 'Parola değiştirilemedi.',
   },
+  send: {
+    title: 'Buraya log gönder',
+    lead:
+      'İki yol, bir de yedek. Hepsi aynı tabloya düşüyor — fark, yolculuktan neyin sağ çıktığı; aşağıdaki listeler tam olarak onu ölçüyor.',
+    keyTitle: 'API anahtarı',
+    keyHint:
+      'Aşağıdaki her seçenek bir tane istiyor. Adını snippet\'lerde görmek için mevcut bir anahtar seç ya da burada yeni bir tane oluştur — token yalnızca oluşturulurken bir kez gösterilir, sonrasında sadece özeti saklanır.',
+    keyPick: 'Mevcut bir anahtar kullan',
+    keyNone: 'Anahtar seçilmedi',
+    keyNoneYet: 'Bu sunucuda henüz API anahtarı yok.',
+    keyCreated: 'Şimdi kopyala. Token yalnızca bu bir kez gösteriliyor.',
+    keyAskAdmin: 'Bir yöneticiden API anahtarı oluşturmasını iste; anahtarın olduğunda aşağıdaki snippet\'ler çalışır.',
+    pickIf: 'Şu durumda bunu seç',
+    otelPickIf:
+      'zaten OpenTelemetry kullanıyorsan ya da kodunda LogHarbor\'a özgü hiçbir şey istemiyorsan. Üç ortam değişkeni, kod değişikliği yok; OTel SDK\'sı olan her dilde.',
+    serilogPickIf:
+      '.NET tarafındaysan. İki satır yapılandırma; sink beraberinde toplu gönderim, yeniden deneme ve tamponlama getiriyor. LogHarbor Seq ile tel uyumlu, yani Seq sink\'inde yalnızca URL ve anahtar değişiyor.',
+    httpPickIf:
+      'dilinde ikisi de yoksa. Satır satır JSON\'dan oluşan her grup için tek bir POST — kütüphane yok, bağımlılık yok.',
+    arrives: 'Ne geliyor',
+    fields: {
+      level: 'Seviye',
+      message: 'Mesaj',
+      template: 'Mesaj şablonu',
+      properties: 'Özellikler',
+      traceId: 'İz kimliği',
+      resource: 'Servis adı',
+    },
+    notes: {
+      levelOtel: 'severity_number dörderli bloklar hâlinde altı seviyeye eşlenir',
+      levelDirect: 'olduğu gibi gider',
+      messagePlain: 'işlenmiş satır',
+      messageRendered: '@mt ve özelliklerinden üretilir, ya da doğrudan @m gönder',
+      templateOtel: 'korunur — Analiz her "Order {OrderId} failed" olayını tek hata olarak gruplar',
+      templateDirect: 'korunur — Analiz her "Order {OrderId} failed" olayını tek hata olarak gruplar',
+      propertiesPlain: 'her biri filtrelenebilir bir alan, cümle içinde metin değil',
+      traceIdSpan: 'log aktif bir span içinde yazıldığında taşınır',
+      traceIdActivity: 'log aktif bir Activity içinde yazıldığında taşınır',
+      traceIdManual: 'yalnızca @tr ve @sp\'yi kendin gönderirsen',
+      resourceOtel: 'service.name diğer resource öznitelikleriyle birlikte bedava gelir',
+      resourceEnrich: 'kendin ekle: .Enrich.WithProperty("Service", "checkout")',
+      resourceManual: 'sıradan bir özellik olarak kendin ekle',
+    },
+    verified:
+      'Bu sayfadaki her snippet canlı bir sunucuya karşı çalıştırıldı ve ürettiği olay alan alan geri okundu.',
+    longVersion: 'Uzun hâli — Python, Node ve Docker yolu dahil:',
+    seeEvents: 'Olaylar sayfasını aç',
+  },
   events: {
     relativeTime: 'Göreceli zaman',
     absoluteTime: 'Mutlak zaman',

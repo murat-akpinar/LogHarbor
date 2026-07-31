@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { createApiKey } from '../api/settings'
 import type { CreatedApiKey } from '../types'
@@ -130,10 +131,17 @@ export function OnboardingPanel() {
           </Button>
         </div>
 
-        <p className="mt-4 flex items-center gap-2 text-xs text-fg-muted">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-accent" aria-hidden />
-          {t.onboarding.waiting}
-        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-xs text-fg-muted">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-accent" aria-hidden />
+            {t.onboarding.waiting}
+          </p>
+          {/* three snippets is the fast path; the page behind this link is the one that says
+              what each option actually delivers */}
+          <Link to="/send" className="text-xs font-medium text-accent hover:underline">
+            {t.send.title} →
+          </Link>
+        </div>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getArchiveSegments,
@@ -587,9 +587,23 @@ export function SettingsPage() {
         )}
 
         {active === 'ingestion' && (
-          <SettingsSection title={t.settings.apiKeys}>
-            <ApiKeysCard />
-          </SettingsSection>
+          <>
+            <SettingsSection title={t.settings.apiKeys} index={0}>
+              <ApiKeysCard />
+            </SettingsSection>
+            {/* one click from the key, which is where somebody realises they need the snippet */}
+            <SectionBlock icon="events" title={t.send.title} index={1}>
+              <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <p className="min-w-0 max-w-2xl text-sm leading-relaxed text-fg-muted">{t.send.lead}</p>
+                <Link
+                  to="/send"
+                  className="shrink-0 rounded-lg border border-accent/40 bg-accent/10 px-3 py-1.5 text-sm font-medium text-accent transition-all duration-200 hover:bg-accent/20"
+                >
+                  {t.send.title} →
+                </Link>
+              </Panel>
+            </SectionBlock>
+          </>
         )}
 
         {active === 'storage' && (
