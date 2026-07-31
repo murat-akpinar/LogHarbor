@@ -1,5 +1,4 @@
 import { Link, NavLink } from 'react-router-dom'
-import type { Theme } from '../hooks/useTheme'
 import { useAuthStatus, useLogout } from '../hooks/useAuth'
 import { useI18n } from '../i18n'
 import { PageIcon } from './icons'
@@ -25,12 +24,7 @@ function SignOutIcon() {
   )
 }
 
-interface NavBarProps {
-  theme: Theme
-  onToggleTheme: () => void
-}
-
-export function NavBar({ theme, onToggleTheme }: NavBarProps) {
+export function NavBar() {
   const { t, lang, setLang } = useI18n()
   const { data: authStatus } = useAuthStatus()
   const logoutMutation = useLogout()
@@ -52,16 +46,22 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
   return (
     // eleven links do not fit a narrow window: the bar scrolls itself rather than pushing the
     // page sideways, which used to give every page a horizontal scrollbar under ~1200px
-    <nav className="flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4">
+    <nav className="glass relative flex h-13 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4">
+      {/* a hairline of accent light along the bottom edge, brightest under the brand: the bar is
+          translucent, so it needs an edge that is drawn rather than merely a colour change */}
+      <span
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-accent/50 via-accent/10 to-transparent"
+        aria-hidden="true"
+      />
       <Link
         to="/"
-        className="mr-6 flex shrink-0 items-center gap-2 rounded-lg text-sm font-semibold text-fg transition-colors duration-150 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
+        className="group mr-5 flex shrink-0 items-center gap-2.5 rounded-lg text-sm font-semibold text-fg transition-colors duration-150 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
       >
         <span
-          className="flex size-6 items-center justify-center rounded-md border border-border bg-surface-raised"
+          className="flex size-7 items-center justify-center rounded-lg bg-accent/15 ring-1 ring-accent/25 transition-shadow duration-200 group-hover:shadow-[0_0_16px_-2px_var(--color-accent)]"
           aria-hidden="true"
         >
-          <span className="size-1.5 rounded-full bg-accent" />
+          <span className="size-1.5 rounded-full bg-accent shadow-[0_0_8px_1px_var(--color-accent)]" />
         </span>
         LogHarbor
       </Link>
@@ -71,19 +71,31 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
           to={to}
           end={end}
           className={({ isActive }) =>
-            `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+            `relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
               isActive
-                ? 'bg-surface-raised text-fg'
+                ? 'bg-surface-raised text-fg shadow-[inset_0_1px_0_0_rgb(255_255_255/0.07)]'
                 : 'text-fg-muted hover:bg-surface-hover hover:text-fg'
             }`
           }
         >
-          <PageIcon name={icon} />
-          {label}
+          {({ isActive }) => (
+            <>
+              <PageIcon name={icon} />
+              {label}
+              {/* the active page is underscored in accent, so which page you are on survives
+                  being read at a glance across eleven near-identical pills */}
+              {isActive && (
+                <span
+                  className="absolute inset-x-3 -bottom-px h-px rounded-full bg-accent shadow-[0_0_8px_0_var(--color-accent)]"
+                  aria-hidden="true"
+                />
+              )}
+            </>
+          )}
         </NavLink>
       ))}
-      {/* the two instance-wide switches, grouped as one control so they read apart from the pages */}
-      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-lg border border-border p-0.5">
+      {/* the instance-wide switches, grouped as one control so they read apart from the pages */}
+      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface-inset p-0.5">
         <Button
           variant="ghost"
           onClick={() => setLang(lang === 'en' ? 'tr' : 'en')}
@@ -92,15 +104,6 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
           className="px-2 py-1 text-xs font-semibold tracking-wide"
         >
           {lang.toUpperCase()}
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={onToggleTheme}
-          aria-label={theme === 'dark' ? t.nav.switchToLight : t.nav.switchToDark}
-          title={theme === 'dark' ? t.nav.switchToLight : t.nav.switchToDark}
-          className="px-2 py-1"
-        >
-          {theme === 'dark' ? '☀' : '☾'}
         </Button>
         {/* only when there is a session to end: an install with no accounts has nothing to sign
             out of. The tooltip carries who is signed in, which is the other half of Settings' row */}

@@ -63,7 +63,7 @@ export function EventDetail({
   }
 
   return (
-    <div className="flex h-full w-[28rem] shrink-0 flex-col overflow-y-auto border-l border-border bg-surface p-4 text-sm">
+    <div className="glass flex h-full w-[28rem] shrink-0 flex-col overflow-y-auto border-l border-border bg-surface p-4 text-sm shadow-pop">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <LevelBadge level={event.level} />
@@ -110,7 +110,7 @@ export function EventDetail({
               disabled={!onFilter}
               aria-label={`${key}: ${text}`}
               title={onFilter ? t.detail.filterBy(key) : undefined}
-              className="rounded-full border border-border-strong bg-surface-raised px-2 py-0.5 font-mono text-xs text-fg-muted transition-colors enabled:hover:border-accent/40 enabled:hover:text-accent"
+              className="rounded-full border border-border bg-surface-inset px-2 py-0.5 font-mono text-xs text-fg-muted transition-all duration-200 enabled:hover:border-accent/40 enabled:hover:bg-accent/10 enabled:hover:text-accent"
             >
               <span className="text-fg-muted">{key}: </span>
               <span className="text-fg">{text}</span>
@@ -164,7 +164,7 @@ export function EventDetail({
         <summary className="cursor-pointer text-xs font-semibold uppercase text-fg-muted hover:text-fg">
           {t.detail.rawJson}
         </summary>
-        <pre className="mt-1 overflow-x-auto rounded-card bg-surface-raised p-2 font-mono text-xs text-fg-muted">
+        <pre className="mt-1 overflow-x-auto rounded-card bg-surface-inset p-2 font-mono text-xs text-fg-muted">
           {JSON.stringify(event, null, 2)}
         </pre>
       </details>

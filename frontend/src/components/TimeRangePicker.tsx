@@ -59,7 +59,7 @@ export function TimeRangePicker({ from, to, onChange }: TimeRangePickerProps) {
         <span className="tabular">{presetKey ? t.timeRange[presetKey] : rangeLabel()}</span>
       </Button>
       {isOpen && (
-        <div className="absolute right-0 top-full z-10 mt-1 w-72 rounded-card border border-border bg-surface-raised p-2 text-sm shadow-card">
+        <div className="absolute right-0 top-full z-10 mt-1 w-72 glass rounded-card border border-border bg-surface-float p-2 text-sm shadow-pop">
           {PRESETS.map(({ key, minutes }) => (
             <button
               key={key}

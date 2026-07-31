@@ -13,7 +13,7 @@ import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { Input } from '../components/ui/Input'
 import { METHOD_PROPERTY, ROUTE_PROPERTY, operationFilter } from '../lib/operations'
-import { LEVEL_CHART } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -181,7 +181,7 @@ export function RequestsPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={rowFilter(op)}
-                      color={errorPct > 0 ? LEVEL_CHART.Error : LEVEL_CHART.Information}
+                      color={SERIES.volume}
                       from={range.from}
                       to={range.to}
                     />

@@ -1,3 +1,5 @@
+import { useId } from 'react'
+import type { CSSProperties } from 'react'
 import { useHistogram } from '../hooks/useStats'
 import { LEVELS } from '../lib/levels'
 
@@ -19,9 +21,15 @@ export function TrendBars({
       {values.map((total, index) => (
         <span
           key={index}
-          className="min-w-0 flex-1 rounded-t-[1px]"
+          className="animate-grow min-w-0 flex-1 rounded-t-[1px]"
           // 8% floor keeps single events visible next to the peak bucket
-          style={{ height: total > 0 ? `${Math.max(8, (total / max) * 100)}%` : '0%', backgroundColor: color }}
+          style={
+            {
+              height: total > 0 ? `${Math.max(8, (total / max) * 100)}%` : '0%',
+              backgroundColor: color,
+              '--delay': `${index * 8}ms`,
+            } as CSSProperties
+          }
         />
       ))}
     </div>
@@ -92,6 +100,7 @@ export function TrendLine({
   className = 'h-5 w-16',
   centered = false,
   fill = false,
+  animate = true,
 }: {
   series: TrendSeries[]
   className?: string
@@ -101,8 +110,14 @@ export function TrendLine({
   /** Washes the area under each line in its own colour, for a line that has to hold a lane of
    *  its own between two sets of bars. A sparkline in a tile stays a stroke. */
   fill?: boolean
+  /** The line draws itself in on mount. Off for anything that redraws often enough that the
+   *  drawing would be the only thing you ever see. */
+  animate?: boolean
 }) {
   const max = Math.max(1, ...series.flatMap((line) => line.values))
+  // one id per instance, because a page holds a dozen of these and a gradient is referenced by id
+  const gradientId = useId()
+
   return (
     <svg
       className={className}
@@ -111,9 +126,26 @@ export function TrendLine({
       fill="none"
       aria-hidden="true"
     >
+      {fill && (
+        <defs>
+          {series.map((line, index) => (
+            // the wash fades out downward instead of sitting as a flat block of colour: it says
+            // "this line has weight under it" without competing with the bars in the next lane
+            <linearGradient key={`grad-${index}`} id={`${gradientId}-${index}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={line.color} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={line.color} stopOpacity={0.02} />
+            </linearGradient>
+          ))}
+        </defs>
+      )}
       {fill &&
-        series.map((line) => (
-          <path key={`fill-${line.color}`} d={areaPath(line.values, max, centered)} fill={line.color} opacity={0.14} />
+        series.map((line, index) => (
+          <path
+            key={`fill-${line.color}`}
+            d={areaPath(line.values, max, centered)}
+            fill={`url(#${gradientId}-${index})`}
+            className={animate ? 'animate-wash' : ''}
+          />
         ))}
       {series.map((line) => (
         <path
@@ -125,6 +157,11 @@ export function TrendLine({
           strokeLinejoin="round"
           // the box is stretched by preserveAspectRatio, and without this the stroke stretches too
           vectorEffect="non-scaling-stroke"
+          // pathLength normalizes the curve to 1 unit, so one dash covers the whole of it
+          // whatever its real length — no measuring the DOM to animate the draw
+          pathLength={animate ? 1 : undefined}
+          className={animate ? 'animate-draw' : ''}
+          style={animate ? ({ '--length': 1 } as CSSProperties) : undefined}
         />
       ))}
     </svg>

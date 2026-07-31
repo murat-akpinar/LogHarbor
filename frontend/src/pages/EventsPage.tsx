@@ -185,7 +185,7 @@ export function EventsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border bg-surface">
+      <div className="glass shrink-0 border-b border-border bg-surface shadow-card">
         <div className="flex items-start gap-3 p-3">
           <div className="min-w-0 flex-1">
             <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
@@ -240,7 +240,7 @@ export function EventsPage() {
         <button
           type="button"
           onClick={resume}
-          className="shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent-hover"
+          className="shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg shadow-[0_0_24px_-4px_var(--color-accent)] transition-colors duration-150 hover:bg-accent-hover"
         >
           {t.events.newEvents(tail.pendingCount)}
         </button>
@@ -248,7 +248,9 @@ export function EventsPage() {
 
       {traceId && <TracePanel traceId={traceId} onSelectEvent={setSelectedEvent} />}
 
-      <div className="flex min-h-0 flex-1">
+      {/* the stream's own bed: flat and opaque, so a row's colour is its level's and not the
+          canvas wash showing through wherever it happens to be scrolled to */}
+      <div className="flex min-h-0 flex-1 bg-surface-read">
         <div className="min-w-0 flex-1">
           {search.isLoading ? (
             <div className="animate-pulse space-y-px p-3">
@@ -294,19 +296,19 @@ export function EventsPage() {
           <button
             type="button"
             aria-label={t.events.closeShortcuts}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             onClick={() => setShowHelp(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={t.events.keyboardShortcuts}
-            className="relative w-72 rounded-card border border-border bg-surface-raised p-4 text-sm shadow-card"
+            className="glass animate-rise relative w-72 rounded-card border border-border bg-surface p-4 text-sm shadow-pop"
           >
             <h2 className="mb-3 font-semibold text-fg">{t.events.keyboardShortcuts}</h2>
             {shortcuts.map(([key, action]) => (
               <div key={key} className="flex items-center justify-between py-1">
-                <kbd className="rounded border border-border bg-surface-hover px-1.5 py-0.5 font-mono text-xs">
+                <kbd className="rounded border border-border bg-surface-inset px-1.5 py-0.5 font-mono text-xs">
                   {key}
                 </kbd>
                 <span className="text-fg-muted">{action}</span>

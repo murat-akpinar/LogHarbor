@@ -1,4 +1,5 @@
 import { Fragment } from 'react'
+import type { CSSProperties } from 'react'
 import type { HeatmapCell } from '../types'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
@@ -9,7 +10,8 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour)
 // tells you how hot an hour is. sqrt keeps sparse cells visibly distinct from empty next to a
 // dominant peak.
 function cellColor(count: number, max: number): string {
-  if (count <= 0) return 'var(--color-surface-hover)'
+  // an hour that recorded nothing is a hole in the plate, not a pale version of a busy hour
+  if (count <= 0) return 'rgb(255 255 255 / 0.035)'
   const intensity = Math.sqrt(count / max)
   if (intensity <= 0.5) {
     const pct = Math.round((intensity / 0.5) * 100)
@@ -37,13 +39,20 @@ export function Heatmap({ cells }: HeatmapProps) {
             const count = counts.get(dayOfWeek * 24 + hour) ?? 0
             const label = t.dashboard.cellAria(day, String(hour).padStart(2, '0'), count.toLocaleString(lang))
             return (
+              // the grid fills in on the diagonal, so the week arrives as a wash across the
+              // plate rather than 168 cells appearing at once
               <div
                 key={hour}
                 role="img"
                 aria-label={label}
                 title={label}
-                className="h-4 rounded-sm"
-                style={{ backgroundColor: cellColor(count, max) }}
+                className="animate-rise h-4 rounded-sm transition-colors duration-500 hover:ring-1 hover:ring-white/30"
+                style={
+                  {
+                    backgroundColor: cellColor(count, max),
+                    '--delay': `${(dayOfWeek + hour) * 12}ms`,
+                  } as CSSProperties
+                }
               />
             )
           })}

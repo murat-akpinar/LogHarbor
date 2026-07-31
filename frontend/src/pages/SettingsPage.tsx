@@ -15,8 +15,9 @@ import { formatBytes } from '../lib/bytes'
 import { formatTimestamp } from '../lib/dates'
 import type { CreatedApiKey, StorageForecast, UserRole } from '../types'
 import { ArchiveSegments } from '../components/ArchiveSegments'
-import { Card } from '../components/ui/Card'
 import { KeyValueList } from '../components/ui/KeyValueList'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { LdapCard } from '../components/settings/LdapCard'
 import { SettingsTabs } from '../components/settings/SettingsTabs'
 import { Input } from '../components/ui/Input'
@@ -498,14 +499,21 @@ function UsersCard() {
   )
 }
 
-/** One titled card inside a tab. The tab already says which area this is, so the heading only
- *  has to name the card itself. */
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+/** One titled area inside a tab, in the app's plate-and-well language: the tab already says
+ *  which part of settings this is, so the heading only has to name the area itself. */
+function SettingsSection({
+  title,
+  index,
+  children,
+}: {
+  title: string
+  index?: number
+  children: React.ReactNode
+}) {
   return (
-    <section>
-      <h2 className="mb-3 text-sm font-semibold text-fg">{title}</h2>
-      <Card className="p-4">{children}</Card>
-    </section>
+    <SectionBlock title={title} index={index}>
+      <Panel className="p-4">{children}</Panel>
+    </SectionBlock>
   )
 }
 
@@ -556,15 +564,15 @@ export function SettingsPage() {
         role="tabpanel"
         id={`settings-panel-${active}`}
         aria-labelledby={`settings-tab-${active}`}
-        className="flex flex-col gap-6"
+        className="flex flex-col gap-4"
       >
         {active === 'server' && (
           <>
-            <Panel title={t.settings.health}>
+            <SettingsSection title={t.settings.health} index={0}>
               <HealthCard />
-            </Panel>
+            </SettingsSection>
             {isAdmin && (
-              <Panel title={t.settings.backup}>
+              <SettingsSection title={t.settings.backup} index={1}>
                 <p className="mb-3 text-sm text-fg-muted">{t.settings.backupHint}</p>
                 {/* a plain anchor: the session cookie rides along and the browser handles the download */}
                 <a
@@ -573,31 +581,31 @@ export function SettingsPage() {
                 >
                   {t.settings.downloadBackup}
                 </a>
-              </Panel>
+              </SettingsSection>
             )}
           </>
         )}
 
         {active === 'ingestion' && (
-          <Panel title={t.settings.apiKeys}>
+          <SettingsSection title={t.settings.apiKeys}>
             <ApiKeysCard />
-          </Panel>
+          </SettingsSection>
         )}
 
         {active === 'storage' && (
-          <Panel title={t.settings.archiving}>
+          <SettingsSection title={t.settings.archiving}>
             <ArchiveCard />
-          </Panel>
+          </SettingsSection>
         )}
 
         {active === 'access' && isAdmin && (
           <>
-            <Panel title={t.settings.users}>
+            <SettingsSection title={t.settings.users} index={0}>
               <UsersCard />
-            </Panel>
-            <Panel title={t.settings.ldapTitle}>
+            </SettingsSection>
+            <SettingsSection title={t.settings.ldapTitle} index={1}>
               <LdapCard />
-            </Panel>
+            </SettingsSection>
           </>
         )}
       </div>

@@ -7,7 +7,7 @@ import { useLiveRange } from '../hooks/useLiveRange'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { quote } from '../lib/filter'
-import { LEVEL_CHART } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 import type { ServiceStatusRow } from '../types'
 
@@ -104,7 +104,7 @@ export function ServicesPage() {
                 <td className={TD_CLASS}>
                   <Sparkline
                     filter={serviceFilter(row.service)}
-                    color={row.errorCount > 0 ? LEVEL_CHART.Error : LEVEL_CHART.Information}
+                    color={SERIES.volume}
                     from={range.from}
                     to={range.to}
                   />

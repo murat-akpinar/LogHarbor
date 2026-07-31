@@ -14,21 +14,18 @@ import { SignalsPage } from './pages/SignalsPage'
 import { AlertsPage } from './pages/AlertsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { useTheme } from './hooks/useTheme'
 import { LanguageProvider } from './i18n'
 
 const queryClient = new QueryClient()
 
 function App() {
-  const { theme, toggleTheme } = useTheme()
-
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <BrowserRouter>
           <LoginGate>
-            <div className="flex h-screen flex-col bg-bg text-fg">
-              <NavBar theme={theme} onToggleTheme={toggleTheme} />
+            <div className="flex h-screen flex-col text-fg">
+              <NavBar />
               <main className="min-h-0 flex-1">
                 <Routes>
                   <Route path="/" element={<DashboardPage />} />

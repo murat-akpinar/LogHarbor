@@ -136,7 +136,7 @@ cd frontend && npm run build && npm run lint
 ## The web UI
 
 Everything sits behind the login gate. The top bar carries the page nav plus an EN/TR
-language toggle and a light/dark theme toggle.
+language toggle. There is one theme and it is dark — see docs/frontend.md for why.
 
 **Two controls behave the same on every page that has a time dimension** (Dashboard, Events,
 Requests, Exceptions, Queries, Services, Users, Analysis), top right:

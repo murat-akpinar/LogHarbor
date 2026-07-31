@@ -26,17 +26,21 @@ export function LiveToggle({ live, onToggle, status }: LiveToggleProps) {
       onClick={onToggle}
       aria-pressed={live}
       title={live && status ? `${t.common.live}: ${t.events.tailStatus[status]}` : t.common.live}
-      className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
+      className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
         live
-          ? 'border-accent/40 bg-accent/10 text-accent'
-          : 'border-border-strong bg-surface text-fg-muted hover:bg-surface-hover hover:text-fg'
+          ? 'border-accent/40 bg-accent/12 text-accent shadow-[0_0_18px_-6px_var(--color-accent)]'
+          : 'border-border bg-surface-inset text-fg-muted hover:border-border-strong hover:bg-surface-hover hover:text-fg'
       }`}
     >
       <span className="relative flex h-2.5 w-2.5 items-center justify-center">
         {isPinging && (
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60 motion-reduce:hidden" />
         )}
-        <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dot}`} />
+        {/* the dot is lit, not just filled: this is the control that says the page is alive */}
+        <span
+          className={`relative inline-flex h-2.5 w-2.5 rounded-full ${dot}`}
+          style={live ? { boxShadow: '0 0 8px 1px currentColor' } : undefined}
+        />
       </span>
       {t.common.live}
     </button>

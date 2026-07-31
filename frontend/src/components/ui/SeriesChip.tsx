@@ -25,14 +25,22 @@ export function SeriesChip({ color, label, value, pressed, dimmed, onClick, titl
   const shape = 'flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs'
   const content = (
     <>
-      {color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />}
+      {/* the swatch is lit by its own colour, so a 8px dot still reads as violet rather than as
+          "some dark dot" once it is sitting on a translucent surface over a dark canvas */}
+      {color && (
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: color, boxShadow: `0 0 6px 0 ${color}` }}
+          aria-hidden="true"
+        />
+      )}
       <span className={pressed ? 'text-fg' : 'text-fg-muted'}>{label}</span>
       {value !== undefined && <span className="tabular font-medium text-fg">{value}</span>}
     </>
   )
 
   if (!onClick) {
-    return <span className={`${shape} border-border bg-surface`}>{content}</span>
+    return <span className={`${shape} border-border bg-surface-inset`}>{content}</span>
   }
 
   return (
@@ -41,10 +49,10 @@ export function SeriesChip({ color, label, value, pressed, dimmed, onClick, titl
       onClick={onClick}
       aria-pressed={pressed}
       title={title}
-      className={`${shape} transition-colors ${
+      className={`${shape} transition-all duration-200 ${
         pressed
-          ? 'border-accent/50 bg-accent/10 text-fg'
-          : `border-border-strong bg-surface hover:bg-surface-hover ${dimmed ? 'opacity-50' : ''}`
+          ? 'border-accent/50 bg-accent/12 text-fg shadow-[0_0_12px_-4px_var(--color-accent)]'
+          : `border-border bg-surface-inset hover:border-border-strong hover:bg-surface-hover ${dimmed ? 'opacity-40' : ''}`
       }`}
     >
       {content}

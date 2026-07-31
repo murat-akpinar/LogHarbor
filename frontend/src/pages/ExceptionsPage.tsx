@@ -8,7 +8,7 @@ import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { formatTimestamp } from '../lib/dates'
 import { exceptionStartsWith } from '../lib/filter'
-import { LEVEL_CHART } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -77,7 +77,7 @@ export function ExceptionsPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={exceptionStartsWith(row.type)}
-                      color={LEVEL_CHART.Error}
+                      color={SERIES.errors}
                       from={range.from}
                       to={range.to}
                     />

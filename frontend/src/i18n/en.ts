@@ -8,8 +8,6 @@ export const en = {
     signals: 'Signals',
     alerts: 'Alerts',
     settings: 'Settings',
-    switchToLight: 'Switch to light mode',
-    switchToDark: 'Switch to dark mode',
     switchLanguage: 'Switch language to Turkish',
     requests: 'Requests',
     exceptions: 'Exceptions',
@@ -339,6 +337,7 @@ export const en = {
       'This page groups events that carry a SQL-text property (default "commandText") and a duration property (default "elapsed") — EF Core\'s "Executed DbCommand" log has both. See docs/ingestion-app.md for enabling it.',
   },
   signals: {
+    newSignal: 'New signal',
     title: 'Signals',
     noSignals: 'No signals yet.',
     titlePlaceholder: 'Title',
@@ -346,6 +345,7 @@ export const en = {
     couldNotSave: 'Could not save signal.',
   },
   alerts: {
+    newRule: 'New rule',
     title: 'Alerts',
     description:
       'Fires a webhook POST when a signal matches at least the threshold count of events in the window (at-least), or when a once-active signal goes silent for the whole window (dead man’s switch).',

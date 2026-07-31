@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { HistogramBucket } from '../types'
 import { LEVELS, LEVEL_CHART, LEVEL_HEX, barSegments, sumLevels } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
-import { plotMax } from '../lib/plotScale'
+import { plotMax, sweep } from '../lib/plotScale'
 import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
 
@@ -77,8 +78,10 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
             const total = sumLevels(bucket.counts)
             const segments = barSegments(bucket.counts)
             return (
+              // keyed by position rather than by timestamp: live mode moves the window every ten
+              // seconds, and keying on the start would remount every bar and replay its entrance
               <button
-                key={bucket.start}
+                key={index}
                 type="button"
                 onClick={() => onBucketClick(bucket.start, buckets[index + 1]?.start ?? rangeEnd)}
                 onMouseDown={(event) => {
@@ -92,7 +95,8 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                 onMouseLeave={() => setHoveredIndex(null)}
                 onFocus={() => setHoveredIndex(index)}
                 onBlur={() => setHoveredIndex(null)}
-                className="group relative flex h-full min-w-0 flex-1 flex-col-reverse select-none"
+                className="group animate-grow relative flex h-full min-w-0 flex-1 flex-col-reverse select-none"
+                style={{ '--delay': `${sweep(index, buckets.length)}ms` } as CSSProperties}
                 aria-label={t.dashboard.bucketAria(formatTimestamp(bucket.start, lang), total)}
               >
                 <span
@@ -103,8 +107,8 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                 {segments.map((segment, segmentIndex) => (
                   <span
                     key={segment.key}
-                    className={`relative w-full shrink-0 ${
-                      segmentIndex === segments.length - 1 ? 'rounded-t-[1px]' : ''
+                    className={`relative w-full shrink-0 transition-[height] duration-500 ${
+                      segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
                     }`}
                     style={{ height: `${(segment.count / max) * 100}%`, minHeight: '1px', backgroundColor: segment.color }}
                   />

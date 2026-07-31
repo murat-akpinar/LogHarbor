@@ -137,7 +137,7 @@ export function SearchBar({ initialText = '', onCommit }: SearchBarProps) {
         aria-autocomplete="list"
       />
       {suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-48 w-full max-w-sm overflow-y-auto rounded-lg border border-border bg-surface-raised text-sm shadow-card">
+        <ul className="absolute z-10 mt-1 max-h-48 w-full max-w-sm overflow-y-auto glass rounded-lg border border-border bg-surface-float text-sm shadow-pop">
           {suggestions.map((suggestion, index) => (
             <li key={suggestion}>
               <button
@@ -158,7 +158,7 @@ export function SearchBar({ initialText = '', onCommit }: SearchBarProps) {
         </ul>
       )}
       {isFocused && text.trim() === '' && history.length > 0 && (
-        <ul className="absolute z-10 mt-1 max-h-48 w-full max-w-sm overflow-y-auto rounded-lg border border-border bg-surface-raised text-sm shadow-card">
+        <ul className="absolute z-10 mt-1 max-h-48 w-full max-w-sm overflow-y-auto glass rounded-lg border border-border bg-surface-float text-sm shadow-pop">
           {history.map((entry) => (
             <li key={entry}>
               <button

@@ -5,7 +5,8 @@ import { useSignals } from '../hooks/useSignals'
 import { useIsAdmin } from '../hooks/useAuth'
 import { formatTimestamp } from '../lib/dates'
 import { AlertForm } from '../components/AlertForm'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
 
@@ -85,27 +86,31 @@ export function AlertsPage() {
   const signalTitle = (signalId: number) => signals?.find((signal) => signal.id === signalId)?.title ?? `#${signalId}`
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-4">
-      <h1 className="mb-4 text-lg font-semibold text-fg">{t.alerts.title}</h1>
-      <p className="mb-4 text-xs text-fg-muted">{t.alerts.description}</p>
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+      <div>
+        <h1 className="text-lg font-semibold text-fg">{t.alerts.title}</h1>
+        <p className="mt-1 max-w-3xl text-xs leading-relaxed text-fg-muted">{t.alerts.description}</p>
+      </div>
 
       {isAdmin && (
-        <Card className="mb-6 p-4">
-          <AlertForm submitLabel={t.common.create} onSubmit={(request) => createAlert.mutateAsync(request)} />
-        </Card>
+        <SectionBlock icon="alerts" title={t.alerts.newRule} index={0}>
+          <Panel className="p-4">
+            <AlertForm submitLabel={t.common.create} onSubmit={(request) => createAlert.mutateAsync(request)} />
+          </Panel>
+        </SectionBlock>
       )}
 
-      {isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
-      {error && <p className="text-sm text-level-error">{error.message}</p>}
-      {alerts && alerts.length === 0 && <p className="text-sm text-fg-muted">{t.alerts.noAlerts}</p>}
-
-      {alerts && alerts.length > 0 && (
-        <Card className="overflow-hidden">
-          {alerts.map((alert) => (
+      {/* headerless: the page's own h1 already names the one list on it */}
+      <SectionBlock index={1}>
+        <Panel className="overflow-hidden">
+          {isLoading && <p className="p-4 text-sm text-fg-muted">{t.common.loading}</p>}
+          {error && <p className="p-4 text-sm text-level-error">{error.message}</p>}
+          {alerts && alerts.length === 0 && <p className="p-4 text-sm text-fg-muted">{t.alerts.noAlerts}</p>}
+          {alerts?.map((alert) => (
             <AlertRow key={alert.id} alert={alert} signalTitle={signalTitle(alert.signalId)} isAdmin={isAdmin} />
           ))}
-        </Card>
-      )}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

@@ -32,7 +32,8 @@ import { UsersPanel } from '../components/dashboard/UsersPanel'
 import { Heatmap } from '../components/Heatmap'
 import { Card } from '../components/ui/Card'
 import type { HistogramBucket } from '../types'
-import { LEVELS, LEVEL_CHART } from '../lib/levels'
+import { LEVELS } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const PANEL_LIMIT = 5
@@ -150,13 +151,17 @@ export function DashboardPage() {
       {/* The glance band: five figures, each with the shape it took getting there and whether
           that is more or less than the window before it */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {/* each tile's line is drawn in that series' own colour, and it is the same colour the
+            series takes in the timeline below and in its chip: volume green, errors red, avg
+            cyan, p95 violet. The bars stay neutral — only measured lines are named. */}
         <StatTile
           label={t.nav.events}
           value={compact(total)}
           icon="events"
           trend={eventTrend}
-          trendColor={LEVEL_CHART.Information}
+          trendColor={SERIES.volume}
           delta={percentChange(total, previousSummary.data?.total ?? 0)}
+          index={0}
         />
         <StatTile
           label={t.dashboard.errorRate}
@@ -164,9 +169,10 @@ export function DashboardPage() {
           icon="exceptions"
           plate="error"
           trend={errorTrend}
-          trendColor={LEVEL_CHART.Error}
+          trendColor={SERIES.errors}
           delta={percentChange(errors, previousErrors)}
           upIsBad
+          index={1}
         />
         <StatTile
           label={t.dashboard.avgLatency}
@@ -174,8 +180,9 @@ export function DashboardPage() {
           icon="requests"
           plate="info"
           trend={avgTrend}
-          trendColor={LEVEL_CHART.Information}
+          trendColor={SERIES.avg}
           upIsBad
+          index={2}
         />
         <StatTile
           label={t.dashboard.p95Latency}
@@ -183,14 +190,16 @@ export function DashboardPage() {
           icon="queries"
           plate="warning"
           trend={p95Trend}
-          trendColor={LEVEL_CHART.Warning}
+          trendColor={SERIES.p95}
           upIsBad
+          index={3}
         />
         <StatTile
           label={t.dashboard.activeServices}
           value={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
           icon="services"
           plate="accent"
+          index={4}
         />
       </div>
 
@@ -202,6 +211,7 @@ export function DashboardPage() {
         title={t.dashboard.activity}
         to="/events"
         linkLabel={t.dashboard.viewAll}
+        index={1}
       >
         {/* sits above the timeline on purpose: it says whether to trust its x-axis */}
         {ingestionLag.data && (
@@ -226,6 +236,7 @@ export function DashboardPage() {
         title={t.analysis.title}
         to="/analysis"
         linkLabel={t.dashboard.viewAll}
+        index={2}
       >
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <TopErrorsPanel errors={topErrors.data?.errors ?? []} from={range.from} to={range.to} />
@@ -240,6 +251,7 @@ export function DashboardPage() {
         icon="services"
         title={t.dashboard.servicesUsers}
         meta={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
+        index={3}
       >
         <div className="grid gap-3 lg:grid-cols-2">
           <ServicesPanel services={(services.data?.services ?? []).slice(0, PANEL_LIMIT)} from={range.from} to={range.to} />
@@ -247,7 +259,7 @@ export function DashboardPage() {
         </div>
       </SectionBlock>
 
-      <SectionBlock icon="dashboard" title={t.dashboard.activityByHour}>
+      <SectionBlock icon="dashboard" title={t.dashboard.activityByHour} index={4}>
         <Panel className="p-4">
           {heatmap.isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
           {heatmap.data && (

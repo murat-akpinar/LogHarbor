@@ -30,8 +30,10 @@ export function SettingsTabs({
           aria-controls={`settings-panel-${tab.id}`}
           id={`settings-tab-${tab.id}`}
           onClick={() => onChange(tab.id)}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
-            tab.id === active ? 'bg-surface-raised text-fg' : 'text-fg-muted hover:text-fg'
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
+            tab.id === active
+              ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--color-accent)_30%,transparent)]'
+              : 'text-fg-muted hover:bg-surface-hover hover:text-fg'
           }`}
         >
           {tab.label}

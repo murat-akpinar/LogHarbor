@@ -10,8 +10,6 @@ export const tr: Messages = {
     signals: 'Sinyaller',
     alerts: 'Uyarılar',
     settings: 'Ayarlar',
-    switchToLight: 'Açık temaya geç',
-    switchToDark: 'Koyu temaya geç',
     switchLanguage: 'Dili İngilizce olarak değiştir',
     requests: 'İstekler',
     exceptions: 'İstisnalar',
@@ -338,6 +336,7 @@ export const tr: Messages = {
       'Bu sayfa SQL metni taşıyan bir property (varsayılan "commandText") ile süre property\'si (varsayılan "elapsed") olan olayları gruplar — EF Core\'un "Executed DbCommand" logu ikisini de taşır. Etkinleştirmek için docs/ingestion-app.md\'ye bakın.',
   },
   signals: {
+    newSignal: 'Yeni sinyal',
     title: 'Sinyaller',
     noSignals: 'Henüz sinyal yok.',
     titlePlaceholder: 'Başlık',
@@ -345,6 +344,7 @@ export const tr: Messages = {
     couldNotSave: 'Sinyal kaydedilemedi.',
   },
   alerts: {
+    newRule: 'Yeni kural',
     title: 'Uyarılar',
     description:
       'Bir sinyal, pencere içinde en az eşik sayısı kadar olayla eşleştiğinde (en-az) ya da bir zamanlar etkin olan bir sinyal tüm pencere boyunca sustuğunda (dead man’s switch) bir webhook POST isteği gönderir.',

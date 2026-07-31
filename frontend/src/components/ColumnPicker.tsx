@@ -56,7 +56,7 @@ export function ColumnPicker({ columns, onChange }: ColumnPickerProps) {
       {isOpen && (
         <div
           ref={panelRef}
-          className={`absolute top-full z-10 mt-1 w-56 max-w-[calc(100vw-1rem)] rounded-card border border-border bg-surface-raised p-2 text-sm shadow-card ${
+          className={`absolute top-full z-10 mt-1 w-56 max-w-[calc(100vw-1rem)] glass rounded-card border border-border bg-surface-float p-2 text-sm shadow-pop ${
             alignLeft ? 'left-0' : 'right-0'
           }`}
         >

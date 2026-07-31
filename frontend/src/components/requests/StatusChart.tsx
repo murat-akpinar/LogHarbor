@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useHistogram } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
 import { SeriesChip } from '../ui/SeriesChip'
@@ -7,7 +7,7 @@ import { LEVELS } from '../../lib/levels'
 import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
-import { plotMax } from '../../lib/plotScale'
+import { plotMax, sweep } from '../../lib/plotScale'
 import { useI18n } from '../../i18n'
 
 // matches the volume chart: enough columns to read the shape of an hour, each thin enough to
@@ -96,11 +96,14 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
               style={{ height: PLOT_HEIGHT_PX }}
             >
               {Array.from({ length: bucketCount }, (_, index) => (
+                // keyed by position, not by timestamp: in live mode the window moves every ten
+                // seconds and keying on the start would replay the entrance on every refresh
                 <div
-                  key={starts[index] ?? index}
+                  key={index}
                   onMouseEnter={() => setHovered(index)}
                   onMouseLeave={() => setHovered(null)}
-                  className="group relative flex h-full min-w-0 flex-1 flex-col-reverse"
+                  className="group animate-grow relative flex h-full min-w-0 flex-1 flex-col-reverse"
+                  style={{ '--delay': `${sweep(index, bucketCount)}ms` } as CSSProperties}
                 >
                   <span className="absolute inset-0 -m-px rounded-sm group-hover:bg-surface-hover" />
                   {series.map(({ key, color, data, dimmed }) => {
@@ -109,13 +112,13 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
                     return (
                       <span
                         key={key}
-                        className="relative w-full shrink-0 transition-[height] duration-300"
+                        className="relative w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
                         style={{ height: `${(count / max) * 100}%`, minHeight: '1px', backgroundColor: color }}
                       />
                     )
                   })}
                   {hovered === index && starts[index] && (
-                    <Card className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 p-2 text-xs">
+                    <Card pop className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 p-2 text-xs">
                       <p className="mb-1 text-fg-muted">{formatTimestamp(starts[index], lang)}</p>
                       {series.map(({ key, label, color, data }) => (
                         <div key={key} className="flex items-center gap-2 py-0.5">

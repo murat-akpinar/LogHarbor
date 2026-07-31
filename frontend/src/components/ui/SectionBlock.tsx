@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { PageIcon } from '../icons'
 import type { PageIconName } from '../icons'
 import { PillLink } from './PillLink'
@@ -21,6 +21,7 @@ export function SectionBlock({
   linkLabel,
   children,
   className = '',
+  index = 0,
 }: {
   icon?: PageIconName
   /** Omitted leaves the plate headerless, for a page whose h1 already names the one thing on it. */
@@ -31,15 +32,23 @@ export function SectionBlock({
   linkLabel?: string
   children: ReactNode
   className?: string
+  /** Position down the page. Sections arrive in sequence rather than all at once, which reads
+   *  as the page assembling itself; the whole run is over inside half a second. */
+  index?: number
 }) {
   return (
-    <section className={`rounded-section border border-border bg-surface p-3 shadow-card ${className}`}>
+    <section
+      className={`glass animate-rise rounded-section border border-border bg-surface p-3 shadow-card ${className}`}
+      style={{ '--delay': `${index * 70}ms` } as CSSProperties}
+    >
       {title && (
         <div className="mb-3 flex items-center justify-between gap-3 px-2 pt-1">
           <h2 className="flex min-w-0 items-center gap-2.5 text-base font-medium text-fg">
             {icon && (
+              // the plate carries the accent rather than another grey: it is the one mark that
+              // tells three stacked sections apart before their titles are read
               <span
-                className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-raised text-fg-muted"
+                className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent/12 text-accent ring-1 ring-accent/20"
                 aria-hidden="true"
               >
                 <PageIcon name={icon} className="size-4" />

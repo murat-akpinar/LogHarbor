@@ -57,7 +57,7 @@ frontend/src/
   components/   reusable UI (EventRow, EventDetail, LevelBadge, SearchBar, TimeRangePicker)
   pages/        EventsPage, DashboardPage, RequestsPage, ExceptionsPage, AnalysisPage,
                 SignalsPage, AlertsPage, SettingsPage
-  hooks/        useLiveTail (SignalR), useEventSearch (React Query), useTheme (dark mode)
+  hooks/        useLiveTail (SignalR), useEventSearch (React Query), useLiveRange
   i18n/         typed TR/EN dictionaries (en.ts source of truth, tr.ts typed as Messages) + LanguageProvider/useI18n
   lib/          formatting helpers (dates, levels, status classes, colors, suggestContext)
   types/        Event, Signal, AlertRule, User, ApiKey, shared DTO types
@@ -186,9 +186,32 @@ Charts are the exception, and deliberately: LEVEL_CHART draws everything below W
 neutral so color in a chart means trouble and nothing else. Method colors are never carried into
 a chart - most events are not requests, and a red bar that might mean DELETE would stop meaning
 failure, which is the only thing a chart color is there to say.
-The low three are told apart by hue rather than by lightness, because all six have to clear
-4.5:1 as text on white and on surface-raised (the active level chip). They were muted greys
-until 2026-07-25; distinguishing them at a glance beat keeping Information quiet.
+The low three are told apart by hue rather than by lightness. They were muted greys until
+2026-07-25; distinguishing them at a glance beat keeping Information quiet.
+
+--- SERIES COLORS (lib/series.ts) ---
+
+Two chart rules run side by side, and they do not conflict because they apply to different
+marks:
+
+  BARS are neutral by default (LEVEL_CHART above). A histogram counts things; if every count
+  had a hue, a busy hour and a broken hour would look equally loud.
+
+  LINES are named. A lane holding an average and a p95 has to say which is which and two
+  greys cannot, and a tile's sparkline has to say what it is the shape of. SERIES gives each
+  measured series one hue it keeps everywhere it appears - the timeline lane, the tile
+  sparkline and the chip all draw p95 in the same violet:
+    SERIES.volume  green   how much arrived
+    SERIES.avg     cyan    how long it took on average
+    SERIES.p95     violet  how long the slow tail took
+    SERIES.errors  red     how much failed
+
+A row sparkline takes the colour of what it counts: a route's, service's, user's or query's
+traffic is volume green; an exception feed is errors red; an error template keeps its level's
+chart colour. Colouring a route's whole traffic shape red because 6% of it failed was tried
+and dropped on 2026-07-31 - the error % sits in the next column and says it with a number,
+while the red shape only ever said "this row has some errors", which at a 10% error rate is
+every row.
 
 --- DASHBOARD PAGE ---
 
@@ -359,24 +382,58 @@ so the SPA router owns the error state).
 
 --- DESIGN TOKENS ---
 
-src/index.css is the single source of truth for color, radius, shadow and fonts. Custom
-properties (--logharbor-*) hold the raw values per theme (:root for light, :root.dark for
-dark); @theme maps them into the Tailwind utility names components actually use
-(bg-surface, text-fg, text-level-error, rounded-card, shadow-card, font-sans, font-mono,
-...). Components name a role, never a raw palette color (bg-slate-100, text-red-600, and
-so on) -- changing the palette means editing this one file, nothing else. The only
-exception is lib/levels.ts's LEVEL_HEX map, which mirrors the level tokens as raw hex for
-chart fills that can't read a CSS variable back.
+src/index.css is the single source of truth for color, radius, shadow, motion and fonts.
+Custom properties (--logharbor-*) hold the raw values; @theme maps them into the Tailwind
+utility names components actually use (bg-surface, text-fg, text-level-error, rounded-card,
+shadow-card, font-sans, font-mono, ...). Components name a role, never a raw palette color
+(bg-slate-100, text-red-600, and so on) -- changing the palette means editing this one file,
+nothing else. The only exception is lib/levels.ts's LEVEL_HEX map and lib/series.ts's
+SERIES map, which name the same tokens for chart fills set as inline styles.
 
---- THEME ---
+--- THEME: ONE, AND IT IS DARK ---
 
-Light/dark toggle in the nav bar; useTheme persists the choice to localStorage
-(falls back to the OS prefers-color-scheme on first visit) and toggles a `dark`
-class on <html>. index.css defines every token twice, once under :root and once
-under :root.dark (see DESIGN TOKENS above), so switching themes is just the
-browser re-resolving those custom properties. Components only ever reach for the
-token utility names -- none of them uses Tailwind's dark: variant, and none should;
-if a component seems to need one, the token is wrong.
+There is no theme switch. The light theme was cut on 2026-07-31 (owner's call) rather than
+kept as a plainer twin: the palette is built out of translucent whites over a lit canvas,
+and every one of those surfaces turns to mud on white. A theme that cannot carry the design
+is not a second theme, it is a second design.
+
+The canvas is not flat black. <html> paints three fixed radial washes (green key light top
+left, indigo fill top right, a green floor glow) over a gradient, and body::after lays fractal
+noise at 5.5% opacity on top -- that grain kills the banding a large gradient shows on 8-bit
+displays and gives the glass something to sit on. Every translucent surface in the app is
+transparent *to this*; drop the washes and the whole palette collapses to flat grey.
+
+Surfaces are white at low alpha, and depth is alpha rather than lightness:
+    surface        a plate, lifted off the canvas          rgb(255 255 255 / 0.06)
+    surface-inset  a well, cut into a plate                rgb(0 0 0 / 0.3)
+    surface-raised a selected row or an active tab         rgb(255 255 255 / 0.12)
+    surface-float  a dropdown or popover, nearly opaque    rgb(17 22 24 / 0.92)
+    surface-read   the event stream's flat bed             #0a0e10, opaque
+
+The last two are where the glass deliberately stops. A menu you can read the page through is
+a menu you cannot read; and ten thousand rows scrolling over a radial wash make every row a
+slightly different colour from the one above it, which is exactly what a reading surface must
+not do. Card / Panel / SectionBlock / NavBar apply the `.glass` class (backdrop-blur +
+saturate) so one place decides how much the app sees through itself.
+
+--- MOTION ---
+
+Keyframes live in index.css and are entrance-only: a dashboard that re-animates while you are
+reading it is a dashboard you stop reading.
+
+    .animate-rise   a plate arriving, up and in. --delay staggers a row or a column of them
+    .animate-grow   a bar growing out of the floor, with lib/plotScale sweep() giving each
+                    column its share of a 380ms left-to-right sweep -- capped as a whole, so
+                    a 120-column chart takes the same time to arrive as a 30-column one
+    .animate-draw   a line drawing itself in. The path carries pathLength={1}, so one dash
+                    covers the whole curve whatever its real length and nothing has to be
+                    measured out of the DOM
+    .animate-wash   the gradient under a line, fading in behind it
+
+Charts key their columns by position, never by bucket timestamp: live mode moves the window
+every ten seconds, and keying on the start would remount every bar and replay its entrance
+over and over while somebody is reading it. Height changes are a CSS transition instead.
+Every animation is disabled under prefers-reduced-motion.
 
 --- STATE RULES ---
 

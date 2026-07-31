@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { PageIcon } from './icons'
 import type { PageIconName } from './icons'
 import { TrendLine } from './Sparkline'
@@ -5,10 +6,10 @@ import { Panel } from './ui/Panel'
 import { Delta } from './ui/Delta'
 
 const PLATE_CLASS = {
-  accent: 'bg-accent/12 text-accent',
-  error: 'bg-level-error/12 text-level-error',
-  warning: 'bg-level-warning/12 text-level-warning',
-  info: 'bg-level-information/12 text-level-information',
+  accent: 'bg-accent/12 text-accent ring-1 ring-accent/20',
+  error: 'bg-level-error/12 text-level-error ring-1 ring-level-error/20',
+  warning: 'bg-level-warning/12 text-level-warning ring-1 ring-level-warning/20',
+  info: 'bg-level-information/12 text-level-information ring-1 ring-level-information/20',
 } as const
 
 interface StatTileProps {
@@ -24,6 +25,8 @@ interface StatTileProps {
   delta?: number | null
   /** For counts where more is worse (errors), so the arrow's colour tells the truth. */
   upIsBad?: boolean
+  /** Position in the band: the tiles arrive left to right rather than all at once. */
+  index?: number
 }
 
 /**
@@ -32,11 +35,25 @@ interface StatTileProps {
  *
  * The line matters as much as the number. A p95 of 240ms means nothing on its own; a p95 of
  * 240ms that has been climbing all hour is the thing worth knowing, and no single figure can
- * say it.
+ * say it. It is drawn in the series' own colour and washed underneath, because at this size a
+ * hairline of grey is a smudge — the colour is what makes the shape legible in a 20px strip.
  */
-export function StatTile({ label, value, icon, plate = 'accent', trend, trendColor, delta, upIsBad }: StatTileProps) {
+export function StatTile({
+  label,
+  value,
+  icon,
+  plate = 'accent',
+  trend,
+  trendColor,
+  delta,
+  upIsBad,
+  index = 0,
+}: StatTileProps) {
   return (
-    <Panel className="px-4 py-3">
+    <Panel
+      className="animate-rise px-4 py-3"
+      style={{ '--delay': `${index * 60}ms` } as CSSProperties}
+    >
       <div className="flex items-start justify-between gap-3">
         <p className="flex min-w-0 items-center gap-2 text-[0.625rem] font-semibold tracking-[0.12em] text-fg-muted uppercase">
           {icon && (
@@ -52,7 +69,8 @@ export function StatTile({ label, value, icon, plate = 'accent', trend, trendCol
         {trend && trend.length > 0 && (
           <TrendLine
             series={[{ values: trend, color: trendColor ?? 'var(--color-accent)' }]}
-            className="h-6 w-20 shrink-0"
+            className="h-7 w-24 shrink-0"
+            fill
           />
         )}
       </div>

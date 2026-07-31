@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { HistogramBucket, LatencyOverview, Level } from '../../types'
 import { useHistogram } from '../../hooks/useStats'
 import { ALERT_LEVELS, LEVEL_CHART, LEVEL_HEX, QUIET_LEVELS, barSegments, sumLevels } from '../../lib/levels'
+import { SERIES } from '../../lib/series'
 import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
 import { formatDuration } from '../../lib/duration'
-import { plotMax } from '../../lib/plotScale'
+import { plotMax, sweep } from '../../lib/plotScale'
 import { useI18n } from '../../i18n'
 import { Card } from '../ui/Card'
 import { Panel } from '../ui/Panel'
@@ -109,7 +110,7 @@ function Columns({ count, hovered, isBrushed, onHover, onPress, onClick, columnL
                 }`}
               />
               {hovered === index && (
-                <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-accent/40" />
+                <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-accent/60 shadow-[0_0_6px_0_var(--color-accent)]" />
               )}
             </>
           ),
@@ -245,13 +246,15 @@ export function ActivityTimeline({
   const volumeMax = plotMax(volumeBars.map((segments) => segments.reduce((sum, segment) => sum + segment.count, 0)))
 
   const latencyBuckets = latency?.buckets ?? []
+  // the one lane where colour is not severity: an average and a p95 are two measurements of the
+  // same thing, neither of them a problem in itself, and two neutrals could not be told apart
   const durationSeries = [
-    { key: 'avg' as const, label: t.dashboard.avg, color: LEVEL_CHART.Information, ms: latency?.avgMs ?? null },
-    { key: 'p95' as const, label: t.analysis.p95, color: LEVEL_CHART.Warning, ms: latency?.p95Ms ?? null },
+    { key: 'avg' as const, label: t.dashboard.avg, color: SERIES.avg, ms: latency?.avgMs ?? null },
+    { key: 'p95' as const, label: t.analysis.p95, color: SERIES.p95, ms: latency?.p95Ms ?? null },
   ]
   const durationLines = [
-    { key: 'avg', values: carryGaps(latencyBuckets.map((bucket) => bucket.avgMs)), color: LEVEL_CHART.Information },
-    { key: 'p95', values: carryGaps(latencyBuckets.map((bucket) => bucket.p95Ms)), color: LEVEL_CHART.Warning },
+    { key: 'avg', values: carryGaps(latencyBuckets.map((bucket) => bucket.avgMs)), color: SERIES.avg },
+    { key: 'p95', values: carryGaps(latencyBuckets.map((bucket) => bucket.p95Ms)), color: SERIES.p95 },
   ].filter((line) => durationPick === null || durationPick === line.key)
   const timed = (latency?.sampled ?? 0) > 0
 
@@ -311,11 +314,20 @@ export function ActivityTimeline({
               aria-hidden="true"
             >
               {volumeBars.map((segments, index) => (
-                <div key={starts[index] ?? index} className="flex h-full min-w-0 flex-1 flex-col-reverse">
+                // keyed by position, not by timestamp: in live mode the timestamps shift every
+                // ten seconds, and keying on them would remount every column and replay the
+                // entrance animation over and over while somebody is reading the chart
+                <div
+                  key={index}
+                  className="animate-grow flex h-full min-w-0 flex-1 flex-col-reverse"
+                  style={{ '--delay': `${sweep(index, columns)}ms` } as CSSProperties}
+                >
                   {segments.map((segment, segmentIndex) => (
                     <span
                       key={segment.key}
-                      className={`w-full shrink-0 ${segmentIndex === segments.length - 1 ? 'rounded-t-[1px]' : ''}`}
+                      className={`w-full shrink-0 transition-[height] duration-500 ${
+                        segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
+                      }`}
                       style={{
                         height: `${(segment.count / volumeMax) * 100}%`,
                         // a bucket holding one event is not an empty bucket
@@ -404,14 +416,18 @@ export function ActivityTimeline({
                 aria-hidden="true"
               >
                 {Array.from({ length: columns }, (_, index) => (
-                  <div key={index} className="flex h-full min-w-0 flex-1 flex-col-reverse">
+                  <div
+                    key={index}
+                    className="animate-grow flex h-full min-w-0 flex-1 flex-col-reverse"
+                    style={{ '--delay': `${sweep(index, columns)}ms` } as CSSProperties}
+                  >
                     {statusSeries.map(({ key, color, data, dimmed }) => {
                       const count = data[index] ?? 0
                       if (count === 0 || dimmed) return null
                       return (
                         <span
                           key={key}
-                          className="w-full shrink-0 transition-[height] duration-300"
+                          className="w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
                           style={{ height: `${(count / statusMax) * 100}%`, minHeight: '1px', backgroundColor: color }}
                         />
                       )
@@ -473,7 +489,7 @@ function TimelineTooltip({ index, columns, start, counts, avgMs, p95Ms, status }
       className={`pointer-events-none absolute bottom-full z-10 mb-2 w-52 ${anchor}`}
       style={{ left: `${position * 100}%` }}
     >
-      <Card className="p-2 text-xs">
+      <Card pop className="p-2 text-xs">
         <p className="mb-1 text-fg-muted">{formatTimestamp(start, lang)}</p>
 
         <div className="flex items-center justify-between gap-2 py-0.5">

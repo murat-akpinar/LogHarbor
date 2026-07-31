@@ -8,7 +8,7 @@ import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { formatTimestamp } from '../lib/dates'
 import { propertyEquals } from '../lib/filter'
-import { LEVEL_CHART } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -97,7 +97,7 @@ export function UsersPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={propertyEquals(property, row.value)}
-                      color={errorPct > 0 ? LEVEL_CHART.Error : LEVEL_CHART.Information}
+                      color={SERIES.volume}
                       from={range.from}
                       to={range.to}
                     />
