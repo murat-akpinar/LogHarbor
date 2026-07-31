@@ -135,8 +135,10 @@ cd frontend && npm run build && npm run lint
 
 ## The web UI
 
-Everything sits behind the login gate. The top bar carries the page nav plus an EN/TR
-language toggle. There is one theme and it is dark — see docs/frontend.md for why.
+Everything sits behind the login gate. The top bar is two zones: the page tabs, which scroll
+among themselves on a narrow window, and a pinned group at the right edge that never scrolls —
+**Send logs**, the EN/TR language toggle and sign out. There is one theme and it is dark; see
+[docs/frontend.md](docs/frontend.md) for why.
 
 **Two controls behave the same on every page that has a time dimension** (Dashboard, Events,
 Requests, Exceptions, Queries, Services, Users, Analysis), top right:
@@ -290,12 +292,27 @@ without creating a session. Press it: a base DN one level too deep or a group sp
 differently in your domain is otherwise invisible until someone tries to sign in, and then it
 is a 401 with no reason attached. Details in [docs/ldap.md](docs/ldap.md).
 
+### Send logs (`/send`)
+
+How to get data in, as a choice rather than a manual — reachable from the top bar at any time,
+and linked from Settings, the first-run panel and the Dashboard's empty state.
+
+Two named options (**OpenTelemetry**, **Serilog**) and a raw-HTTP fallback. Each carries its
+snippet with this instance's own URL already in it, and — the part that makes it a page rather
+than a link to these docs — **what actually arrives if you pick it**, field by field: level,
+message, message template, properties, trace id, service name. Those lists are records of a
+measurement against a live server, not a reading of the docs.
+
+Pick a key from your list to have it named in the snippet, or mint one inline and the snippet
+fills in the real token. It cannot fill in an *existing* key's token, and says so: a token is
+shown once, at creation, and stored only as a hash afterwards.
+
 Full UI reference: [docs/frontend.md](docs/frontend.md).
 ---
 
 ## Sending logs
 
-Three independent routes; run any or all of them.
+The same three routes the `/send` page offers, written out. Run any or all of them.
 
 ### From inside your app — structured properties
 
@@ -377,8 +394,13 @@ OTEL_EXPORTER_OTLP_HEADERS=X-LogHarbor-ApiKey=<your-key>
 ```
 
 Both protobuf and JSON encodings are accepted on `/v1/logs`, and OTLP traces on
-`/v1/traces` (spans render as the trace waterfall on the Events page). See
-[docs/ingestion-otlp.md](docs/ingestion-otlp.md) for the Collector config and
+`/v1/traces` (spans render as the trace waterfall on the Events page).
+
+Your message template survives the trip, whichever SDK you use: LogHarbor reads it from
+`message_template.text` (Serilog's OTel sink) or `{OriginalFormat}` (the .NET, Python and
+Log4j2 bridges), so `Order {OrderId} failed` groups as one error on the Analysis page instead
+of as one error per order id. Trace ids are carried whenever the log is written inside an
+active span. See [docs/ingestion-otlp.md](docs/ingestion-otlp.md) for the Collector config and
 the full field mapping.
 
 ### From Docker containers — no app changes

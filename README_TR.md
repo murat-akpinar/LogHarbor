@@ -139,8 +139,10 @@ cd frontend && npm run build && npm run lint
 
 ## Web arayüzü
 
-Her şey giriş kapısının arkasındadır. Üst çubukta sayfa menüsünün yanında EN/TR dil
-düğmesi bulunur. Tek tema vardır ve koyudur — gerekçesi docs/frontend.md'de.
+Her şey giriş kapısının arkasındadır. Üst çubuk iki bölgeden oluşur: dar pencerede kendi
+aralarında kayan sayfa sekmeleri, ve sağ kenara sabitlenmiş, hiç kaymayan bir grup —
+**Log gönder**, EN/TR dil düğmesi ve çıkış. Tek tema vardır ve koyudur; gerekçesi
+[docs/frontend.md](docs/frontend.md) dosyasında.
 
 **Zaman boyutu olan her sayfada** (Panel, Olaylar, İstekler, İstisnalar, Sorgular, Servisler,
 Kullanıcılar, Analiz) sağ üstte aynı iki kontrol durur:
@@ -298,12 +300,27 @@ Bu düğmeye bas: bir seviye derinde kalmış base DN'i ya da sizin domainde ba�
 bir grubu, aksi halde biri giriş yapmaya çalışana kadar göremezsin — ve o an gördüğün şey,
 sebebi yazmayan bir 401 olur. Ayrıntılar: [docs/ldap.md](docs/ldap.md).
 
+### Log gönder (`/send`)
+
+Veriyi içeri nasıl alacağını anlatan sayfa — manuel değil, bir seçim olarak. Üst çubuktan her
+an ulaşılır; ayrıca Ayarlar, ilk kurulum paneli ve Panel'in boş durumundan da bağlanır.
+
+İki adlandırılmış seçenek (**OpenTelemetry**, **Serilog**) ve bir ham HTTP yedeği. Her birinde
+bu kurulumun kendi adresi doldurulmuş snippet, ve sayfayı bu dokümana giden bir linkten ayıran
+asıl kısım: **seçersen ne geliyor** — seviye, mesaj, mesaj şablonu, özellikler, iz kimliği,
+servis adı; alan alan. Bu listeler dokümandan okunmuş değil, canlı bir sunucuya karşı ölçülmüş
+sonuçlardır.
+
+Listeden bir anahtar seç, adı snippet'e yazılsın; ya da yerinde yeni bir tane oluştur, snippet
+gerçek token'ı alsın. **Mevcut** bir anahtarın token'ını dolduramaz ve bunu söyler: token
+yalnızca oluşturulurken bir kez gösterilir, sonrasında sadece özeti saklanır.
+
 Tam UI referansı: [docs/frontend.md](docs/frontend.md).
 ---
 
 ## Log gönderme
 
-Birbirinden bağımsız üç yol var; birini ya da birkaçını birden kullanabilirsin.
+`/send` sayfasının sunduğu üç yolun yazılı hâli; birini ya da birkaçını birden kullanabilirsin.
 
 ### Uygulamanın içinden — yapısal alanlarla
 
@@ -386,8 +403,14 @@ OTEL_EXPORTER_OTLP_HEADERS=X-LogHarbor-ApiKey=<anahtarınız>
 ```
 
 `/v1/logs` hem protobuf hem JSON kodlamasını kabul eder; OTLP trace'leri ise `/v1/traces`
-üzerinden (span'ler Olaylar sayfasında trace waterfall olarak çizilir). Collector
-yapılandırması ve alan eşleme tablosu için [docs/ingestion-otlp.md](docs/ingestion-otlp.md).
+üzerinden (span'ler Olaylar sayfasında trace waterfall olarak çizilir).
+
+Mesaj şablonun hangi SDK'yı kullanırsan kullan yolculuktan sağ çıkar: LogHarbor onu
+`message_template.text` (Serilog'un OTel sink'i) ya da `{OriginalFormat}` (.NET, Python ve
+Log4j2 köprüleri) alanından okur — yani `Order {OrderId} failed` Analiz sayfasında her sipariş
+için ayrı bir hata değil, tek bir hata olarak gruplanır. İz kimliği ise log aktif bir span
+içinde yazıldığında taşınır. Collector yapılandırması ve alan eşleme tablosu için
+[docs/ingestion-otlp.md](docs/ingestion-otlp.md).
 
 ### Docker container'larından — uygulamaya hiç dokunmadan
 
