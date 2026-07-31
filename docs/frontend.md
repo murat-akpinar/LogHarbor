@@ -30,6 +30,8 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              (admin only), user management (admin only), directory sign-in
              (LDAP, admin only), health status, sign out
 
+The nav bar scrolls itself horizontally when eleven links do not fit; the page below
+never scrolls sideways with it.
 Nav order: Dashboard (home, /), Events, Requests, Exceptions, Queries, Services,
 Users, Analysis, Signals, Alerts, Settings — every link carries a small inline
 line icon (components/icons.tsx). (A grouped left sidebar shipped 2026-07-25 and
@@ -80,10 +82,17 @@ Autocomplete: while typing a bare property name or a value after =/<>/like, the
 Export: JSON/CSV links next to the time range picker build a GET /api/events/export
   URL from the current filter/range; the browser handles the download natively
   via the response's Content-Disposition header, no fetch/blob code needed
-Level chips: quick toggles appended to the filter (@Level = 'Error')
+Level chips: quick toggles appended to the filter (@Level = 'Error'). They share the
+  SeriesChip shape every legend on every other page uses (pill, hue dot, pressed
+  state); they were bare words until 2026-07-31, which is what a label looks like,
+  not a control. The dot takes the level's own hue, not the chart neutral — a chip
+  that says "Information" names a level rather than drawing it.
 Search history: last 10 committed filters (localStorage) shown as a dropdown when
   the bar is focused and empty; clicking one re-applies it without re-validation
-Event list: virtualized, newest first, infinite scroll via afterId keyset paging
+Event list: virtualized, newest first, infinite scroll via afterId keyset paging.
+  Full-bleed, alone among the pages: a stream is read by scanning it and has to fill
+  the window, so it takes no section plate. ROW_HEIGHT is 32px (was 40 until
+  2026-07-31, which spent a quarter of every screen on air).
 Event row: timestamp, level badge (color-coded), rendered message
 Custom columns: "Columns" picker adds event properties as extra list columns
   (localStorage, rendered client-side from each event's properties JSON)

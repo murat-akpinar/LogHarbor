@@ -5,7 +5,8 @@ import { useI18n } from '../i18n'
 import { EventRow } from './EventRow'
 import { Button } from './ui/Button'
 
-const ROW_HEIGHT = 40
+// a log stream is read by scanning it, and 40px spent a quarter of every screen on air
+const ROW_HEIGHT = 32
 const OVERSCAN = 8
 // how close to the bottom (in px) triggers the next page fetch
 const LOAD_MORE_THRESHOLD = 200

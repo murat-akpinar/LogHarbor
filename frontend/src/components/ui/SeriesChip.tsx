@@ -2,8 +2,9 @@ interface SeriesChipProps {
   /** The swatch colour. Omitted for a figure that is not drawn in the chart. */
   color?: string
   label: string
-  /** Already formatted: the chip does not know whether it holds events or milliseconds. */
-  value: string
+  /** Already formatted: the chip does not know whether it holds events or milliseconds. Left
+   *  out where the chip names a thing rather than measuring it (the level filters). */
+  value?: string
   pressed?: boolean
   /** Drawn faint while another chip in the group is the isolated one. */
   dimmed?: boolean
@@ -25,8 +26,8 @@ export function SeriesChip({ color, label, value, pressed, dimmed, onClick, titl
   const content = (
     <>
       {color && <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />}
-      <span className="text-fg-muted">{label}</span>
-      <span className="tabular font-medium text-fg">{value}</span>
+      <span className={pressed ? 'text-fg' : 'text-fg-muted'}>{label}</span>
+      {value !== undefined && <span className="tabular font-medium text-fg">{value}</span>}
     </>
   )
 

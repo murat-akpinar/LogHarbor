@@ -50,10 +50,12 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
   ]
 
   return (
-    <nav className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-surface px-4">
+    // eleven links do not fit a narrow window: the bar scrolls itself rather than pushing the
+    // page sideways, which used to give every page a horizontal scrollbar under ~1200px
+    <nav className="flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4">
       <Link
         to="/"
-        className="mr-6 flex items-center gap-2 rounded-lg text-sm font-semibold text-fg transition-colors duration-150 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
+        className="mr-6 flex shrink-0 items-center gap-2 rounded-lg text-sm font-semibold text-fg transition-colors duration-150 hover:text-accent focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none"
       >
         <span
           className="flex size-6 items-center justify-center rounded-md border border-border bg-surface-raised"
@@ -69,7 +71,7 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
           to={to}
           end={end}
           className={({ isActive }) =>
-            `flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
+            `flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-150 ${
               isActive
                 ? 'bg-surface-raised text-fg'
                 : 'text-fg-muted hover:bg-surface-hover hover:text-fg'
@@ -81,7 +83,7 @@ export function NavBar({ theme, onToggleTheme }: NavBarProps) {
         </NavLink>
       ))}
       {/* the two instance-wide switches, grouped as one control so they read apart from the pages */}
-      <div className="ml-auto flex items-center gap-1 rounded-lg border border-border p-0.5">
+      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-lg border border-border p-0.5">
         <Button
           variant="ghost"
           onClick={() => setLang(lang === 'en' ? 'tr' : 'en')}
