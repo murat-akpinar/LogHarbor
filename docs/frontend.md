@@ -514,6 +514,26 @@ shadow-card, font-sans, font-mono, ...). Components name a role, never a raw pal
 nothing else. The only exception is lib/levels.ts's LEVEL_HEX map and lib/series.ts's
 SERIES map, which name the same tokens for chart fills set as inline styles.
 
+--- FONTS ---
+
+One family for everything: CaskaydiaMono NF, self-hosted at two weights (Cascadia ships
+no 500, so SemiBold covers font-medium through font-bold). src/assets/fonts/fonts.css
+declares them.
+
+@font-face loads the *-Subset.woff2 files, not the upstream Nerd Fonts sitting beside
+them. The upstream pair is 2.4 MB, of which almost all is Private Use Area icon glyphs;
+the UI draws none of them (every icon is an SVG component), so those bytes were 81% of a
+cold load and never rendered a pixel. scripts/subset-fonts.py cuts each weight to ~29 KB,
+keeping Latin, Latin Extended-A (Turkish), punctuation, arrows, math, box drawing and
+dingbats -- whole blocks rather than only the characters the UI hard-codes, because log
+content is arbitrary text and should not drop to the fallback font mid-line.
+
+Re-run it after replacing an upstream file. It refuses to finish if the cut lost a
+character the UI's own source uses, and lists the five (arrow, magnifier, cross, resize,
+copy) that the upstream font never had and that already render in the browser's fallback.
+src/assets/fonts/fonts.test.ts keeps @font-face pointed at the subsets: swapping a URL
+back to a neighbouring original would look identical and silently cost 2.3 MB again.
+
 --- THEME: ONE, AND IT IS DARK ---
 
 There is no theme switch. The light theme was cut on 2026-07-31 (owner's call) rather than

@@ -23,5 +23,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Reads the font files off disk, so it needs node types the app must not have.
+     It is type-checked by tsconfig.node.json instead. */
+  "exclude": ["src/assets/fonts/fonts.test.ts"]
 }

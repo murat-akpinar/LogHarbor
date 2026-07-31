@@ -1,8 +1,13 @@
-/* CaskaydiaMono Nerd Font Mono (single-cell icon glyphs), self-hosted — see LICENSE (OFL).
-   Cascadia ships no 500 weight, so SemiBold covers Tailwind's font-medium through font-bold. */
+/* CaskaydiaMono Nerd Font Mono, self-hosted — see LICENSE (OFL).
+   Cascadia ships no 500 weight, so SemiBold covers Tailwind's font-medium through font-bold.
+
+   These load the -Subset files, not the upstream ones sitting next to them: the app
+   draws no Private Use Area glyphs at all, and the untouched Nerd Fonts were 2.4 MB,
+   81% of a cold load. scripts/subset-fonts.py cuts them to 29 KB each and documents
+   which ranges survive. Re-run it after replacing an upstream file. */
 @font-face {
   font-family: "CaskaydiaMono NF";
-  src: url("./CaskaydiaMonoNerdFontMono-Regular.woff2") format("woff2");
+  src: url("./CaskaydiaMonoNerdFontMono-Regular-Subset.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -10,7 +15,7 @@
 
 @font-face {
   font-family: "CaskaydiaMono NF";
-  src: url("./CaskaydiaMonoNerdFontMono-SemiBold.woff2") format("woff2");
+  src: url("./CaskaydiaMonoNerdFontMono-SemiBold-Subset.woff2") format("woff2");
   font-weight: 500 700;
   font-style: normal;
   font-display: swap;
