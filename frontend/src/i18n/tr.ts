@@ -2,6 +2,7 @@ import type { Messages } from './en'
 
 export const tr: Messages = {
   nav: {
+    send: 'Log gönder',
     events: 'Olaylar',
     dashboard: 'Panel',
     services: 'Servisler',

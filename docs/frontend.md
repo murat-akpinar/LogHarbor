@@ -412,11 +412,17 @@ picking an existing key names it in a comment above the snippet and leaves
 <your-api-key> standing. A viewer is told to ask an admin instead of being shown a
 create form that would 403.
 
-Reached from three places, which are the three where somebody realises they need it:
-the Settings -> Ingestion tab (one click from the key they just made), the first-run
-onboarding panel, and the dashboard's "no events yet" card. Deliberately NOT in the
-nav: eleven lenses already do not fit under ~1200px, and this is a setup task rather
-than a lens — the same reasoning that moved archive extraction into Settings.
+Reached from the Settings -> Ingestion tab (one click from the key they just made),
+the first-run onboarding panel, the dashboard's "no events yet" card, and the nav.
+
+It was kept OUT of the nav at first, on the reasoning that eleven lenses already do
+not fit under ~1200px and this is a setup task rather than a lens. That was wrong
+against the item's own requirement, and the owner reported it the same day: a page
+nobody can see is not a page. It is in the bar now, but not as a twelfth page tab —
+the bar became two zones, a lane the page tabs scroll inside and a pinned group at
+the right edge that never scrolls. That also fixed a bug nobody had reported: the
+language switch and the sign-out button used to scroll off the end with the last tab
+at ~1200px, because the whole bar was one scrolling row.
 
 --- REQUESTS PAGE ---
 

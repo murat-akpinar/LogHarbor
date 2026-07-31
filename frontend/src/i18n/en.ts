@@ -1,5 +1,6 @@
 export const en = {
   nav: {
+    send: 'Send logs',
     events: 'Events',
     dashboard: 'Dashboard',
     services: 'Services',

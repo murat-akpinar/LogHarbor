@@ -52,6 +52,19 @@ it('puts Events right after Dashboard, then the lens pages', () => {
   expect(labels.slice(1, 5)).toEqual(['Dashboard', 'Events', 'Requests', 'Exceptions'])
 })
 
+// getting data in is not a lens, so it is not a page tab — but it has to be on screen at every
+// width, which it was not when it lived only under Settings. It sits outside the lane the page
+// tabs scroll in, so a narrow window cannot push it off the end.
+it('pins the send-logs link outside the scrolling lane of page tabs', () => {
+  renderNav()
+  const send = screen.getByRole('link', { name: /Send logs/ })
+  expect(send.getAttribute('href')).toBe('/send')
+
+  const lane = screen.getByRole('link', { name: 'Dashboard' }).parentElement!
+  expect(lane.className).toContain('overflow-x-auto')
+  expect(lane.contains(send)).toBe(false)
+})
+
 it('takes the wordmark home', () => {
   renderNav()
   expect(screen.getByRole('link', { name: 'LogHarbor' }).getAttribute('href')).toBe('/')

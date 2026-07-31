@@ -5,6 +5,25 @@ import { PageIcon } from './icons'
 import type { PageIconName } from './icons'
 import { Button } from './ui/Button'
 
+/** An arrow dropping into a tray: data arriving. Not in icons.tsx — that set names pages. */
+function SendIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-4 shrink-0"
+      aria-hidden="true"
+    >
+      <path d="M12 3v10m0 0l4-4m-4 4l-4-4" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  )
+}
+
 /** Door with an arrow leaving it. Not in icons.tsx: that set names pages, and this is an action. */
 function SignOutIcon() {
   return (
@@ -44,9 +63,7 @@ export function NavBar() {
   ]
 
   return (
-    // eleven links do not fit a narrow window: the bar scrolls itself rather than pushing the
-    // page sideways, which used to give every page a horizontal scrollbar under ~1200px
-    <nav className="glass relative flex h-13 shrink-0 items-center gap-1 overflow-x-auto border-b border-border bg-surface px-4">
+    <nav className="glass relative flex h-13 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
       {/* a hairline of accent light along the bottom edge, brightest under the brand: the bar is
           translucent, so it needs an edge that is drawn rather than merely a colour change */}
       <span
@@ -65,6 +82,11 @@ export function NavBar() {
         </span>
         LogHarbor
       </Link>
+
+      {/* Eleven links do not fit a narrow window, so this lane scrolls rather than pushing the
+          page sideways. Only the page tabs are in it: everything to its right has to stay
+          reachable at every width, which is exactly what went wrong the first time. */}
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
       {links.map(({ to, label, end, icon }) => (
         <NavLink
           key={to}
@@ -94,8 +116,28 @@ export function NavBar() {
           )}
         </NavLink>
       ))}
+      </div>
+
+      {/* Getting data in is not a lens, so it is not a page tab — but it is the first thing a
+          new install needs and it was unfindable when it lived only under Settings (reported
+          2026-07-31: "info sayfası ekleyip deploy ettin mi göremedim arayüzde"). Pinned here,
+          outside the scrolling lane, so it is on screen at every width. */}
+      <NavLink
+        to="/send"
+        className={({ isActive }) =>
+          `flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-all duration-200 ${
+            isActive
+              ? 'border-accent/50 bg-accent/15 text-accent'
+              : 'border-border bg-surface-inset text-fg-muted hover:border-accent/40 hover:bg-accent/10 hover:text-accent'
+          }`
+        }
+      >
+        <SendIcon />
+        <span className="hidden sm:inline">{t.nav.send}</span>
+      </NavLink>
+
       {/* the instance-wide switches, grouped as one control so they read apart from the pages */}
-      <div className="ml-auto flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface-inset p-0.5">
+      <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border bg-surface-inset p-0.5">
         <Button
           variant="ghost"
           onClick={() => setLang(lang === 'en' ? 'tr' : 'en')}
