@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { HistogramBucket, Level } from '../types'
-import { ALERT_LEVELS, LEVELS, LEVEL_CHART, LEVEL_HEX, QUIET_LEVELS } from '../lib/levels'
+import type { HistogramBucket } from '../types'
+import { LEVELS, LEVEL_CHART, LEVEL_HEX, barSegments, sumLevels } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
 import { niceCeil } from '../lib/niceScale'
 import { useI18n } from '../i18n'
@@ -8,38 +8,13 @@ import { Card } from './ui/Card'
 
 const PLOT_HEIGHT_PX = 160
 
-function sumCounts(counts: Record<Level, number>): number {
-  return LEVELS.reduce((total, level) => total + counts[level], 0)
-}
-
-interface Segment {
-  key: string
-  count: number
-  color: string
-}
-
-/**
- * One bar's parts, bottom up.
- *
- * The quiet levels are summed into a single neutral block rather than stacked as three: drawn
- * separately they are three bands of the same colour, and the seams read as data that is not
- * there. Warning and above keep their own segment because that is the thing worth seeing.
- */
-function segmentsOf(counts: Record<Level, number>): Segment[] {
-  const quiet = QUIET_LEVELS.reduce((total, level) => total + counts[level], 0)
-  return [
-    { key: 'quiet', count: quiet, color: LEVEL_CHART.Information },
-    ...ALERT_LEVELS.map((level) => ({ key: level, count: counts[level], color: LEVEL_CHART[level] })),
-  ].filter((segment) => segment.count > 0)
-}
-
 interface TooltipProps {
   bucket: HistogramBucket
 }
 
 function BucketTooltip({ bucket }: TooltipProps) {
   const { t, lang } = useI18n()
-  const total = sumCounts(bucket.counts)
+  const total = sumLevels(bucket.counts)
   return (
     <Card className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 p-2 text-xs">
       <p className="mb-1 text-fg-muted">{formatTimestamp(bucket.start, lang)}</p>
@@ -93,14 +68,14 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
     return drag !== null && index >= Math.min(drag.anchor, drag.head) && index <= Math.max(drag.anchor, drag.head)
   }
 
-  const niceMax = niceCeil(Math.max(1, ...buckets.map((bucket) => sumCounts(bucket.counts))))
+  const niceMax = niceCeil(Math.max(1, ...buckets.map((bucket) => sumLevels(bucket.counts))))
 
   return (
     <div>
       <div className="flex min-w-0 items-end gap-[2px]" style={{ height: PLOT_HEIGHT_PX }}>
         {buckets.map((bucket, index) => {
-            const total = sumCounts(bucket.counts)
-            const segments = segmentsOf(bucket.counts)
+            const total = sumLevels(bucket.counts)
+            const segments = barSegments(bucket.counts)
             return (
               <button
                 key={bucket.start}

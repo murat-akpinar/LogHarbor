@@ -15,6 +15,34 @@ const SUMMARY = {
   total: 200,
   byLevel: { Verbose: 0, Debug: 0, Information: 133, Warning: 57, Error: 10, Fatal: 10 },
 }
+const BUCKET_START = '2026-07-24T10:00:00.000Z'
+const NEXT_BUCKET = '2026-07-24T10:01:00.000Z'
+// the same two columns every lane of the timeline is drawn on; the volume buckets add up to
+// SUMMARY, because the chart and the summary are two readings of one window
+const VOLUME = {
+  buckets: [
+    { start: BUCKET_START, counts: { Verbose: 0, Debug: 0, Information: 100, Warning: 40, Error: 6, Fatal: 4 } },
+    { start: NEXT_BUCKET, counts: { Verbose: 0, Debug: 0, Information: 33, Warning: 17, Error: 4, Fatal: 6 } },
+  ],
+}
+function statusBuckets(first: number, second: number) {
+  const zero = { Verbose: 0, Debug: 0, Warning: 0, Error: 0, Fatal: 0 }
+  return {
+    buckets: [
+      { start: BUCKET_START, counts: { ...zero, Information: first } },
+      { start: NEXT_BUCKET, counts: { ...zero, Information: second } },
+    ],
+  }
+}
+const LATENCY = {
+  avgMs: 24,
+  p95Ms: 180,
+  sampled: 200,
+  buckets: [
+    { start: BUCKET_START, avgMs: 22, p95Ms: 140 },
+    { start: NEXT_BUCKET, avgMs: 26, p95Ms: 220 },
+  ],
+}
 const TOP_ERRORS = {
   errors: [{ template: 'Order {OrderId} failed', level: 'Error', count: 42, firstSeen: ISO, lastSeen: ISO }],
 }
@@ -46,7 +74,14 @@ const LAG = {
 
 vi.mock('../api/stats', () => ({
   getSummary: vi.fn(async () => SUMMARY),
-  getHistogram: vi.fn(async () => ({ buckets: [] })),
+  // one endpoint feeds four series: the volume lane unfiltered, the request lane per class
+  getHistogram: vi.fn(async (params: { filter?: string }) => {
+    if (params.filter?.includes('StatusCode >= 500')) return statusBuckets(2, 1)
+    if (params.filter?.includes('StatusCode >= 400')) return statusBuckets(7, 5)
+    if (params.filter?.includes('StatusCode < 400')) return statusBuckets(80, 40)
+    return VOLUME
+  }),
+  getLatency: vi.fn(async () => LATENCY),
   getHeatmap: vi.fn(async () => ({ cells: [] })),
   getIngestionLag: vi.fn(async () => LAG),
   getTopErrors: vi.fn(async () => TOP_ERRORS),
@@ -80,10 +115,9 @@ afterEach(() => {
 describe('DashboardPage', () => {
   it('shows the error rate and level breakdown from the summary', async () => {
     renderPage()
-    // rate = (Error 10 + Fatal 10) / total 200 = 10.0%, shown twice on purpose: once as the
-    // glance tile and once as the Errors card's own breakdown
-    expect(await screen.findAllByText('10.0%')).toHaveLength(2)
-    // EVENTS card breakdown shows the warning count
+    // rate = (Error 10 + Fatal 10) / total 200 = 10.0%, and it reads once: the glance tile
+    expect(await screen.findAllByText('10.0%')).toHaveLength(1)
+    // the volume lane's legend is its readout, so the warning count is in it
     expect(screen.getByText('57')).toBeDefined()
   })
 
@@ -101,7 +135,6 @@ describe('DashboardPage', () => {
     )
 
     const { container } = renderPage()
-    // the headline figures live in the Activity cards; there is no separate band of tiles
     expect(await screen.findByText('Activity')).toBeDefined()
 
     // events 200 against 100, errors 20 against 40
@@ -116,7 +149,6 @@ describe('DashboardPage', () => {
     vi.mocked(stats.getSummary).mockImplementation(async (params) => (params.to < cutoff ? EMPTY : SUMMARY))
 
     const { container } = renderPage()
-    // the headline figures live in the Activity cards; there is no separate band of tiles
     expect(await screen.findByText('Activity')).toBeDefined()
 
     await waitFor(() => expect(container.textContent).toContain('200'))
@@ -138,6 +170,33 @@ describe('DashboardPage', () => {
     expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toContain(
       '/requests?status=server',
     )
+  })
+
+  // four charts with four time axes made the reader measure across the page; one axis means a
+  // slow minute and the errors inside it are the same column
+  it('draws volume, duration and requests as lanes of one timeline', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Duration')).toBeDefined()
+    expect(screen.getByText('Requests')).toBeDefined()
+    // one axis for three lanes: the window's start is printed once on the whole card
+    expect(await screen.findAllByText(new Date(BUCKET_START).toLocaleString('en'))).toHaveLength(1)
+  })
+
+  it('reads every lane off the column under the pointer', async () => {
+    renderPage()
+
+    const columns = await screen.findAllByRole('button', { name: /events$/ })
+    expect(columns).toHaveLength(2)
+
+    // the lane legends hold the window's figures until a column is picked out
+    expect(screen.queryByText('22 ms')).toBeNull()
+    fireEvent.mouseEnter(columns[0])
+
+    // one readout for the whole column: volume, duration and status at that instant
+    expect(await screen.findByText('22 ms')).toBeDefined()
+    expect(screen.getByText('140 ms')).toBeDefined()
+    expect(screen.getByText('150')).toBeDefined()
   })
 
   it('groups content under sections and links Activity to Events', async () => {

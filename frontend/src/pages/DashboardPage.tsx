@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   useHeatmap,
@@ -14,18 +14,13 @@ import {
   useTopExceptions,
   useUserActivity,
 } from '../hooks/useStats'
-import { MetricCard } from '../components/dashboard/MetricCard'
+import { ActivityTimeline, TIMELINE_BUCKETS } from '../components/dashboard/ActivityTimeline'
 import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { StatTile } from '../components/StatTile'
-import { StatusChart } from '../components/requests/StatusChart'
-import type { StatusClass } from '../components/requests/StatusChart'
-import { PillLink } from '../components/ui/PillLink'
-import { TrendLine } from '../components/Sparkline'
 import { formatDuration } from '../lib/duration'
-import { formatTimestamp } from '../lib/dates'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { TopErrorsPanel } from '../components/dashboard/TopErrorsPanel'
@@ -34,21 +29,16 @@ import { ServicesPanel } from '../components/dashboard/ServicesPanel'
 import { SlowOpsPanel } from '../components/dashboard/SlowOpsPanel'
 import { RoutesPanel } from '../components/dashboard/RoutesPanel'
 import { UsersPanel } from '../components/dashboard/UsersPanel'
-import { Histogram } from '../components/Histogram'
 import { Heatmap } from '../components/Heatmap'
 import { Card } from '../components/ui/Card'
 import type { HistogramBucket } from '../types'
 import { LEVELS, LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
-// A skyline, not a bar chart: enough columns that the shape of an hour is legible and each
-// column is thin enough to read as a tick. Twenty-four stretched across a card gave slabs.
-const BUCKET_COUNT = 60
 const PANEL_LIMIT = 5
 // the services panel shows the top few, but the section header counts them, so the query has to
 // see more than five. 100 is the endpoint's ceiling, which is why it says "100+" when it hits it
 const SERVICE_SCAN_LIMIT = 100
-const ERROR_FILTER = "@Level = 'Error' or @Level = 'Fatal'"
 // deliberately not tied to the page's time range: a client that broke on Friday is still
 // broken on Monday, and the operator needs to see that on a dashboard set to "last hour"
 const REJECTION_DAYS = 7
@@ -79,14 +69,10 @@ export function DashboardPage() {
 
   const summary = useSummary(range)
   const previousSummary = useSummary(previousRange)
-  const histogram = useHistogram({ ...range, buckets: BUCKET_COUNT })
-  const errorHistogram = useHistogram({ ...range, buckets: BUCKET_COUNT, filter: ERROR_FILTER })
+  const histogram = useHistogram({ ...range, buckets: TIMELINE_BUCKETS })
   const heatmap = useHeatmap(range)
   const ingestionLag = useIngestionLag(range)
-  // isolating a status class is a way of looking at this chart, not a filter on the page: the
-  // panels around it keep answering about everything
-  const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
-  const latency = useLatency({ ...range, buckets: BUCKET_COUNT })
+  const latency = useLatency({ ...range, buckets: TIMELINE_BUCKETS })
   const rejections = useIngestRejections(REJECTION_DAYS)
   const topErrors = useTopErrors({ ...range, limit: PANEL_LIMIT })
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
@@ -105,7 +91,9 @@ export function DashboardPage() {
   const previousByLevel = previousSummary.data?.byLevel
   const previousErrors = (previousByLevel?.Error ?? 0) + (previousByLevel?.Fatal ?? 0)
   const eventTrend = trendOf(histogram.data?.buckets)
-  const errorTrend = trendOf(errorHistogram.data?.buckets)
+  // the same buckets the volume chart draws, read for their top two levels: an error series is
+  // a slice of the volume series, not a second query
+  const errorTrend = (histogram.data?.buckets ?? []).map((bucket) => bucket.counts.Error + bucket.counts.Fatal)
   // a gap in a latency series is "nothing was timed here", and the line carries it as a flat
   // stretch rather than a drop to zero, which would read as "it got fast"
   const avgTrend = (latency.data?.buckets ?? []).map((bucket) => bucket.avgMs ?? 0)
@@ -206,128 +194,30 @@ export function DashboardPage() {
         />
       </div>
 
-      {/* Activity: the pulse of raw volume and errors over time. The figures that used to sit
-          in a band of tiles above this are the same figures these cards already lead with. */}
+      {/* Activity: volume, duration and requests over one time axis. They were four cards with
+          four axes, which made comparing them a job for the reader's eyes; the lanes share a
+          hover, a brush and a window, so a slow minute and the errors in it line up. */}
       <SectionBlock
         icon="events"
         title={t.dashboard.activity}
         to="/events"
         linkLabel={t.dashboard.viewAll}
       >
-        {/* sits above the volume charts on purpose: it says whether to trust their x-axis */}
+        {/* sits above the timeline on purpose: it says whether to trust its x-axis */}
         {ingestionLag.data && (
           <div className="mb-3">
             <IngestionLagStrip lag={ingestionLag.data.lag} />
           </div>
         )}
-        <div className="grid gap-3 lg:grid-cols-2">
-          <MetricCard
-            eyebrow={t.nav.events}
-            value={compact(total)}
-            delta={percentChange(total, previousSummary.data?.total ?? 0)}
-            // the swatches are the chart's key, so they take the chart's colours: everything
-            // below Warning draws neutral, which is what the Information swatch says here
-            breakdown={[
-              { label: t.dashboard.info, value: compact(byLevel?.Information ?? 0), color: LEVEL_CHART.Information },
-              { label: t.dashboard.warn, value: compact(byLevel?.Warning ?? 0), color: LEVEL_CHART.Warning },
-              { label: t.dashboard.errors, value: compact(errors), color: LEVEL_CHART.Error },
-            ]}
-          >
-            {histogram.data && (
-              <div className={histogram.isFetching ? 'opacity-60 transition-opacity' : ''}>
-                <Histogram
-                  buckets={histogram.data.buckets}
-                  rangeEnd={range.to}
-                  onBucketClick={goToEvents}
-                  onBrush={(from, to) => setRange({ from, to })}
-                  showLegend={false}
-                />
-              </div>
-            )}
-          </MetricCard>
-
-          {/* The reference's second Activity chart: how long things took, not how many there
-              were. Two lines on one scale, because an average drawn against its own maximum
-              would sit at the same height as the p95 above it and hide the gap. */}
-          <MetricCard
-            eyebrow={t.dashboard.duration}
-            value={
-              latency.data && latency.data.sampled > 0
-                ? `${formatDuration(latency.data.avgMs, lang)} — ${formatDuration(latency.data.p95Ms, lang)}`
-                : '—'
-            }
-            breakdown={[
-              { label: t.dashboard.avg, value: formatDuration(latency.data?.avgMs ?? null, lang), color: LEVEL_CHART.Information },
-              { label: t.analysis.p95, value: formatDuration(latency.data?.p95Ms ?? null, lang), color: LEVEL_CHART.Warning },
-            ]}
-          >
-            {latency.data && (
-              <div className={latency.isFetching ? 'opacity-60 transition-opacity' : ''}>
-                {latency.data.sampled > 0 ? (
-                  <>
-                    <TrendLine
-                      series={[
-                        { values: avgTrend, color: LEVEL_CHART.Information },
-                        { values: p95Trend, color: LEVEL_CHART.Warning },
-                      ]}
-                      className="h-40 w-full"
-                    />
-                    <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
-                      <span>{formatTimestamp(range.from, lang)}</span>
-                      <span>{formatTimestamp(range.to, lang)}</span>
-                    </div>
-                  </>
-                ) : (
-                  // "nothing here was timed" is a different answer from "everything was quick"
-                  <p className="py-10 text-center text-sm text-fg-muted">{t.dashboard.nothingTimed}</p>
-                )}
-              </div>
-            )}
-          </MetricCard>
-
-          {/* The request timeline, sampled here: the shape of 4xx and 5xx over the window is
-              worth a glance before anyone opens the Requests page for the routes behind it.
-              The class chips isolate a class in the chart, exactly as they do on that page —
-              they look like a filter, so they are one. Leaving is the pill's job. */}
-          <Panel className="p-5">
-            <StatusChart
-              from={range.from}
-              to={range.to}
-              title={t.nav.requests}
-              action={
-                <PillLink to={statusClass ? `/requests?status=${statusClass}` : '/requests'}>
-                  {t.dashboard.viewAll}
-                </PillLink>
-              }
-              selected={statusClass}
-              onSelect={setStatusClass}
-            />
-          </Panel>
-
-          <MetricCard
-            eyebrow={t.dashboard.errors}
-            value={compact(errors)}
-            delta={percentChange(errors, previousErrors)}
-            upIsBad
-            breakdown={[
-              // a rate is not a series in the chart below, so it carries no swatch
-              { label: t.dashboard.rate, value: `${errorRate.toFixed(1)}%` },
-              { label: t.dashboard.fatal, value: compact(byLevel?.Fatal ?? 0), color: LEVEL_CHART.Fatal },
-            ]}
-          >
-            {errorHistogram.data && (
-              <div className={errorHistogram.isFetching ? 'opacity-60 transition-opacity' : ''}>
-                <Histogram
-                  buckets={errorHistogram.data.buckets}
-                  rangeEnd={range.to}
-                  onBucketClick={goToEvents}
-                  onBrush={(from, to) => setRange({ from, to })}
-                  showLegend={false}
-                />
-              </div>
-            )}
-          </MetricCard>
-        </div>
+        <ActivityTimeline
+          buckets={histogram.data?.buckets ?? []}
+          latency={latency.data}
+          from={range.from}
+          to={range.to}
+          onBucketClick={goToEvents}
+          onBrush={(from, to) => setRange({ from, to })}
+          fetching={histogram.isFetching || latency.isFetching}
+        />
       </SectionBlock>
 
       {/* Analysis: what is failing and what is slow */}

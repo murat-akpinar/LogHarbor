@@ -4,11 +4,11 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
 
 --- PAGES ---
 
-/            Dashboard (home): a sectioned monitoring overview — Activity (Events +
-             Errors metric cards, each a big figure + breakdown + stacked histogram),
-             Analysis (top errors, exceptions, slowest ops), Services & users, and an
-             hour-of-day heatmap; a Live toggle auto-refreshes a rolling last-hour
-             window. (/dashboard is an alias of /.)
+/            Dashboard (home): a sectioned monitoring overview — a glance band of stat
+             tiles, Activity (one timeline: volume, duration and requests as three
+             lanes of a single time axis), Analysis (top errors, exceptions, slowest
+             ops), Services & users, and an hour-of-day heatmap; a Live toggle
+             auto-refreshes a rolling last-hour window. (/dashboard is an alias of /.)
 /events      Events page: search bar (with autocomplete), level filter chips, event
              list, live tail toggle, export (JSON/CSV)
 /requests    Operations RED table as its own lens (events/min, error %, p95 Elapsed,
@@ -57,7 +57,7 @@ frontend/src/
                 SignalsPage, AlertsPage, SettingsPage
   hooks/        useLiveTail (SignalR), useEventSearch (React Query), useTheme (dark mode)
   i18n/         typed TR/EN dictionaries (en.ts source of truth, tr.ts typed as Messages) + LanguageProvider/useI18n
-  lib/          formatting helpers (dates, levels, colors, suggestContext)
+  lib/          formatting helpers (dates, levels, status classes, colors, suggestContext)
   types/        Event, Signal, AlertRule, User, ApiKey, shared DTO types
 
 --- LANGUAGES ---
@@ -175,12 +175,22 @@ a rolling last-hour window (React Query refetch as the window's end ticks;
 keepPreviousData avoids skeleton flashes; pauses when the tab is backgrounded).
 Pausing (or brushing a histogram) freezes on the current window and reveals the
 TimeRangePicker for a static range; going live again resumes the rolling window.
-Section "Activity" (-> Events): two MetricCards — an eyebrow label, one big figure,
-a right-aligned breakdown that doubles as the chart's colour key, and a stacked
-histogram below. EVENTS shows the total + Info/Warn/Error breakdown over all levels;
-ERRORS shows the Error+Fatal count + error rate, its histogram filtered to
-Error/Fatal (Histogram's showLegend=false; the breakdown is the key). Clicking a bar
-opens Events at that slice; dragging across bars freezes+zooms.
+Section "Activity" (-> Events): one chart, components/dashboard/ActivityTimeline.tsx.
+Three lanes share a single time axis, a single hover and a single brush: EVENTS
+(volume, stacked by severity — errors are the red part of the volume bars, not a
+second chart), DURATION (avg and p95 as two lines on one scale) and REQUESTS
+(1/2/3xx / 4xx / 5xx stacked, the class chips isolating one in the lane exactly as
+they do on the Requests page). They were four cards with four axes until 2026-07-31,
+which left the reader measuring across the page to line a latency spike up with the
+errors that caused it. Each lane's chips are its colour key and its readout; pointing
+at a column lights the same column in all three lanes and opens one card with every
+lane's numbers for that instant, over the lane the pointer is in. Clicking a column
+opens Events at that slice; dragging across columns freezes+zooms all three lanes.
+Every series is fetched at ActivityTimeline's TIMELINE_BUCKETS width so the lanes
+land on the same columns; the error series is read out of the volume buckets rather
+than queried again. The glance band above (StatTile x5: events, error rate, avg, p95,
+active services) carries the headline figures and the comparison against the previous
+window, so the chart repeats none of it.
 Section "Analysis" (-> Analysis): compact top-5 panels — top errors, top exceptions,
 Routes (busiest operations by /api/stats/operations, message template + p95 latency)
 and slowest operations. Error, route and slow-op rows deep-link to filtered Events;

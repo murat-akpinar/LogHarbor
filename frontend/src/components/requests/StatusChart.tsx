@@ -2,7 +2,10 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useHistogram } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
-import { LEVELS, LEVEL_CHART } from '../../lib/levels'
+import { SeriesChip } from '../ui/SeriesChip'
+import { LEVELS } from '../../lib/levels'
+import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
+import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
 import { niceCeil } from '../../lib/niceScale'
 import { useI18n } from '../../i18n'
@@ -11,23 +14,6 @@ import { useI18n } from '../../i18n'
 // read as a tick rather than a slab
 const BUCKET_COUNT = 60
 const PLOT_HEIGHT_PX = 128
-
-/** Status classes as query-language filters; the page reuses them to narrow its table. */
-export const STATUS_FILTERS = {
-  ok: 'StatusCode < 400',
-  client: 'StatusCode >= 400 and StatusCode < 500',
-  server: 'StatusCode >= 500',
-} as const
-
-export type StatusClass = keyof typeof STATUS_FILTERS
-
-const SERIES: { key: StatusClass; label: string; color: string }[] = [
-  // the healthy class draws neutral: a wall of colour says nothing, and 4xx/5xx have to be the
-  // only things in this chart that catch the eye
-  { key: 'ok', label: '1/2/3xx', color: LEVEL_CHART.Information },
-  { key: 'client', label: '4xx', color: LEVEL_CHART.Warning },
-  { key: 'server', label: '5xx', color: LEVEL_CHART.Error },
-]
 
 interface StatusChartProps {
   from: string
@@ -59,7 +45,7 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
     server: useHistogram({ ...shared, filter: STATUS_FILTERS.server }),
   }
 
-  const series = SERIES.map((entry) => ({
+  const series = STATUS_SERIES.map((entry) => ({
     ...entry,
     data: bucketTotals(queries[entry.key].data?.buckets),
     dimmed: selected !== null && selected !== entry.key,
@@ -84,22 +70,16 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
         </h2>
         <div className="flex items-center gap-1.5">
           {series.map(({ key, label, color, data, dimmed }) => (
-            <button
+            <SeriesChip
               key={key}
-              type="button"
+              color={color}
+              label={label}
+              value={compact(data.reduce((a, b) => a + b, 0))}
+              pressed={selected === key}
+              dimmed={dimmed}
               onClick={() => onSelect(selected === key ? null : key)}
-              aria-pressed={selected === key}
               title={selected === key ? t.requests.showAll : t.requests.onlyThis(label)}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                selected === key
-                  ? 'border-accent/50 bg-accent/10 text-fg'
-                  : `border-border-strong bg-surface hover:bg-surface-hover ${dimmed ? 'opacity-50' : ''}`
-              }`}
-            >
-              <span className="size-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
-              <span className="text-fg-muted">{label}</span>
-              <span className="tabular font-medium text-fg">{compact(data.reduce((a, b) => a + b, 0))}</span>
-            </button>
+            />
           ))}
         </div>
       </div>

@@ -35,10 +35,14 @@ export function TrendBars({
  * as a saw even when the underlying rate is steady, and the shape is the only thing a line
  * this size is for. The curve still passes through every point, so no peak is smoothed away.
  */
-function smoothPath(values: number[], max: number): string {
+function smoothPath(values: number[], max: number, centered: boolean): string {
   if (values.length === 0) return ''
   const points = values.map((value, index) => ({
-    x: values.length === 1 ? 50 : (index / (values.length - 1)) * 100,
+    x: centered
+      ? ((index + 0.5) / values.length) * 100
+      : values.length === 1
+        ? 50
+        : (index / (values.length - 1)) * 100,
     y: 100 - (value / max) * 100,
   }))
   if (points.length === 1) return `M0,${points[0].y} L100,${points[0].y}`
@@ -72,9 +76,13 @@ export interface TrendSeries {
 export function TrendLine({
   series,
   className = 'h-5 w-16',
+  centered = false,
 }: {
   series: TrendSeries[]
   className?: string
+  /** Puts each point over its bucket's centre instead of spanning edge to edge — what a line
+   *  drawn over bucketed bars needs, so a peak in the line sits on the bar that caused it. */
+  centered?: boolean
 }) {
   const max = Math.max(1, ...series.flatMap((line) => line.values))
   return (
@@ -88,7 +96,7 @@ export function TrendLine({
       {series.map((line) => (
         <path
           key={line.color}
-          d={smoothPath(line.values, max)}
+          d={smoothPath(line.values, max, centered)}
           stroke={line.color}
           strokeWidth={1.5}
           strokeLinecap="round"

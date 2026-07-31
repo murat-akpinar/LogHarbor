@@ -39,6 +39,32 @@ export const LEVEL_CHART: Record<Level, string> = {
 export const QUIET_LEVELS: Level[] = ['Verbose', 'Debug', 'Information']
 export const ALERT_LEVELS: Level[] = ['Warning', 'Error', 'Fatal']
 
+/** Every level in one bucket, summed: what the bucket holds regardless of severity. */
+export function sumLevels(counts: Record<Level, number>): number {
+  return LEVELS.reduce((total, level) => total + counts[level], 0)
+}
+
+export interface BarSegment {
+  key: string
+  count: number
+  color: string
+}
+
+/**
+ * One bar's parts, bottom up.
+ *
+ * The quiet levels are summed into a single neutral block rather than stacked as three: drawn
+ * separately they are three bands of the same colour, and the seams read as data that is not
+ * there. Warning and above keep their own segment because that is the thing worth seeing.
+ */
+export function barSegments(counts: Record<Level, number>): BarSegment[] {
+  const quiet = QUIET_LEVELS.reduce((total, level) => total + counts[level], 0)
+  return [
+    { key: 'quiet', count: quiet, color: LEVEL_CHART.Information },
+    ...ALERT_LEVELS.map((level) => ({ key: level, count: counts[level], color: LEVEL_CHART[level] })),
+  ].filter((segment) => segment.count > 0)
+}
+
 // CSS variable references, not hex: every consumer (Histogram, Heatmap, AnalysisPage) sets
 // these as an inline style (backgroundColor), never a Tailwind class, so pointing at the
 // same tokens the rest of the UI uses lets chart colours follow the active theme.
