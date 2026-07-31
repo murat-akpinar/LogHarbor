@@ -75,13 +75,16 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<TailSubscriptions>();
 builder.Services.AddSingleton<TailBroadcaster>();
 
-// The SPA bundle went out uncompressed: 555 KB of JavaScript and 56 KB of CSS on every cold
-// load, which gzip takes to 155 KB and 10 KB. Kestrel serves wwwroot itself here — there is no
-// reverse proxy in the single-container deployment to do this for us.
+// The SPA bundle went out uncompressed: 555 KB of JavaScript on every cold load, which the
+// settings below take to about 184 KB. Kestrel serves wwwroot itself here — there is no reverse
+// proxy in the single-container deployment to have done this for us.
 builder.Services.AddResponseCompression(options =>
 {
-    // the bundle is fetched over plain HTTP inside the container's network as often as not, and
-    // BREACH needs a secret in the response body to be worth anything: static assets have none
+    // On the API responses this also covers, the risk to weigh is BREACH: it needs a secret in a
+    // compressed body alongside attacker-controlled input, and the browser able to make the
+    // credentialed request cross-site. The session cookie is SameSite=Strict, which denies the
+    // last of those outright, and the one body that ever carries a secret — the token POST
+    // /api/apikeys returns once — cannot be provoked from another origin for the same reason.
     options.EnableForHttps = true;
     options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
     [
@@ -343,7 +346,23 @@ app.MapHub<TailHub>("/hubs/tail");
 // compressed and are left alone by the MIME list above
 app.UseResponseCompression();
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    // Vite writes the build hash into every asset filename, so /assets/index-BtHkyxCk.js can only
+    // ever hold that one build: it is safe to keep for a year and never revalidate. Without this
+    // the browser asked about all 2.9 MB of bundle and fonts on every single load, and paid a
+    // round trip per file to be told "not modified".
+    //
+    // index.html is the one file that must NOT be cached — it is what names the current hashes,
+    // so a stale copy pins the reader to the previous deploy forever.
+    OnPrepareResponse = context =>
+    {
+        var headers = context.Context.Response.Headers;
+        headers.CacheControl = context.Context.Request.Path.StartsWithSegments("/assets")
+            ? "public, max-age=31536000, immutable"
+            : "no-cache";
+    },
+});
 app.MapFallback(async context =>
 {
     // an unknown /api or /hubs path is a client error, not a deep link: answering with the SPA's
@@ -362,6 +381,9 @@ app.MapFallback(async context =>
         return;
     }
     context.Response.ContentType = "text/html";
+    // deep links land here rather than on UseStaticFiles, so they need the same "always ask"
+    // that index.html gets there — this is the file that names the current bundle hashes
+    context.Response.Headers.CacheControl = "no-cache";
     await context.Response.SendFileAsync(indexPath);
 });
 

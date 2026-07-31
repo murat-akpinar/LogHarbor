@@ -133,6 +133,37 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.Equal(3, rows["GET /a"].GetProperty("total").GetInt64());
     }
 
+    // the trend is aggregated only for the rows that survive the limit, so the limit and the
+    // aggregation have to agree on which rows those are — get that wrong and the busiest row comes
+    // back with somebody else's strip, or none
+    [Fact]
+    public async Task Operations_StillTrendsTheRowItKeeps_WhenTheLimitCutsTheRest()
+    {
+        // 2026-07-12: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            // the busy one: three events, two of them in the first quarter
+            new Event(0, "2026-07-12T10:00:00.0000000Z", "Information", "ok", "GET /busy",
+                """{"Path":"/busy","Method":"GET"}""", null, "2026-07-12T10:00:00.0000000Z"),
+            new Event(0, "2026-07-12T10:05:00.0000000Z", "Information", "ok", "GET /busy",
+                """{"Path":"/busy","Method":"GET"}""", null, "2026-07-12T10:05:00.0000000Z"),
+            new Event(0, "2026-07-12T10:50:00.0000000Z", "Information", "ok", "GET /busy",
+                """{"Path":"/busy","Method":"GET"}""", null, "2026-07-12T10:50:00.0000000Z"),
+            // the quiet one, which limit=1 must drop
+            new Event(0, "2026-07-12T10:30:00.0000000Z", "Information", "ok", "GET /quiet",
+                """{"Path":"/quiet","Method":"GET"}""", null, "2026-07-12T10:30:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/operations?from=2026-07-12T10:00:00Z&to=2026-07-12T11:00:00Z&trendBuckets=4&limit=1");
+
+        var row = page.GetProperty("operations").EnumerateArray().Single();
+        Assert.Equal("GET /busy", row.GetProperty("template").GetString());
+        var trend = row.GetProperty("trend").EnumerateArray().Select(v => v.GetInt64()).ToArray();
+        Assert.Equal([2, 0, 0, 1], trend);
+    }
+
     [Fact]
     public async Task Operations_OmitsTrend_WhenNotAsked()
     {

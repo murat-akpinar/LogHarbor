@@ -579,15 +579,16 @@ public sealed class SqliteEventStore : IEventStore
         // so json_extract ran once per *reference* — route and method are each named three times
         // below — rather than once per row. Forcing it to materialize cut the whole query by 41%
         // on 200k events (1254 ms -> 740 ms), which is what pays for the fold underneath it.
-        // the trend rides along in this same query rather than in one histogram request per row:
-        // the rows are already grouped here, and counting them per bucket costs one more GROUP BY
-        // over a CTE that has been materialized anyway
+        // The trend rides along in this same query rather than in one histogram request per row:
+        // the rows are already grouped here, so counting them per bucket is one more GROUP BY over
+        // a CTE that has been materialized anyway.
+        //
+        // Bucket width is computed the way GetHistogramAsync computes it — same arithmetic, so a
+        // row's strip and the chart above it cut time at exactly the same instants. Epsilon rather
+        // than a zero guard: the API rejects to <= from, but this is a public store method and a
+        // division by zero here would silently put every event in one NULL bucket.
         var bucketSeconds = wantsTrend
-            ? Math.Max(
-                double.Epsilon,
-                (DateTimeOffset.Parse(toUtc, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal)
-                 - DateTimeOffset.Parse(fromUtc, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal))
-                .TotalSeconds / trendBuckets)
+            ? Math.Max(double.Epsilon, (ParseUtc(toUtc) - ParseUtc(fromUtc)).TotalSeconds / trendBuckets)
             : 0;
         var trendTs = wantsTrend ? ", timestamp AS ts" : "";
         var carryTs = wantsTrend ? ", ts" : "";
@@ -624,13 +625,21 @@ public sealed class SqliteEventStore : IEventStore
             "COUNT(*) OVER (PARTITION BY label) AS n FROM k WHERE ms IS NOT NULL), " +
             "p AS (SELECT label, MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM r GROUP BY label) " +
             (wantsTrend
-                // one [bucket, count] pair per bucket the group actually has events in. Sparse on
-                // purpose: an idle route over 24 buckets is two numbers here instead of twenty-four,
-                // and C# fills the gaps with zeroes anyway. Same bucket_index arithmetic as
-                // GetHistogramAsync, so a row's strip and the chart above it cut time identically.
-                ? ", b AS (SELECT label, " +
-                  "CAST((julianday(ts) - julianday(@from)) * 86400.0 / @bucketSeconds AS INTEGER) AS bi, " +
-                  "COUNT(*) AS c FROM k GROUP BY label, bi), " +
+                // Only the rows that survive the LIMIT get a strip: the ORDER BY ... LIMIT at the
+                // bottom cannot reach back into a CTE, so without `top` every group was bucketed
+                // and JSON-encoded and then all but fifty thrown away. `top` orders exactly as the
+                // final SELECT does, so it picks the same rows.
+                // Worth having but not dramatic — measured over 3,000 template groups, the trend
+                // cost +13ms on top of the query without it, and +9ms with this. SQLite is simply
+                // good at grouping small sets; the saving is proportional to how far the group
+                // count runs past the limit.
+                ? ", top AS (SELECT label FROM s ORDER BY total DESC, label LIMIT @limit), " +
+                  // one [bucket, count] pair per bucket the group actually has events in. Sparse on
+                  // purpose: an idle route over 24 buckets is two numbers instead of twenty-four,
+                  // and C# fills the gaps with zeroes anyway.
+                  "b AS (SELECT k.label AS label, " +
+                  "CAST((julianday(k.ts) - julianday(@from)) * 86400.0 / @bucketSeconds AS INTEGER) AS bi, " +
+                  "COUNT(*) AS c FROM k JOIN top ON top.label = k.label GROUP BY k.label, bi), " +
                   "t AS (SELECT label, json_group_array(json_array(bi, c)) AS trend FROM b GROUP BY label) " +
                   "SELECT s.label, s.total, s.errors, p.p95, s.method, s.route, s.folded, t.trend " +
                   "FROM s LEFT JOIN p ON p.label = s.label LEFT JOIN t ON t.label = s.label " +
@@ -659,13 +668,20 @@ public sealed class SqliteEventStore : IEventStore
         return rows;
     }
 
+    /// <summary>A stored ISO-8601 timestamp as an instant. The fixed format is ours, written by
+    /// ClefParser.FormatTimestamp, so a failure to parse is a bug rather than bad input.</summary>
+    private static DateTimeOffset ParseUtc(string timestamp) =>
+        DateTimeOffset.Parse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+
     /// <summary>
     /// The sparse [[bucket, count], ...] SQLite aggregated, widened to one number per bucket.
     /// </summary>
     /// <remarks>
     /// Out-of-range indices are clamped rather than dropped, for the same reason
     /// GetHistogramAsync clamps: an event landing exactly on `to` can float-round one bucket past
-    /// the end, and losing it would make a row's strip disagree with its own total.
+    /// the end, and losing it would make a row's strip disagree with its own total. A pair that is
+    /// not two numbers is skipped instead of throwing — julianday() answers NULL for a timestamp
+    /// it cannot read, and one unparseable row must not cost the whole response.
     /// </remarks>
     private static long[] ExpandTrend(string json, int buckets)
     {
@@ -673,9 +689,12 @@ public sealed class SqliteEventStore : IEventStore
         using var document = JsonDocument.Parse(json);
         foreach (var pair in document.RootElement.EnumerateArray())
         {
-            if (pair.GetArrayLength() < 2) continue;
-            var index = (int)Math.Clamp(pair[0].GetInt64(), 0, buckets - 1);
-            counts[index] += pair[1].GetInt64();
+            if (pair.ValueKind != JsonValueKind.Array || pair.GetArrayLength() < 2) continue;
+            // ValueKind first: TryGetInt64 throws on anything that is not a Number, so it is no
+            // guard on its own, and a NULL bucket index arrives here as JsonValueKind.Null
+            if (pair[0].ValueKind != JsonValueKind.Number || pair[1].ValueKind != JsonValueKind.Number) continue;
+            if (!pair[0].TryGetInt64(out var bucket) || !pair[1].TryGetInt64(out var count)) continue;
+            counts[(int)Math.Clamp(bucket, 0, buckets - 1)] += count;
         }
         return counts;
     }
