@@ -13,10 +13,13 @@ interface ServiceStatusBoardProps {
  * Filled dot = the probe got an answer, hollow = it did not (no heartbeat, or it could not ask).
  * The status word is next to it either way: colour alone must not carry the meaning.
  */
+// The same rule the charts follow: what is wrong is lit, what is fine is not. A board of
+// twenty healthy services glows nowhere, so the one that is down is findable before the words
+// are read — and the words are still there, because colour never carries the meaning alone.
 const DOT_CLASS: Record<ServiceStatusRow['status'], string> = {
   up: 'bg-accent',
-  down: 'bg-level-error',
-  unhealthy: 'bg-level-warning',
+  down: 'bg-level-error shadow-[0_0_10px_-1px_var(--color-level-error)]',
+  unhealthy: 'bg-level-warning shadow-[0_0_10px_-1px_var(--color-level-warning)]',
   stale: 'border-2 border-level-warning',
   unknown: 'border-2 border-fg-subtle',
 }

@@ -48,6 +48,8 @@ export interface BarSegment {
   key: string
   count: number
   color: string
+  /** Warning and above: the segment glows. Neutral traffic does not — see barGlow in lib/series. */
+  lit: boolean
 }
 
 /**
@@ -60,8 +62,13 @@ export interface BarSegment {
 export function barSegments(counts: Record<Level, number>): BarSegment[] {
   const quiet = QUIET_LEVELS.reduce((total, level) => total + counts[level], 0)
   return [
-    { key: 'quiet', count: quiet, color: LEVEL_CHART.Information },
-    ...ALERT_LEVELS.map((level) => ({ key: level, count: counts[level], color: LEVEL_CHART[level] })),
+    { key: 'quiet', count: quiet, color: LEVEL_CHART.Information, lit: false },
+    ...ALERT_LEVELS.map((level) => ({
+      key: level,
+      count: counts[level],
+      color: LEVEL_CHART[level],
+      lit: true,
+    })),
   ].filter((segment) => segment.count > 0)
 }
 

@@ -206,6 +206,20 @@ marks:
     SERIES.p95     violet  how long the slow tail took
     SERIES.errors  red     how much failed
 
+Two more helpers in the same file decide how a bar is *painted*, so every chart in the app is
+drawn with one pen:
+
+  barFill(color)  the colour at the cap fading to 58% of itself at the floor. A flat rectangle
+                  was the last mark that still looked like a spreadsheet; the gradient reads as
+                  light falling from above, the same direction the canvas is lit from, and it
+                  is what makes a 4px column read as an object rather than a tick.
+  barGlow(color)  the bloom under a bar, and ONLY for Warning and above (BarSegment.lit,
+                  STATUS_SERIES.lit). In a healthy window nothing glows, so a bad hour is
+                  findable from across the room. A chart where everything glows is a chart
+                  where nothing does -- the Heatmap follows the same rule (cells below two
+                  thirds of the peak get no bloom) and so does the service status board (only
+                  down/unhealthy dots are lit).
+
 A row sparkline takes the colour of what it counts: a route's, service's, user's or query's
 traffic is volume green; an exception feed is errors red; an error template keeps its level's
 chart colour. Colouring a route's whole traffic shape red because 6% of it failed was tried
@@ -249,6 +263,14 @@ land on the same columns; the error series is read out of the volume buckets rat
 than queried again. The glance band above (StatTile x5: events, error rate, avg, p95,
 active services) carries the headline figures and the comparison against the previous
 window, so the chart repeats none of it.
+A tile's shape is its floor, not an ornament: the sparkline is drawn full-bleed edge to
+edge along the bottom of the tile in the series' own colour with the wash under it, so the
+number sits over its own history rather than beside a thumbnail of it. TREND_HEIGHT and
+TREND_CLEARANCE have to stay the same number -- the shape is absolutely positioned, so
+nothing reflows around it and a floor taller than the padding runs under the delta. The
+hairline along the top edge carries the same colour and is drawn even for a figure with no
+shape (active services), so that tile still reads as part of the band. Queries' detail
+tiles take the same treatment, which is why p95 is violet there too.
 Section "Analysis" (-> Analysis): compact top-5 panels — top errors, top exceptions,
 Routes (busiest operations by /api/stats/operations, message template + p95 latency)
 and slowest operations. Error, route and slow-op rows deep-link to filtered Events;

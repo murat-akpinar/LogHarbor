@@ -8,6 +8,7 @@ import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
 import { plotMax, sweep } from '../../lib/plotScale'
+import { barFill, barGlow } from '../../lib/series'
 import { useI18n } from '../../i18n'
 
 // matches the volume chart: enough columns to read the shape of an hour, each thin enough to
@@ -106,14 +107,19 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
                   style={{ '--delay': `${sweep(index, bucketCount)}ms` } as CSSProperties}
                 >
                   <span className="absolute inset-0 -m-px rounded-sm group-hover:bg-surface-hover" />
-                  {series.map(({ key, color, data, dimmed }) => {
+                  {series.map(({ key, color, data, dimmed, lit }) => {
                     const count = data[index] ?? 0
                     if (count === 0 || dimmed) return null
                     return (
                       <span
                         key={key}
                         className="relative w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
-                        style={{ height: `${(count / max) * 100}%`, minHeight: '1px', backgroundColor: color }}
+                        style={{
+                          height: `${(count / max) * 100}%`,
+                          minHeight: '1px',
+                          background: barFill(color),
+                          boxShadow: lit ? barGlow(color) : undefined,
+                        }}
                       />
                     )
                   })}

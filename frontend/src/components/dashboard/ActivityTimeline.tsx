@@ -3,7 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import type { HistogramBucket, LatencyOverview, Level } from '../../types'
 import { useHistogram } from '../../hooks/useStats'
 import { ALERT_LEVELS, LEVEL_CHART, LEVEL_HEX, QUIET_LEVELS, barSegments, sumLevels } from '../../lib/levels'
-import { SERIES } from '../../lib/series'
+import { SERIES, barFill, barGlow } from '../../lib/series'
 import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
@@ -332,7 +332,8 @@ export function ActivityTimeline({
                         height: `${(segment.count / volumeMax) * 100}%`,
                         // a bucket holding one event is not an empty bucket
                         minHeight: '1px',
-                        backgroundColor: segment.color,
+                        background: barFill(segment.color),
+                        boxShadow: segment.lit ? barGlow(segment.color) : undefined,
                       }}
                     />
                   ))}
@@ -421,14 +422,19 @@ export function ActivityTimeline({
                     className="animate-grow flex h-full min-w-0 flex-1 flex-col-reverse"
                     style={{ '--delay': `${sweep(index, columns)}ms` } as CSSProperties}
                   >
-                    {statusSeries.map(({ key, color, data, dimmed }) => {
+                    {statusSeries.map(({ key, color, data, dimmed, lit }) => {
                       const count = data[index] ?? 0
                       if (count === 0 || dimmed) return null
                       return (
                         <span
                           key={key}
                           className="w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
-                          style={{ height: `${(count / statusMax) * 100}%`, minHeight: '1px', backgroundColor: color }}
+                          style={{
+                            height: `${(count / statusMax) * 100}%`,
+                            minHeight: '1px',
+                            background: barFill(color),
+                            boxShadow: lit ? barGlow(color) : undefined,
+                          }}
                         />
                       )
                     })}

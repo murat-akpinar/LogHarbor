@@ -2,6 +2,7 @@ import { useId } from 'react'
 import type { CSSProperties } from 'react'
 import { useHistogram } from '../hooks/useStats'
 import { LEVELS } from '../lib/levels'
+import { barFill } from '../lib/series'
 
 const SPARKLINE_BUCKETS = 24
 
@@ -26,7 +27,7 @@ export function TrendBars({
           style={
             {
               height: total > 0 ? `${Math.max(8, (total / max) * 100)}%` : '0%',
-              backgroundColor: color,
+              background: barFill(color),
               '--delay': `${index * 8}ms`,
             } as CSSProperties
           }

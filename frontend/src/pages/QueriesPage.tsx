@@ -201,10 +201,18 @@ export function QueriesPage() {
                 <SqlText text={selected.value} />
               </pre>
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                <DetailTile label={t.queries.calls} value={selected.calls.toLocaleString(lang)} />
-                <DetailTile label={t.queries.total} value={formatDuration(selected.totalMs, lang)} />
-                <DetailTile label={t.queries.avg} value={formatDuration(selected.avgMs, lang)} />
-                <DetailTile label={t.queries.p95} value={formatDuration(selected.p95Ms, lang)} />
+                <DetailTile
+                  label={t.queries.calls}
+                  value={selected.calls.toLocaleString(lang)}
+                  color={SERIES.volume}
+                />
+                <DetailTile
+                  label={t.queries.total}
+                  value={formatDuration(selected.totalMs, lang)}
+                  color="var(--color-chart-line)"
+                />
+                <DetailTile label={t.queries.avg} value={formatDuration(selected.avgMs, lang)} color={SERIES.avg} />
+                <DetailTile label={t.queries.p95} value={formatDuration(selected.p95Ms, lang)} color={SERIES.p95} />
               </div>
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <dt className="text-fg-muted">{t.queries.connection}</dt>
@@ -265,11 +273,23 @@ export function QueriesPage() {
   )
 }
 
-function DetailTile({ label, value }: { label: string; value: string }) {
+/**
+ * One figure about the selected query, in the same shape as the dashboard's glance band: a
+ * hairline of the series' own colour along the top edge, an eyebrow, and the number.
+ *
+ * The hue is the one the series owns everywhere else (lib/series), so a reader who has learnt
+ * that p95 is violet on the dashboard does not have to learn it again here.
+ */
+function DetailTile({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-well bg-surface px-3 py-2">
-      <p className="text-xs text-fg-muted">{label}</p>
-      <p className="tabular text-lg font-semibold text-fg">{value}</p>
+    <div className="rounded-well relative overflow-hidden bg-surface px-3 py-2 ring-1 ring-white/[0.04]">
+      <span
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: `linear-gradient(90deg, ${color}, transparent 70%)` }}
+        aria-hidden="true"
+      />
+      <p className="text-[0.625rem] font-semibold tracking-[0.12em] text-fg-muted uppercase">{label}</p>
+      <p className="tabular mt-0.5 text-lg font-semibold text-fg">{value}</p>
     </div>
   )
 }

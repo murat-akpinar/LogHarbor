@@ -21,6 +21,18 @@ function cellColor(count: number, max: number): string {
   return `color-mix(in oklab, ${LEVEL_HEX.Error} ${pct}%, ${LEVEL_HEX.Warning})`
 }
 
+/**
+ * The bloom on a busy cell, and nothing at all below two thirds of the peak.
+ *
+ * A grid where every cell glows is a grid where none of them does, which is the same reason
+ * only Warning and above light up a bar (barGlow in lib/series).
+ */
+function cellGlow(count: number, max: number): string | undefined {
+  const intensity = count > 0 ? Math.sqrt(count / max) : 0
+  if (intensity < 0.66) return undefined
+  return `0 0 ${Math.round(intensity * 10)}px -1px ${cellColor(count, max)}`
+}
+
 interface HeatmapProps {
   cells: HeatmapCell[]
 }
@@ -50,6 +62,9 @@ export function Heatmap({ cells }: HeatmapProps) {
                 style={
                   {
                     backgroundColor: cellColor(count, max),
+                    // the busiest hours are lit, the same way an alert bar is: the week's peak
+                    // is findable without hunting for the darkest red
+                    boxShadow: cellGlow(count, max),
                     '--delay': `${(dayOfWeek + hour) * 12}ms`,
                   } as CSSProperties
                 }

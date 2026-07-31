@@ -4,6 +4,7 @@ import type { HistogramBucket } from '../types'
 import { LEVELS, LEVEL_CHART, LEVEL_HEX, barSegments, sumLevels } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
 import { plotMax, sweep } from '../lib/plotScale'
+import { barFill, barGlow } from '../lib/series'
 import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
 
@@ -110,7 +111,12 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                     className={`relative w-full shrink-0 transition-[height] duration-500 ${
                       segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
                     }`}
-                    style={{ height: `${(segment.count / max) * 100}%`, minHeight: '1px', backgroundColor: segment.color }}
+                    style={{
+                      height: `${(segment.count / max) * 100}%`,
+                      minHeight: '1px',
+                      background: barFill(segment.color),
+                      boxShadow: segment.lit ? barGlow(segment.color) : undefined,
+                    }}
                   />
                 ))}
                 {hoveredIndex === index && <BucketTooltip bucket={bucket} />}
