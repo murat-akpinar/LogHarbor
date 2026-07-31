@@ -207,8 +207,14 @@ via lib/levels.ts (LEVEL_TEXT for text, LEVEL_BAR for bars/badges, LEVEL_HEX for
 which can't read a CSS variable back).
 
 Every level owns a hue, so severity is readable from color alone: Verbose violet, Debug cyan,
-Information blue, Warning amber, Error red, Fatal a deeper rose so it still reads as worse
-than Error next to it.
+Information blue, Warning amber, Error red, Fatal magenta.
+
+Fatal was a rose next to Error's red until 2026-07-31, and the two were not tellable apart —
+CIEDE2000 5.8, which is close enough to read as one colour in a stacked bar or a three-letter
+code. Magenta #ff4d9e is 16.8 from Error and stays clear of the rest of the palette (59 from
+Warning, 26 from Verbose, 22 from the p95 series). It is not a *darker* red because this canvas
+is near black: "worse" cannot be expressed as "dimmer" here, and the deep crimson that was
+measured against it fell to 4.1:1 contrast, under the 4.5:1 every level holds.
 
 One palette, one meaning per hue, wherever a hue appears: blue reads, green creates, amber
 changes, red destroys or fails. HTTP methods borrow the level hues on that rule (GET/HEAD blue,

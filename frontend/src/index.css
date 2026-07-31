@@ -58,8 +58,18 @@
   --logharbor-accent-fg: #04120c;
 
   /* Every level carries a hue, so a level is identifiable without reading the
-     label. All six clear 4.5:1 as text on the canvas and on a raised surface. */
-  --logharbor-level-fatal: #fb7185;
+     label. All six clear 4.5:1 as text on the canvas and on a raised surface.
+
+     Fatal is magenta rather than the rose it was. Rose #fb7185 sat CIEDE2000 5.8
+     from Error's red — near enough to "the same colour" that the two were not
+     tellable apart in a stacked bar or a three-letter code, which is exactly
+     where it matters. #ff4d9e is 16.8 from Error, and far from everything else
+     in the palette too: 59 from Warning's amber, 26 from Verbose's violet, 22
+     from the p95 series. Contrast on the canvas is 6.2:1.
+     Magenta and not a darker red on purpose: on a canvas this dark, "worse"
+     cannot mean "dimmer" — deep crimson measured 4.1:1 and failed the rule
+     above. The most severe level has to be among the most visible things here. */
+  --logharbor-level-fatal: #ff4d9e;
   --logharbor-level-error: #f87171;
   --logharbor-level-warning: #fbbf24;
   --logharbor-level-information: #60a5fa;
