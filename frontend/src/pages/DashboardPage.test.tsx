@@ -186,24 +186,20 @@ describe('DashboardPage', () => {
     fireEvent.click(avg)
     await waitFor(() => expect(avg.getAttribute('aria-pressed')).toBe('true'))
 
-    // each series is its own lens. The level chips and the duration chips now sit in ONE lane
-    // header, so this is what keeps picking p95 from silently clearing the level beside it.
+    // each lane is its own lens: picking a line does not clear the level above it
     expect(warn.getAttribute('aria-pressed')).toBe('true')
   })
 
   // four charts with four time axes made the reader measure across the page; one axis means a
   // slow minute and the errors inside it are the same column
-  it('draws volume, duration and requests on one timeline', async () => {
+  it('draws volume, duration and requests as lanes of one timeline', async () => {
     renderPage()
 
-    // volume and duration share a lane (the duration lines are drawn over the bars), so the
-    // lane names them both; requests keeps its own, because only about a third of a real
-    // instance's events carry a StatusCode and overlaying it would count them twice
-    expect(await screen.findByText('Events · Duration')).toBeDefined()
+    expect(await screen.findByText('Duration')).toBeDefined()
     expect(screen.getByText('Requests')).toBeDefined()
-    // one axis for the whole card, not one per lane — that is what makes them read as one
-    // timeline. (Its ticks are laid out from the measured width, which jsdom has none of, so
-    // this asserts the count of axes rather than their labels; those are in timeAxis.test.)
+    // one axis for three lanes, not one each — that is what makes them read as one timeline.
+    // (Its ticks are laid out from the measured width, which jsdom has none of, so this asserts
+    // the count of axes rather than their labels; the labels are covered in timeAxis.test.)
     expect(await screen.findAllByTestId('time-axis')).toHaveLength(1)
   })
 

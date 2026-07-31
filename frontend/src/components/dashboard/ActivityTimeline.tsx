@@ -27,8 +27,8 @@ import { TimeAxis } from '../TimeAxis'
  */
 export const TIMELINE_BUCKETS = 120
 
-// taller than it was, because it now carries the duration lines as well as the bars
-const VOLUME_HEIGHT_PX = 176
+const VOLUME_HEIGHT_PX = 152
+const DURATION_HEIGHT_PX = 72
 const STATUS_HEIGHT_PX = 60
 /** Bars and the hit areas over them are two flex rows that have to line up exactly. */
 const COLUMN_GAP = 'gap-px'
@@ -71,7 +71,7 @@ function Lane({ label, chips, action, children }: LaneProps) {
   )
 }
 
-type LaneName = 'volume' | 'status'
+type LaneName = 'volume' | 'duration' | 'status'
 
 interface ColumnsProps {
   count: number
@@ -293,46 +293,20 @@ export function ActivityTimeline({
   return (
     <Panel className={`p-5 ${fetching ? 'opacity-60 transition-opacity' : ''}`}>
       <div className="relative">
-        {/* Volume and duration share one lane, not two.
-            They were stacked until 2026-07-31 on the argument that counts and milliseconds do
-            not share a y-scale — which is true, and is why the lines keep their own scale and
-            no y-axis is drawn for either. What the separation actually cost was the question
-            people open this card to answer: was the slow minute also the failing minute? That
-            is one glance now instead of two, and the two marks never look alike, so neither
-            hides the other. Requests stays its own lane: only ~a third of a real instance's
-            events carry a StatusCode, so overlaying it here would be counting them twice. */}
         <Lane
-          label={`${t.nav.events} · ${t.dashboard.duration}`}
-          chips={
-            <>
-              {volumeSeries.map(({ key, label, color, total }) => (
-                <SeriesChip
-                  key={key}
-                  color={color}
-                  label={label}
-                  value={compact(total)}
-                  pressed={levelPick === key}
-                  dimmed={levelPick !== null && levelPick !== key}
-                  onClick={() => setLevelPick(levelPick === key ? null : key)}
-                  title={levelPick === key ? t.requests.showAll : t.requests.onlyThis(label)}
-                />
-              ))}
-              {timed && <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />}
-              {timed &&
-                durationSeries.map(({ key, label, color, ms }) => (
-                  <SeriesChip
-                    key={key}
-                    color={color}
-                    label={label}
-                    value={formatDuration(ms, lang)}
-                    pressed={durationPick === key}
-                    dimmed={durationPick !== null && durationPick !== key}
-                    onClick={() => setDurationPick(durationPick === key ? null : key)}
-                    title={durationPick === key ? t.requests.showAll : t.requests.onlyThis(label)}
-                  />
-                ))}
-            </>
-          }
+          label={t.nav.events}
+          chips={volumeSeries.map(({ key, label, color, total }) => (
+            <SeriesChip
+              key={key}
+              color={color}
+              label={label}
+              value={compact(total)}
+              pressed={levelPick === key}
+              dimmed={levelPick !== null && levelPick !== key}
+              onClick={() => setLevelPick(levelPick === key ? null : key)}
+              title={levelPick === key ? t.requests.showAll : t.requests.onlyThis(label)}
+            />
+          ))}
         >
           <div className="relative">
             <div
@@ -367,19 +341,6 @@ export function ActivityTimeline({
                 </div>
               ))}
             </div>
-
-            {/* the lines float over the bars on their own scale, cased so a cyan hairline
-                crossing a red bar is still a line. No fill: a wash here would bury the bars
-                it is meant to be read against. */}
-            {timed && (
-              <TrendLine
-                centered
-                casing
-                series={durationLines}
-                className="pointer-events-none absolute inset-0 h-full w-full"
-              />
-            )}
-
             {readout('volume')}
             <Columns
               count={columns}
@@ -396,9 +357,41 @@ export function ActivityTimeline({
               }
             />
           </div>
+        </Lane>
 
-          {/* "nothing here was timed" is a different answer from "everything was quick" */}
-          {!timed && <p className="mt-1.5 text-xs text-fg-muted">{t.dashboard.nothingTimed}</p>}
+        <Lane
+          label={t.dashboard.duration}
+          chips={durationSeries.map(({ key, label, color, ms }) => (
+            <SeriesChip
+              key={key}
+              color={color}
+              label={label}
+              value={formatDuration(ms, lang)}
+              pressed={durationPick === key}
+              dimmed={durationPick !== null && durationPick !== key}
+              onClick={() => setDurationPick(durationPick === key ? null : key)}
+              title={durationPick === key ? t.requests.showAll : t.requests.onlyThis(label)}
+            />
+          ))}
+        >
+          {timed ? (
+            <div className="relative" style={{ height: DURATION_HEIGHT_PX }}>
+              {/* filled, so the lane carries the weight of the bars above and below it instead
+                  of reading as a stray hairline between two charts */}
+              <TrendLine centered fill series={durationLines} className="h-full w-full" />
+              {readout('duration')}
+              <Columns
+                count={columns}
+                hovered={column}
+                isBrushed={isBrushed}
+                onHover={(index) => hover(index, 'duration')}
+                onPress={press}
+              />
+            </div>
+          ) : (
+            // "nothing here was timed" is a different answer from "everything was quick"
+            <p className="py-4 text-sm text-fg-muted">{t.dashboard.nothingTimed}</p>
+          )}
         </Lane>
 
         <Lane

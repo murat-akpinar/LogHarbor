@@ -271,40 +271,27 @@ keepPreviousData avoids skeleton flashes; pauses when the tab is backgrounded).
 Pausing (or brushing a histogram) freezes on the current window and reveals the
 TimeRangePicker for a static range; going live again resumes the rolling window.
 Section "Activity" (-> Events): one chart, components/dashboard/ActivityTimeline.tsx.
-Two lanes share a single time axis, a single hover and a single brush:
-
-  EVENTS · DURATION  volume stacked by severity (errors are the red part of the bars,
-                     not a second chart) with avg and p95 drawn OVER them as lines on
-                     their own scale
-  REQUESTS           1/2/3xx / 4xx / 5xx stacked, the class chips isolating one in the
-                     lane exactly as they do on the Requests page
-
-It was four cards with four axes until 2026-07-31, then three lanes, then two. Volume
-and duration were kept apart at first on the argument that counts and milliseconds do
-not share a y-scale — true, and still true: the lines keep their own scale and no lane
-draws a y-axis at all. What the separation cost was the question people open this card
-to answer, "was the slow minute also the failing minute", and that is one glance now.
-The two marks never look alike, so neither hides the other, and the lines are cased
-(TrendLine `casing`) so a cyan hairline crossing a red bar is still a line.
-REQUESTS deliberately stays its own lane: measured on the test server, only ~36% of a
-real instance's events carry a StatusCode, so it is a subset of the volume lane rather
-than a duplicate of it — overlaying it would count those events twice.
-Each lane's chips are its colour key, its readout and its control: clicking one
-isolates that series and rescales its lane to it (forty errors under a thousand info
-lines are a flat smear until drawn against their own maximum). The level chips and the
-duration chips share one header now, separated by a rule, and stay independent — a test
-pins that, because picking p95 silently clearing the level beside it is the way this
-would break. Pointing at a column lights it in both lanes and opens one card with every
-number for that instant. Clicking a column opens Events at that slice; dragging across
-columns freezes+zooms both lanes.
+Three lanes share a single time axis, a single hover and a single brush: EVENTS
+(volume, stacked by severity — errors are the red part of the volume bars, not a
+second chart), DURATION (avg and p95 as two lines on one scale) and REQUESTS
+(1/2/3xx / 4xx / 5xx stacked, the class chips isolating one in the lane exactly as
+they do on the Requests page). They were four cards with four axes until 2026-07-31,
+which left the reader measuring across the page to line a latency spike up with the
+errors that caused it. Each lane's chips are its colour key, its readout and its
+control: clicking one isolates that series in its lane and rescales the lane to it
+(forty errors under a thousand info lines are a flat smear until drawn against their
+own maximum). Pointing at a column lights the same column in all three lanes and
+opens one card with every lane's numbers for that instant, over the lane the pointer
+is in. Clicking a column opens Events at that slice; dragging across columns
+freezes+zooms all three lanes.
 TIMELINE_BUCKETS is 120 with 1px gaps, twice the density of a chart in a half-width
 card, because this one is as wide as the page. Bars are drawn against lib/plotScale
 plotMax — the plain maximum plus a sliver, not a rounded one: no lane carries a
 y-axis, so rounding 22 up to 50 would buy no readable number and spend half the plot
 on air (the Events histogram and the Requests status chart use it for the same
-reason). The duration lines carry no fill now that they sit over the bars: a wash there
-would bury the thing they are meant to be read against.
-One TimeAxis under both lanes, and the same component under the Events histogram
+reason). The duration lane is filled under its lines so it carries weight between two
+sets of bars.
+One TimeAxis under all three lanes, and the same component under the Events histogram
 and the Requests status chart. Until 2026-07-31 those carried only the window's two
 ends, on the argument that a reader can place a bar between them; at 120 columns over
 an arbitrary window that is arithmetic nobody should be doing, and the owner asked for

@@ -102,7 +102,6 @@ export function TrendLine({
   centered = false,
   fill = false,
   animate = true,
-  casing = false,
 }: {
   series: TrendSeries[]
   className?: string
@@ -115,10 +114,6 @@ export function TrendLine({
   /** The line draws itself in on mount. Off for anything that redraws often enough that the
    *  drawing would be the only thing you ever see. */
   animate?: boolean
-  /** A dark stroke laid under each line, the way a map casings its labels. For a line drawn
-   *  OVER something busy — the duration lines over the volume bars — where a 1.5px cyan hairline
-   *  crossing a red bar would otherwise simply disappear into it. */
-  casing?: boolean
 }) {
   const max = Math.max(1, ...series.flatMap((line) => line.values))
   // one id per instance, because a page holds a dozen of these and a gradient is referenced by id
@@ -151,22 +146,6 @@ export function TrendLine({
             d={areaPath(line.values, max, centered)}
             fill={`url(#${gradientId}-${index})`}
             className={animate ? 'animate-wash' : ''}
-          />
-        ))}
-      {casing &&
-        series.map((line) => (
-          <path
-            key={`casing-${line.color}`}
-            d={smoothPath(line.values, max, centered)}
-            stroke="var(--color-bg-deep)"
-            strokeWidth={4.5}
-            strokeOpacity={0.65}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            vectorEffect="non-scaling-stroke"
-            pathLength={animate ? 1 : undefined}
-            className={animate ? 'animate-draw' : ''}
-            style={animate ? ({ '--length': 1 } as CSSProperties) : undefined}
           />
         ))}
       {series.map((line) => (
