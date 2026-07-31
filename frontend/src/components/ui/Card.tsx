@@ -1,27 +1,31 @@
 import type { ReactNode } from 'react'
 
 /**
- * A free-standing object on the canvas: translucent, blurred, edged with a hairline.
- *
- * The blur is what makes it read as glass rather than as grey — it has the lit canvas and the
- * grain behind it, and a card that only changed colour would look painted on. Anything that
- * floats over the page (tooltips, popovers) takes `pop` for a heavier shadow, because a thing
- * that hovers has to separate from the thing it hovers over.
+ * plate  — a free-standing object on the canvas: translucent, blurred, edged with a hairline.
+ * lifted — the same, with the heavier shadow, for the one card a screen is built around.
+ * float  — a tooltip or popover. Nearly opaque, and that is the point: a readout you can see
+ *          the chart through is a readout you have to squint at, which is exactly what the
+ *          owner reported on 2026-07-31. Dropdowns already used this bed; the hover readouts
+ *          over the charts had been left on the translucent one.
  */
+type Variant = 'plate' | 'lifted' | 'float'
+
+const VARIANTS: Record<Variant, string> = {
+  plate: 'bg-surface shadow-card',
+  lifted: 'bg-surface shadow-pop',
+  float: 'bg-surface-float shadow-pop',
+}
+
 export function Card({
   children,
   className = '',
-  pop = false,
+  variant = 'plate',
 }: {
   children: ReactNode
   className?: string
-  pop?: boolean
+  variant?: Variant
 }) {
   return (
-    <div
-      className={`glass rounded-card border border-border bg-surface ${pop ? 'shadow-pop' : 'shadow-card'} ${className}`}
-    >
-      {children}
-    </div>
+    <div className={`glass rounded-card border border-border ${VARIANTS[variant]} ${className}`}>{children}</div>
   )
 }

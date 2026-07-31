@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import type { Event, Level } from '../types'
 import { buildExportUrl } from '../api/events'
 import { useEventSearch } from '../hooks/useEventSearch'
+import { useHistogram } from '../hooks/useStats'
 import { useLiveTail } from '../hooks/useLiveTail'
+import { sumLevels } from '../lib/levels'
 import { useSignals } from '../hooks/useSignals'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { extractHighlightTerms } from '../lib/highlight'
@@ -12,6 +14,8 @@ import { matchTraceFilter } from '../lib/trace'
 import { useI18n } from '../i18n'
 import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
+import { Histogram } from '../components/Histogram'
+import { Panel } from '../components/ui/Panel'
 import { LevelChips } from '../components/LevelChips'
 import { SignalToggles } from '../components/SignalToggles'
 import { LiveRangeControls } from '../components/LiveRangeControls'
@@ -22,6 +26,24 @@ import { EventDetail } from '../components/EventDetail'
 import { OnboardingPanel } from '../components/OnboardingPanel'
 import { TracePanel } from '../components/TracePanel'
 import { ArchivedDaysBanner } from '../components/ArchivedDaysBanner'
+
+/** Wide enough to read the shape of a day, narrow enough that each column is still a tick. */
+const CHART_BUCKETS = 80
+const CHART_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The window the chart covers when the reader has not picked one.
+ *
+ * The last 24 hours, except on an instance whose newest matching event is older than that —
+ * there the 24 hours are taken to end at that event instead. Otherwise a server that stopped
+ * receiving on Friday draws an empty chart over a full list, which reads as a broken chart
+ * rather than as an idle server.
+ */
+function defaultChartEnd(newestMatch: string | undefined, nowMinute: number): number {
+  if (!newestMatch) return nowMinute
+  const at = new Date(newestMatch).getTime()
+  return Number.isFinite(at) && at < nowMinute - CHART_WINDOW_MS ? at : nowMinute
+}
 
 // shortcuts must not fire while the user is typing into a field
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -96,6 +118,25 @@ export function EventsPage() {
   }, [tail.events, searchEvents])
 
   const liveEventIds = useMemo(() => new Set(tail.events.map((event) => event.id)), [tail.events])
+
+  // The stream says what happened; the chart says when. It carries the page's own filter, so
+  // narrowing the search reshapes it — which is the whole reason it belongs here rather than
+  // being a second copy of the dashboard's.
+  // Anchored on the search results, not the live tail: in live mode the tail prepends an event
+  // every few seconds and the window would slide out from under anyone reading it.
+  const newestMatch = searchEvents[0]?.timestamp
+  const chartRange = useMemo(() => {
+    // to the minute, so the query key is stable between ticks instead of refetching per render
+    const nowMinute = Math.floor(Date.now() / 60_000) * 60_000
+    const end = range.to ? new Date(range.to).getTime() : defaultChartEnd(newestMatch, nowMinute)
+    const start = range.from ? new Date(range.from).getTime() : end - CHART_WINDOW_MS
+    return { from: new Date(start).toISOString(), to: new Date(end).toISOString() }
+  }, [range.from, range.to, newestMatch])
+
+  const chart = useHistogram({ ...chartRange, filter, buckets: CHART_BUCKETS })
+  const chartBuckets = chart.data?.buckets ?? []
+  // an empty plot is a 160px hole that teaches nothing; the page keeps its full height instead
+  const hasChart = chartBuckets.some((bucket) => sumLevels(bucket.counts) > 0)
 
   // every page of one range reports the same cold days, so the first page is enough
   const archivedDays = search.data?.pages[0]?.archivedDays ?? []
@@ -228,6 +269,23 @@ export function EventsPage() {
           </div>
         </div>
       </div>
+
+      {/* The level chips directly above are already the chart's colour key, so it carries no
+          legend of its own. Clicking a bar narrows the range to it, dragging across bars zooms
+          — the same two gestures the dashboard's timeline answers to. */}
+      {hasChart && (
+        <div className="shrink-0 px-3 pt-3">
+          <Panel className={`p-4 ${chart.isFetching ? 'opacity-60 transition-opacity' : ''}`}>
+            <Histogram
+              buckets={chartBuckets}
+              rangeEnd={chartRange.to}
+              onBucketClick={(from, to) => chooseRange({ from, to })}
+              onBrush={(from, to) => chooseRange({ from, to })}
+              showLegend={false}
+            />
+          </Panel>
+        </div>
+      )}
 
       {search.error && (
         <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{search.error.message}</p>

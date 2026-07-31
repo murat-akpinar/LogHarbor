@@ -15,6 +15,7 @@ import { Panel } from '../ui/Panel'
 import { PillLink } from '../ui/PillLink'
 import { SeriesChip } from '../ui/SeriesChip'
 import { TrendLine } from '../Sparkline'
+import { TimeAxis } from '../TimeAxis'
 
 /**
  * The timeline's resolution. Callers fetch their own series at this width so every lane lands
@@ -455,14 +456,10 @@ export function ActivityTimeline({
           )}
         </Lane>
 
-        {/* One axis for three lanes, and the only labels on it: the window's two ends place
-            every column, and the exact numbers are one hover away. */}
-        {columns > 0 && (
-          <div className="mt-2 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
-            <span>{formatTimestamp(starts[0], lang)}</span>
-            <span>{formatTimestamp(to, lang)}</span>
-          </div>
-        )}
+        {/* One axis for three lanes. It was the window's two ends until 2026-07-31, on the
+            argument that a reader can place a bar between them; at 120 columns over an
+            arbitrary window that is arithmetic nobody should be doing, so it ticks now. */}
+        {columns > 0 && <TimeAxis from={starts[0]} to={to} className="mt-2" />}
       </div>
     </Panel>
   )
@@ -495,7 +492,7 @@ function TimelineTooltip({ index, columns, start, counts, avgMs, p95Ms, status }
       className={`pointer-events-none absolute bottom-full z-10 mb-2 w-52 ${anchor}`}
       style={{ left: `${position * 100}%` }}
     >
-      <Card pop className="p-2 text-xs">
+      <Card variant="float" className="p-2 text-xs">
         <p className="mb-1 text-fg-muted">{formatTimestamp(start, lang)}</p>
 
         <div className="flex items-center justify-between gap-2 py-0.5">

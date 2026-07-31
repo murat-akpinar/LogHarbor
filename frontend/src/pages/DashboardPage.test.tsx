@@ -197,8 +197,10 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('Duration')).toBeDefined()
     expect(screen.getByText('Requests')).toBeDefined()
-    // one axis for three lanes: the window's start is printed once on the whole card
-    expect(await screen.findAllByText(new Date(BUCKET_START).toLocaleString('en'))).toHaveLength(1)
+    // one axis for three lanes, not one each — that is what makes them read as one timeline.
+    // (Its ticks are laid out from the measured width, which jsdom has none of, so this asserts
+    // the count of axes rather than their labels; the labels are covered in timeAxis.test.)
+    expect(await screen.findAllByTestId('time-axis')).toHaveLength(1)
   })
 
   it('reads every lane off the column under the pointer', async () => {

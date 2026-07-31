@@ -10,6 +10,7 @@ import { formatTimestamp } from '../../lib/dates'
 import { plotMax, sweep } from '../../lib/plotScale'
 import { barFill, barGlow } from '../../lib/series'
 import { useI18n } from '../../i18n'
+import { TimeAxis } from '../TimeAxis'
 
 // matches the volume chart: enough columns to read the shape of an hour, each thin enough to
 // read as a tick rather than a slab
@@ -124,7 +125,7 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
                     )
                   })}
                   {hovered === index && starts[index] && (
-                    <Card pop className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 p-2 text-xs">
+                    <Card variant="float" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 p-2 text-xs">
                       <p className="mb-1 text-fg-muted">{formatTimestamp(starts[index], lang)}</p>
                       {series.map(({ key, label, color, data }) => (
                         <div key={key} className="flex items-center gap-2 py-0.5">
@@ -143,12 +144,7 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
               ))}
             </div>
           </div>
-          {/* no axis and no per-bucket ticks: the window's two ends place every bar, and the
-              exact numbers are already one hover away */}
-          <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
-            <span>{starts[0] ? formatTimestamp(starts[0], lang) : ''}</span>
-            <span>{formatTimestamp(to, lang)}</span>
-          </div>
+          {starts[0] && <TimeAxis from={starts[0]} to={to} className="mt-1.5" />}
         </>
       ) : (
         <p className="mt-3 text-sm text-fg-muted">{t.requests.noStatus}</p>

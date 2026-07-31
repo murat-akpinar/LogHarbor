@@ -7,6 +7,7 @@ import { plotMax, sweep } from '../lib/plotScale'
 import { barFill, barGlow } from '../lib/series'
 import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
+import { TimeAxis } from './TimeAxis'
 
 const PLOT_HEIGHT_PX = 160
 
@@ -18,7 +19,7 @@ function BucketTooltip({ bucket }: TooltipProps) {
   const { t, lang } = useI18n()
   const total = sumLevels(bucket.counts)
   return (
-    <Card className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 p-2 text-xs">
+    <Card variant="float" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 p-2 text-xs">
       <p className="mb-1 text-fg-muted">{formatTimestamp(bucket.start, lang)}</p>
       {LEVELS.map((level) => (
         <div key={level} className="flex items-center gap-2 py-0.5">
@@ -125,14 +126,9 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
           })}
       </div>
 
-      {/* No axis and no per-bucket ticks: the window's two ends are the only labels a reader
-          needs to place a bar, and the exact numbers are already one hover away. */}
-      {buckets.length > 0 && (
-        <div className="mt-1.5 flex items-baseline justify-between gap-2 font-mono text-xs text-fg-subtle">
-          <span>{formatTimestamp(buckets[0].start, lang)}</span>
-          <span>{formatTimestamp(rangeEnd, lang)}</span>
-        </div>
-      )}
+      {/* Ticks on round boundaries, no gridlines. A line up the plot would have to cross the
+          bars to reach the reader, and the bars are the thing being read. */}
+      {buckets.length > 0 && <TimeAxis from={buckets[0].start} to={rangeEnd} className="mt-1.5" />}
 
       {showLegend && (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">

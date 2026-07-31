@@ -89,6 +89,19 @@ Level chips: quick toggles appended to the filter (@Level = 'Error'). They share
   that says "Information" names a level rather than drawing it.
 Search history: last 10 committed filters (localStorage) shown as a dropdown when
   the bar is focused and empty; clicking one re-applies it without re-validation
+Volume chart (2026-07-31): a Histogram over the page's OWN filter, in a well between
+  the chips and the stream. The stream says what happened, the chart says when — and
+  it carries the filter, so narrowing the search reshapes it, which is why it belongs
+  here rather than being a second copy of the dashboard's. Clicking a bar narrows the
+  range to it and dragging across bars zooms, the same two gestures the dashboard
+  timeline answers to; both leave live mode, because a chosen slice contradicts it.
+  It carries no legend: the level chips directly above it are already its colour key.
+  With no range picked the window is the last 24 hours, anchored on the newest
+  matching event when that is older than 24h — otherwise a server that stopped
+  receiving on Friday draws an empty chart over a full list, which reads as a broken
+  chart rather than as an idle server. Anchored on the search results and not the live
+  tail, or in live mode the window would slide out from under the reader every few
+  seconds. The block renders nothing when no bucket has anything in it.
 Event list: virtualized, newest first, infinite scroll via afterId keyset paging.
   Full-bleed, alone among the pages: a stream is read by scanning it and has to fill
   the window, so it takes no section plate. ROW_HEIGHT is 32px (was 40 until
@@ -258,6 +271,20 @@ y-axis, so rounding 22 up to 50 would buy no readable number and spend half the 
 on air (the Events histogram and the Requests status chart use it for the same
 reason). The duration lane is filled under its lines so it carries weight between two
 sets of bars.
+One TimeAxis under all three lanes, and the same component under the Events histogram
+and the Requests status chart. Until 2026-07-31 those carried only the window's two
+ends, on the argument that a reader can place a bar between them; at 120 columns over
+an arbitrary window that is arithmetic nobody should be doing, and the owner asked for
+ticks. Still no gridlines and still no y-axis — a rule up the plot would have to cross
+the bars to reach the reader, and the bars are what is being read. lib/timeAxis picks
+the step off a ladder (1m ... 28d) so a one-hour window ticks every ten minutes and a
+fortnight ticks every two days, and the strip measures its own width to decide how
+many labels fit, so the same chart is legible at 420px and at 1600px. Ticks land on
+round LOCAL boundaries, not on multiples of the epoch: sub-day steps divide the day
+evenly, so the two agree wherever the UTC offset is a whole number of hours and
+disagree in India and Nepal. A tick on midnight (and every tick once the step is a day
+or more) is labelled with its date instead of a clock time and set brighter, because
+on a week-long window that is the only label saying where you are.
 Every series is fetched at ActivityTimeline's TIMELINE_BUCKETS width so the lanes
 land on the same columns; the error series is read out of the volume buckets rather
 than queried again. The glance band above (StatTile x5: events, error rate, avg, p95,
@@ -437,6 +464,14 @@ a menu you cannot read; and ten thousand rows scrolling over a radial wash make 
 slightly different colour from the one above it, which is exactly what a reading surface must
 not do. Card / Panel / SectionBlock / NavBar apply the `.glass` class (backdrop-blur +
 saturate) so one place decides how much the app sees through itself.
+
+Card names which of those it is rather than taking a pile of booleans:
+    plate   a free-standing object on the canvas (the default)
+    lifted  the same bed, heavier shadow — the one card a screen is built around (login)
+    float   surface-float + heavy shadow: tooltips and popovers
+Every hover readout over a chart is `float`. They were `plate` until the owner reported on
+2026-07-31 that the numbers were hard to read through them — the dropdowns had already been
+moved to the opaque bed for exactly that reason and the chart readouts had been missed.
 
 --- MOTION ---
 

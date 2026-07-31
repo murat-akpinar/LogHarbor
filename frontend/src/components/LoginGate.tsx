@@ -93,7 +93,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
           <SampleStream />
         </section>
 
-        <Card pop className="w-full p-6">
+        <Card variant="lifted" className="w-full p-6">
           <h2 className="text-lg font-semibold text-fg">{title}</h2>
           <p className="mt-1 mb-5 text-xs leading-relaxed text-fg-muted">{subtitle}</p>
           {children}
