@@ -77,17 +77,17 @@ it('stacks status-class series with their totals in the legend', async () => {
   expect(screen.getByText('4')).toBeDefined()
 })
 
-// live starts off everywhere: an hour of history is the useful first thing to see, and a page
-// that starts moving before anyone asked it to was the complaint that changed this
-it('starts paused, and keeps the range picker alongside in both states', async () => {
+// live on by default keeps the rolling hour honest: paused, the window froze at sign-in and
+// a tab left open drifted hours behind with nothing on the page to say so
+it('starts live, and keeps the range picker alongside in both states', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('false')
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
   // the pair is one control group: the picker never appears or vanishes under the cursor
   expect(screen.getByTitle('Time range')).toBeDefined()
 
   toggle.click()
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
   expect(screen.getByTitle('Time range')).toBeDefined()
 })
 

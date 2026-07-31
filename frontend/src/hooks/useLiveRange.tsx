@@ -45,9 +45,13 @@ const TimeRangeContext = createContext<TimeRangeStore | null>(null)
  * page they happen to be on.
  *
  * Deliberately not persisted, and mounted *inside* LoginGate: a fresh sign-in starts at the
- * default rather than resuming a window from whoever was here before. Live starts off — an
- * hour of history is the useful first thing to see, and a page that started moving on its own
- * before anyone asked was the complaint that prompted this.
+ * default rather than resuming a window from whoever was here before.
+ *
+ * It opens live, on a rolling last hour. Starting paused was tried first and the window then
+ * froze at the moment of sign-in — leave a tab open over lunch and you are still reading the
+ * hour before it, on a page with nothing to say so. Live keeps the default honest without a
+ * staleness warning to write. Choosing a range explicitly still leaves live, because an
+ * explicit window contradicts "now", and that choice is what follows you between pages.
  */
 export function TimeRangeProvider({
   children,
@@ -58,16 +62,11 @@ export function TimeRangeProvider({
    *  does not silently depend on what the default happens to be this month. */
   initialRange?: OpenRange
 }) {
-  const [live, setLive] = useState(false)
+  // an explicit initialRange contradicts live for the same reason picking one does
+  const [live, setLive] = useState(initialRange === undefined)
   const [now, setNow] = useState(flooredNow)
-  // seeded rather than null: with live off from the start there is nothing to freeze yet, and
-  // the reader still has to land on a window. `to` stays open so it reads as "up to now".
-  const [frozen, setFrozen] = useState<OpenRange | null>(
-    () => initialRange ?? {
-      from: new Date(flooredNow() - DEFAULT_WINDOW_MS).toISOString(),
-      to: undefined,
-    },
-  )
+  // only meaningful once live is left; toggleLive fills it with whatever was on screen
+  const [frozen, setFrozen] = useState<OpenRange | null>(initialRange ?? null)
 
   // one interval for the app rather than one per mounted page
   useEffect(() => {

@@ -281,12 +281,11 @@ describe('DashboardPage', () => {
     expect(screen.getByText('2.5 s')).toBeDefined()
   })
 
-  // live is off until asked for: an operator who opens the dashboard wants the last hour to
-  // hold still while they read it, not to slide out from under them
-  it('is paused by default, with the range picker beside it', async () => {
+  // the rolling hour has to keep rolling: paused by default, the window froze at sign-in
+  it('is live by default, with the range picker beside it', async () => {
     renderPage()
     const toggle = await screen.findByRole('button', { name: 'Live' })
-    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByTitle('Time range')).toBeDefined()
   })
 
@@ -299,7 +298,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/3 arrived late/)).toBeDefined()
   })
 
-  it('picking a range narrows the queried window', async () => {
+  it('picking a range leaves live mode and narrows the queried window', async () => {
     renderPage()
 
     const picker = await screen.findByTitle('Time range')

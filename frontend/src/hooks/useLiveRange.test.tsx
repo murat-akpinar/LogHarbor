@@ -29,14 +29,16 @@ function OpenRangeProbe() {
   return <span data-testid="open-from">{range.from ?? 'none'}</span>
 }
 
-it('opens on the last hour, with live off until asked', async () => {
+// live by default, so the hour keeps rolling; paused, it froze at whatever moment the app
+// mounted and a tab left open drifted hours behind without saying so
+it('opens live, on the last hour', async () => {
   render(
     <TimeRangeProvider>
       <ClosedRangeProbe id="a" />
     </TimeRangeProvider>,
   )
 
-  expect(screen.getByTestId('a-live').textContent).toBe('false')
+  expect(screen.getByTestId('a-live').textContent).toBe('true')
   const from = new Date(screen.getByTestId('a-from').textContent!).getTime()
   const to = new Date(screen.getByTestId('a-to').textContent!).getTime()
   // an hour wide, give or take the tick the window is floored to
@@ -72,14 +74,20 @@ it('shares live mode too, and picking a range leaves it', async () => {
     </TimeRangeProvider>,
   )
 
+  // pausing on one page pauses on all of them
   screen.getByText('toggle a').click()
-  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('true'))
+  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('false'))
 
+  screen.getByText('toggle b').click()
+  await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('true'))
+
+  // and an explicit range contradicts "now", so it drops out of live everywhere
   screen.getByText('pick b').click()
   await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('false'))
 })
 
-// a page that draws a rate needs two bounds even when the picker is showing "all time"
+// an explicit initialRange means "start here", which contradicts live for the same reason
+// picking a range does — so a page that draws a rate still gets two bounds
 it('closes an open end for pages that cannot take one', () => {
   render(
     <TimeRangeProvider initialRange={{ from: undefined, to: undefined }}>
