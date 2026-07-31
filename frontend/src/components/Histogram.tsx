@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { CSSProperties } from 'react'
 import type { HistogramBucket } from '../types'
 import { LEVELS, LEVEL_CHART, LEVEL_HEX, barSegments, sumLevels } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
-import { plotMax, sweep } from '../lib/plotScale'
+import { plotMax } from '../lib/plotScale'
 import { barFill, barGlow } from '../lib/series'
 import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
@@ -97,8 +96,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                 onMouseLeave={() => setHoveredIndex(null)}
                 onFocus={() => setHoveredIndex(index)}
                 onBlur={() => setHoveredIndex(null)}
-                className="group animate-grow relative flex h-full min-w-0 flex-1 flex-col-reverse select-none"
-                style={{ '--delay': `${sweep(index, buckets.length)}ms` } as CSSProperties}
+                className="group relative flex h-full min-w-0 flex-1 flex-col-reverse select-none"
                 aria-label={t.dashboard.bucketAria(formatTimestamp(bucket.start, lang), total)}
               >
                 <span
@@ -109,7 +107,7 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                 {segments.map((segment, segmentIndex) => (
                   <span
                     key={segment.key}
-                    className={`relative w-full shrink-0 transition-[height] duration-500 ${
+                    className={`relative w-full shrink-0 ${
                       segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
                     }`}
                     style={{

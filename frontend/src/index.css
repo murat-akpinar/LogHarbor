@@ -246,17 +246,23 @@ textarea {
 }
 
 /* ---------------------------------------------------------------------------
-   Motion. Charts draw themselves in, cards arrive in sequence, live data
-   announces itself. Everything here is entrance-only and short: a dashboard
-   that re-animates while you are reading it is a dashboard you stop reading.
+   Motion. Plates arrive; nothing inside them does.
 
-   "Short" is a budget, not a mood: the whole entrance has to be over inside
-   ~400ms of the data landing. Measured on the dashboard, the data was ready at
-   200ms and the last animation stopped at 1128ms — the page was not loading
-   slowly, it was *appearing* slowly, and a second of that reads as lag. Every
-   duration below is half what it was; the stagger multipliers at the call sites
-   (SectionBlock, StatTile, Heatmap, plotScale's SWEEP_MS) were cut with them,
-   because a delay is part of the same budget as a duration.
+   Chart content used to animate: bars grew out of the floor on a left-to-right
+   sweep, lines drew themselves in, the heatmap filled on the diagonal, and every
+   bar carried a 500ms height transition on top. Two rounds of shortening those
+   durations still left the pages reading as slow, and the owner called it:
+   "renkler filan çok hoş animasyon olmaz" — keep the colours, drop the motion.
+
+   He was right, and the numbers say why it was never really about duration. The
+   dashboard ran 429 animations at once and the Requests table 1,262, one per bar
+   of every strip. Worse, the height transitions were not an entrance at all: the
+   live window moves every ten seconds, so all of them re-ran on every refresh,
+   animating `height` — which is layout, on every frame, for hundreds of bars.
+
+   What is left is the plate arriving: SectionBlock, StatTile and the login card,
+   which is single digits of elements per page and is the only motion anyone
+   asked to keep.
    --------------------------------------------------------------------------- */
 
 /* a plate arriving: up and in. --delay staggers a row of them from the caller */
@@ -275,54 +281,6 @@ textarea {
   opacity: 0;
   animation: lh-rise 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   animation-delay: var(--delay, 0ms);
-}
-
-/* a bar growing out of the floor. The whole lane shares one animation rather
-   than one per column: 120 staggered columns is a wave, and a wave is a toy. */
-@keyframes lh-grow {
-  from {
-    transform: scaleY(0.02);
-    opacity: 0.3;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
-
-.animate-grow {
-  transform-origin: bottom;
-  animation: lh-grow 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--delay, 0ms);
-}
-
-/* a line drawing itself left to right. The dash length is set inline from the
-   path's own measured length, because a fixed one either falls short or lags. */
-@keyframes lh-draw {
-  from {
-    stroke-dashoffset: var(--length);
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.animate-draw {
-  stroke-dasharray: var(--length);
-  animation: lh-draw 460ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-@keyframes lh-wash {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: var(--to-opacity, 1);
-  }
-}
-
-.animate-wash {
-  animation: lh-wash 340ms ease-out 120ms both;
 }
 
 /* live-tail arrival flash (docs/frontend.md: new events prepend with highlight) */
@@ -393,14 +351,10 @@ textarea {
   .animate-tail-in,
   .animate-line-in,
   .animate-rise,
-  .animate-grow,
-  .animate-draw,
-  .animate-wash,
   .animate-pulse-dot,
   .animate-tick {
     animation: none;
     opacity: 1;
     transform: none;
-    stroke-dasharray: none;
   }
 }

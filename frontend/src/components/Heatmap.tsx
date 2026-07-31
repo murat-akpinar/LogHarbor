@@ -51,21 +51,18 @@ export function Heatmap({ cells }: HeatmapProps) {
             const count = counts.get(dayOfWeek * 24 + hour) ?? 0
             const label = t.dashboard.cellAria(day, String(hour).padStart(2, '0'), count.toLocaleString(lang))
             return (
-              // the grid fills in on the diagonal, so the week arrives as a wash across the
-              // plate rather than 168 cells appearing at once
               <div
                 key={hour}
                 role="img"
                 aria-label={label}
                 title={label}
-                className="animate-rise h-4 rounded-sm transition-colors duration-500 hover:ring-1 hover:ring-white/30"
+                className="h-4 rounded-sm hover:ring-1 hover:ring-white/30"
                 style={
                   {
                     backgroundColor: cellColor(count, max),
                     // the busiest hours are lit, the same way an alert bar is: the week's peak
                     // is findable without hunting for the darkest red
                     boxShadow: cellGlow(count, max),
-                    '--delay': `${(dayOfWeek + hour) * 5}ms`,
                   } as CSSProperties
                 }
               />

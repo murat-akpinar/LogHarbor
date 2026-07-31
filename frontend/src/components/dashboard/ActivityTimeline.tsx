@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { HistogramBucket, LatencyOverview, Level } from '../../types'
 import { useHistogram } from '../../hooks/useStats'
 import { ALERT_LEVELS, LEVEL_CHART, LEVEL_HEX, QUIET_LEVELS, barSegments, sumLevels } from '../../lib/levels'
@@ -8,7 +8,7 @@ import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
 import { formatDuration } from '../../lib/duration'
-import { plotMax, sweep } from '../../lib/plotScale'
+import { plotMax } from '../../lib/plotScale'
 import { useI18n } from '../../i18n'
 import { Card } from '../ui/Card'
 import { Panel } from '../ui/Panel'
@@ -316,17 +316,15 @@ export function ActivityTimeline({
             >
               {volumeBars.map((segments, index) => (
                 // keyed by position, not by timestamp: in live mode the timestamps shift every
-                // ten seconds, and keying on them would remount every column and replay the
-                // entrance animation over and over while somebody is reading the chart
+                // ten seconds, and keying on them would remount every column of the chart
                 <div
                   key={index}
-                  className="animate-grow flex h-full min-w-0 flex-1 flex-col-reverse"
-                  style={{ '--delay': `${sweep(index, columns)}ms` } as CSSProperties}
+                  className="flex h-full min-w-0 flex-1 flex-col-reverse"
                 >
                   {segments.map((segment, segmentIndex) => (
                     <span
                       key={segment.key}
-                      className={`w-full shrink-0 transition-[height] duration-500 ${
+                      className={`w-full shrink-0 ${
                         segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
                       }`}
                       style={{
@@ -420,8 +418,7 @@ export function ActivityTimeline({
                 {Array.from({ length: columns }, (_, index) => (
                   <div
                     key={index}
-                    className="animate-grow flex h-full min-w-0 flex-1 flex-col-reverse"
-                    style={{ '--delay': `${sweep(index, columns)}ms` } as CSSProperties}
+                    className="flex h-full min-w-0 flex-1 flex-col-reverse"
                   >
                     {statusSeries.map(({ key, color, data, dimmed, lit }) => {
                       const count = data[index] ?? 0
@@ -429,7 +426,7 @@ export function ActivityTimeline({
                       return (
                         <span
                           key={key}
-                          className="w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
+                          className="w-full shrink-0 rounded-t-[2px]"
                           style={{
                             height: `${(count / statusMax) * 100}%`,
                             minHeight: '1px',

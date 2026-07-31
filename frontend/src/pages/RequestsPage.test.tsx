@@ -149,7 +149,7 @@ it('draws each row its trend without asking for one', async () => {
   expect(rowRequests).toHaveLength(0)
 
   // and the strip is actually drawn, one bar per bucket the row carried
-  const strips = document.querySelectorAll('tbody .animate-grow')
+  const strips = document.querySelectorAll('tbody [data-trend]')
   expect(strips).toHaveLength(2)
   expect(strips[0].children).toHaveLength(3)
 })

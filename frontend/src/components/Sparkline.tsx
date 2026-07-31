@@ -18,11 +18,9 @@ export function TrendBars({
 }) {
   const max = Math.max(1, ...values)
   return (
-    // one animation for the strip, not one per bar. A table of 50 rows puts 50 of these on the
-    // page; at a bar each that was 1,200 animations running at once, which the compositor pays
-    // for on every frame of the entrance — and a 24-bar stagger inside a strip 96px wide is not
-    // a sweep anyone can see anyway. Growing the whole strip off the floor looks the same.
-    <div className={`animate-grow flex items-end gap-px ${className}`} aria-hidden="true">
+    // data-trend is the handle tests hold it by: it is hidden from the accessibility tree, so
+    // there is no role or label to find it with, and a class is a styling detail that moves
+    <div data-trend className={`flex items-end gap-px ${className}`} aria-hidden="true">
       {values.map((total, index) => (
         <span
           key={index}
@@ -104,7 +102,6 @@ export function TrendLine({
   className = 'h-5 w-16',
   centered = false,
   fill = false,
-  animate = true,
 }: {
   series: TrendSeries[]
   className?: string
@@ -114,9 +111,6 @@ export function TrendLine({
   /** Washes the area under each line in its own colour, for a line that has to hold a lane of
    *  its own between two sets of bars. A sparkline in a tile stays a stroke. */
   fill?: boolean
-  /** The line draws itself in on mount. Off for anything that redraws often enough that the
-   *  drawing would be the only thing you ever see. */
-  animate?: boolean
 }) {
   const max = Math.max(1, ...series.flatMap((line) => line.values))
   // one id per instance, because a page holds a dozen of these and a gradient is referenced by id
@@ -148,7 +142,6 @@ export function TrendLine({
             key={`fill-${line.color}`}
             d={areaPath(line.values, max, centered)}
             fill={`url(#${gradientId}-${index})`}
-            className={animate ? 'animate-wash' : ''}
           />
         ))}
       {series.map((line) => (
@@ -161,11 +154,6 @@ export function TrendLine({
           strokeLinejoin="round"
           // the box is stretched by preserveAspectRatio, and without this the stroke stretches too
           vectorEffect="non-scaling-stroke"
-          // pathLength normalizes the curve to 1 unit, so one dash covers the whole of it
-          // whatever its real length — no measuring the DOM to animate the draw
-          pathLength={animate ? 1 : undefined}
-          className={animate ? 'animate-draw' : ''}
-          style={animate ? ({ '--length': 1 } as CSSProperties) : undefined}
         />
       ))}
     </svg>

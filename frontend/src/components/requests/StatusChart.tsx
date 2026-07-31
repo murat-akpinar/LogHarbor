@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useHistogram } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
 import { SeriesChip } from '../ui/SeriesChip'
@@ -7,7 +7,7 @@ import { LEVELS } from '../../lib/levels'
 import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
 import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
-import { plotMax, sweep } from '../../lib/plotScale'
+import { plotMax } from '../../lib/plotScale'
 import { barFill, barGlow } from '../../lib/series'
 import { useI18n } from '../../i18n'
 import { TimeAxis } from '../TimeAxis'
@@ -99,13 +99,12 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
             >
               {Array.from({ length: bucketCount }, (_, index) => (
                 // keyed by position, not by timestamp: in live mode the window moves every ten
-                // seconds and keying on the start would replay the entrance on every refresh
+                // seconds and keying on the start would remount every bar
                 <div
                   key={index}
                   onMouseEnter={() => setHovered(index)}
                   onMouseLeave={() => setHovered(null)}
-                  className="group animate-grow relative flex h-full min-w-0 flex-1 flex-col-reverse"
-                  style={{ '--delay': `${sweep(index, bucketCount)}ms` } as CSSProperties}
+                  className="group relative flex h-full min-w-0 flex-1 flex-col-reverse"
                 >
                   <span className="absolute inset-0 -m-px rounded-sm group-hover:bg-surface-hover" />
                   {series.map(({ key, color, data, dimmed, lit }) => {
@@ -114,7 +113,7 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
                     return (
                       <span
                         key={key}
-                        className="relative w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
+                        className="relative w-full shrink-0 rounded-t-[2px]"
                         style={{
                           height: `${(count / max) * 100}%`,
                           minHeight: '1px',
