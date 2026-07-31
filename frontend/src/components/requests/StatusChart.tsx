@@ -21,9 +21,9 @@ interface StatusChartProps {
   /** null shows every class stacked; a class isolates it here and in the caller's table. */
   selected: StatusClass | null
   onSelect: (next: StatusClass | null) => void
-  /** Defaults to "Status codes". The dashboard calls it Requests, because there it is the
-   *  request chart rather than one control on a page that is already about requests. */
-  title?: string
+  /** Defaults to "Status codes". null drops the heading for a caller whose section header
+   *  already carries it, leaving the chips as the chart's own row. */
+  title?: string | null
   /** A link out, for callers that are only sampling this (the dashboard). */
   action?: ReactNode
 }
@@ -64,10 +64,14 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg">
-          <span className="truncate">{title ?? t.requests.statusCodes}</span>
-          {action}
-        </h2>
+        {title === null ? (
+          <span>{action}</span>
+        ) : (
+          <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg">
+            <span className="truncate">{title ?? t.requests.statusCodes}</span>
+            {action}
+          </h2>
+        )}
         <div className="flex items-center gap-1.5">
           {series.map(({ key, label, color, data, dimmed }) => (
             <SeriesChip

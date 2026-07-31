@@ -4,7 +4,8 @@ import { Sparkline } from '../components/Sparkline'
 import { ServiceStatusBoard } from '../components/ServiceStatusBoard'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { quote } from '../lib/filter'
 import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
@@ -65,7 +66,12 @@ export function ServicesPage() {
         onOpen={(row) => openFilter(probeFilter(row))}
       />
 
-      <Card className="overflow-x-auto">
+      <SectionBlock
+        icon="services"
+        title={t.services.traffic}
+        meta={(services.data?.services.length ?? 0).toLocaleString(lang)}
+      >
+        <Panel className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -107,10 +113,11 @@ export function ServicesPage() {
             ))}
           </tbody>
         </table>
-        {services.data?.services.length === 0 && (
-          <p className="p-3 text-sm text-fg-muted">{t.services.empty}</p>
-        )}
-      </Card>
+          {services.data?.services.length === 0 && (
+            <p className="p-3 text-sm text-fg-muted">{t.services.empty}</p>
+          )}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

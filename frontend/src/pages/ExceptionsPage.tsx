@@ -4,7 +4,8 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { ExceptionContextPanel } from '../components/exceptions/ExceptionContextPanel'
 import { Sparkline } from '../components/Sparkline'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { formatTimestamp } from '../lib/dates'
 import { exceptionStartsWith } from '../lib/filter'
 import { LEVEL_CHART } from '../lib/levels'
@@ -43,9 +44,13 @@ export function ExceptionsPage() {
         <p className="bg-level-error/10 p-2 text-sm text-level-error">{exceptions.error.message}</p>
       )}
 
-      {exceptions.data && <p className="text-xl font-semibold text-fg">{t.exceptions.headline(total)}</p>}
-
-      <Card className="overflow-x-auto">
+      {/* the sentence belongs to the table, so it lives on the same plate: a count of
+          exceptions is not a heading, it is what this page has to say */}
+      <SectionBlock>
+        {exceptions.data && (
+          <p className="mb-3 px-2 pt-1 text-xl font-semibold text-fg">{t.exceptions.headline(total)}</p>
+        )}
+        <Panel className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -91,10 +96,11 @@ export function ExceptionsPage() {
             ))}
           </tbody>
         </table>
-        {exceptions.data && rows.length === 0 && (
-          <p className="p-3 text-sm text-fg-muted">{t.analysis.noExceptions}</p>
-        )}
-      </Card>
+          {exceptions.data && rows.length === 0 && (
+            <p className="p-3 text-sm text-fg-muted">{t.analysis.noExceptions}</p>
+          )}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

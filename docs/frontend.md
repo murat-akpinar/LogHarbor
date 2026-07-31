@@ -140,6 +140,22 @@ Events is the exception in kind, not in placement: its Live is a SignalR subscri
 than a rolling window, so it keeps its own state and only borrows the control. It has no h1,
 so the group sits at the right of the search-bar row — that row is the page's header.
 
+--- SECTIONS AND WELLS ---
+
+Every page is built from the same two pieces. A SectionBlock (components/ui/SectionBlock.tsx)
+is the plate: a border, a small icon square, the section's name, an optional one-word fact
+beside it (a count, "2 not up") and an optional pill linking to the page that holds the whole
+of what it samples. A Panel (components/ui/Panel.tsx) is a well sunk into that plate — no
+frame of its own, just a change of surface.
+
+The frame belongs to the section and nowhere inside it. A page of individually framed cards
+reads as a pile of boxes with nothing saying which belong together; a page of named sections
+reads as answers. Dashboard, Requests, Services, Analysis and the settings tabs name their
+sections; Users, Exceptions and Queries take the plate with no header, because repeating the
+page's own h1 over its only table names nothing. Tables live in a well with
+`overflow-x-auto`, charts in a padded well, and figures inside a well go one surface lighter
+again (the query detail's tiles) rather than taking a border.
+
 --- LEVEL COLORS ---
 
 Colors come from theme tokens, not per-component Tailwind classes: --color-level-fatal,
@@ -216,7 +232,8 @@ Empty state: with zero events in range, a card links to the Events onboarding.
 
 --- SERVICES PAGE ---
 
-Per-service RED table (/api/stats/services): event rate (events/min from
+Two sections: "Host services" (the probe board, below) and "Traffic", the per-service RED
+table (/api/stats/services): event rate (events/min from
 total over the selected range), error % (Error+Fatal share, tinted red when
 non-zero), p95 Elapsed (em dash when the service carries no Elapsed), and a
 24-bucket sparkline (/api/stats/histogram filtered to the service, red when

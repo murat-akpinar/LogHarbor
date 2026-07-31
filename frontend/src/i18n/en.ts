@@ -244,6 +244,7 @@ export const en = {
     p95: 'p95',
     trend: 'Trend',
     empty: 'No events with a service identity (service.name or Service) in the selected range.',
+    traffic: 'Traffic',
     statusTitle: 'Host services',
     statusHint: 'What the host probe last reported, as of the end of the selected range.',
     statusUpCount: (count: number) => `${count} up`,

@@ -10,7 +10,8 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
 import { SqlText } from '../components/SqlText'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -134,9 +135,12 @@ export function QueriesPage() {
       {queries.error && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queries.error.message}</p>}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <Card className="min-h-0 overflow-auto lg:w-1/2">
+        {/* master and detail are one object read left to right, so neither half takes a
+            header of its own — the h1 names them both */}
+        <SectionBlock className="flex min-h-0 flex-col lg:w-1/2">
+          <Panel className="min-h-0 flex-1 overflow-auto">
           <table className="w-full">
-            <thead className="sticky top-0 border-b border-border bg-surface">
+            <thead className="sticky top-0 border-b border-border bg-surface-inset">
               <tr>
                 <th className={TH_CLASS}>{t.queries.query}</th>
                 {sortableHeader('calls', t.queries.calls)}
@@ -178,17 +182,21 @@ export function QueriesPage() {
               ))}
             </tbody>
           </table>
-          {queries.data && rows.length === 0 && (
-            <div className="p-4">
-              <p className="text-sm text-fg">{t.queries.noQueries}</p>
-              <p className="mt-2 text-sm text-fg-muted">{t.queries.noQueriesHint}</p>
-            </div>
-          )}
-        </Card>
+            {queries.data && rows.length === 0 && (
+              <div className="p-4">
+                <p className="text-sm text-fg">{t.queries.noQueries}</p>
+                <p className="mt-2 text-sm text-fg-muted">{t.queries.noQueriesHint}</p>
+              </div>
+            )}
+          </Panel>
+        </SectionBlock>
 
-        <Card className="min-h-0 overflow-y-auto p-4 lg:w-1/2">
-          {selected && (
-            <div className="flex flex-col gap-4">
+        {/* no plate at all until something is selected: an empty half is a box with nothing
+            in it, and the list beside it already explains why */}
+        {selected && (
+          <SectionBlock className="flex min-h-0 flex-col lg:w-1/2">
+            <Panel className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="flex flex-col gap-4">
               <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-fg">
                 <SqlText text={selected.value} />
               </pre>
@@ -248,9 +256,10 @@ export function QueriesPage() {
                   })}
                 </ul>
               </div>
-            </div>
-          )}
-        </Card>
+              </div>
+            </Panel>
+          </SectionBlock>
+        )}
       </div>
     </div>
   )
@@ -258,7 +267,7 @@ export function QueriesPage() {
 
 function DetailTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2">
+    <div className="rounded-well bg-surface px-3 py-2">
       <p className="text-xs text-fg-muted">{label}</p>
       <p className="tabular text-lg font-semibold text-fg">{value}</p>
     </div>

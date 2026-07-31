@@ -245,6 +245,7 @@ export const tr: Messages = {
     p95: 'p95',
     trend: 'Eğilim',
     empty: 'Seçilen aralıkta servis kimliği (service.name veya Service) taşıyan olay yok.',
+    traffic: 'Trafik',
     statusTitle: 'Sunucu servisleri',
     statusHint: 'Sunucu sondasının en son bildirdiği durum, seçilen aralığın sonuna göre.',
     statusUpCount: (count: number) => `${count} ayakta`,

@@ -9,7 +9,8 @@ import { OperationName } from '../components/OperationName'
 import { StatusChart } from '../components/requests/StatusChart'
 import { STATUS_FILTERS } from '../lib/status'
 import type { StatusClass } from '../lib/status'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { Input } from '../components/ui/Input'
 import { METHOD_PROPERTY, ROUTE_PROPERTY, operationFilter } from '../lib/operations'
 import { LEVEL_CHART } from '../lib/levels'
@@ -128,11 +129,14 @@ export function RequestsPage() {
         <p className="bg-level-error/10 p-2 text-sm text-level-error">{operations.error.message}</p>
       )}
 
-      <Card className="shrink-0 p-4">
-        <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} />
-      </Card>
+      <SectionBlock icon="requests" title={t.requests.statusCodes} className="shrink-0">
+        <Panel className="p-4">
+          <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} title={null} />
+        </Panel>
+      </SectionBlock>
 
-      <Card className="overflow-x-auto">
+      <SectionBlock icon="analysis" title={t.dashboard.routes} meta={rows.length.toLocaleString(lang)}>
+        <Panel className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -187,10 +191,11 @@ export function RequestsPage() {
             })}
           </tbody>
         </table>
-        {operations.data?.operations.length === 0 && (
-          <p className="p-3 text-sm text-fg-muted">{t.analysis.noOperations}</p>
-        )}
-      </Card>
+          {operations.data?.operations.length === 0 && (
+            <p className="p-3 text-sm text-fg-muted">{t.analysis.noOperations}</p>
+          )}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

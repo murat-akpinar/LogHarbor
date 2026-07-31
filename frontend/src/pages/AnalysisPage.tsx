@@ -5,7 +5,8 @@ import { LevelBadge } from '../components/LevelBadge'
 import { Sparkline } from '../components/Sparkline'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
 import { LEVEL_CHART } from '../lib/levels'
@@ -70,9 +71,8 @@ export function AnalysisPage() {
 
       {queryError && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queryError.message}</p>}
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.topErrors}</h2>
-        <Card className="overflow-x-auto">
+      <SectionBlock icon="exceptions" title={t.analysis.topErrors} meta={(errors.data?.errors.length ?? 0).toLocaleString(lang)}>
+        <Panel className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
@@ -120,12 +120,17 @@ export function AnalysisPage() {
           {errors.data?.errors.length === 0 && (
             <p className="p-3 text-sm text-fg-muted">{t.analysis.noErrors}</p>
           )}
-        </Card>
-      </section>
+        </Panel>
+      </SectionBlock>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.topExceptions}</h2>
-        <Card className="overflow-x-auto">
+      <SectionBlock
+        icon="exceptions"
+        title={t.analysis.topExceptions}
+        meta={(exceptions.data?.exceptions.length ?? 0).toLocaleString(lang)}
+        to="/exceptions"
+        linkLabel={t.dashboard.viewAll}
+      >
+        <Panel className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
@@ -149,12 +154,17 @@ export function AnalysisPage() {
           {exceptions.data?.exceptions.length === 0 && (
             <p className="p-3 text-sm text-fg-muted">{t.analysis.noExceptions}</p>
           )}
-        </Card>
-      </section>
+        </Panel>
+      </SectionBlock>
 
-      <section>
-        <h2 className="mb-2 text-sm font-semibold text-fg">{t.analysis.slowerThanUsual}</h2>
-        <Card className="overflow-x-auto">
+      <SectionBlock
+        icon="analysis"
+        title={t.analysis.slowerThanUsual}
+        meta={(slow.data?.operations.length ?? 0).toLocaleString(lang)}
+        to="/requests"
+        linkLabel={t.dashboard.viewAll}
+      >
+        <Panel className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
@@ -211,8 +221,8 @@ export function AnalysisPage() {
               )}
             </p>
           )}
-        </Card>
-      </section>
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }
