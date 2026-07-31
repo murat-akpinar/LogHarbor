@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react'
-import type { HistogramBucket, Level } from '../types'
-import { LEVELS, LEVEL_HEX } from '../lib/levels'
+import type { CSSProperties } from 'react'
+import type { HistogramBucket } from '../types'
+import { LEVELS, LEVEL_CHART, LEVEL_HEX, barSegments, sumLevels } from '../lib/levels'
 import { formatTimestamp } from '../lib/dates'
-import { niceCeil } from '../lib/niceScale'
+import { plotMax, sweep } from '../lib/plotScale'
+import { barFill, barGlow } from '../lib/series'
 import { useI18n } from '../i18n'
 import { Card } from './ui/Card'
+import { TimeAxis } from './TimeAxis'
 
 const PLOT_HEIGHT_PX = 160
-
-function sumCounts(counts: Record<Level, number>): number {
-  return LEVELS.reduce((total, level) => total + counts[level], 0)
-}
-
-function formatTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-}
 
 interface TooltipProps {
   bucket: HistogramBucket
@@ -22,9 +17,9 @@ interface TooltipProps {
 
 function BucketTooltip({ bucket }: TooltipProps) {
   const { t, lang } = useI18n()
-  const total = sumCounts(bucket.counts)
+  const total = sumLevels(bucket.counts)
   return (
-    <Card className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 p-2 text-xs">
+    <Card variant="float" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 p-2 text-xs">
       <p className="mb-1 text-fg-muted">{formatTimestamp(bucket.start, lang)}</p>
       {LEVELS.map((level) => (
         <div key={level} className="flex items-center gap-2 py-0.5">
@@ -76,28 +71,19 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
     return drag !== null && index >= Math.min(drag.anchor, drag.head) && index <= Math.max(drag.anchor, drag.head)
   }
 
-  const niceMax = niceCeil(Math.max(1, ...buckets.map((bucket) => sumCounts(bucket.counts))))
-  const labelEvery = Math.max(1, Math.ceil(buckets.length / 6))
+  const max = plotMax(buckets.map((bucket) => sumLevels(bucket.counts)))
 
   return (
     <div>
-      <div className="flex gap-2">
-        <div
-          className="flex w-10 shrink-0 flex-col justify-between text-right text-xs text-fg-muted"
-          style={{ height: PLOT_HEIGHT_PX }}
-        >
-          <span className="tabular">{niceMax.toLocaleString(lang)}</span>
-          <span className="tabular">0</span>
-        </div>
-        <div
-          className="flex min-w-0 flex-1 items-end gap-0.5 border-b border-border"
-          style={{ height: PLOT_HEIGHT_PX }}
-        >
-          {buckets.map((bucket, index) => {
-            const total = sumCounts(bucket.counts)
+      <div className="flex min-w-0 items-end gap-[2px]" style={{ height: PLOT_HEIGHT_PX }}>
+        {buckets.map((bucket, index) => {
+            const total = sumLevels(bucket.counts)
+            const segments = barSegments(bucket.counts)
             return (
+              // keyed by position rather than by timestamp: live mode moves the window every ten
+              // seconds, and keying on the start would remount every bar and replay its entrance
               <button
-                key={bucket.start}
+                key={index}
                 type="button"
                 onClick={() => onBucketClick(bucket.start, buckets[index + 1]?.start ?? rangeEnd)}
                 onMouseDown={(event) => {
@@ -111,7 +97,8 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                 onMouseLeave={() => setHoveredIndex(null)}
                 onFocus={() => setHoveredIndex(index)}
                 onBlur={() => setHoveredIndex(null)}
-                className="group relative flex h-full min-w-0 flex-1 flex-col-reverse gap-0.5 select-none"
+                className="group animate-grow relative flex h-full min-w-0 flex-1 flex-col-reverse select-none"
+                style={{ '--delay': `${sweep(index, buckets.length)}ms` } as CSSProperties}
                 aria-label={t.dashboard.bucketAria(formatTimestamp(bucket.start, lang), total)}
               >
                 <span
@@ -119,37 +106,35 @@ export function Histogram({ buckets, rangeEnd, onBucketClick, onBrush, showLegen
                     isBrushed(index) ? 'bg-accent/20' : 'group-hover:bg-surface-hover'
                   }`}
                 />
-                {LEVELS.map((level) => {
-                  const heightPct = (bucket.counts[level] / niceMax) * 100
-                  return heightPct > 0 ? (
-                    <span
-                      key={level}
-                      className="relative w-full shrink-0 rounded-sm"
-                      style={{ height: `${heightPct}%`, backgroundColor: LEVEL_HEX[level] }}
-                    />
-                  ) : null
-                })}
+                {segments.map((segment, segmentIndex) => (
+                  <span
+                    key={segment.key}
+                    className={`relative w-full shrink-0 transition-[height] duration-500 ${
+                      segmentIndex === segments.length - 1 ? 'rounded-t-[2px]' : ''
+                    }`}
+                    style={{
+                      height: `${(segment.count / max) * 100}%`,
+                      minHeight: '1px',
+                      background: barFill(segment.color),
+                      boxShadow: segment.lit ? barGlow(segment.color) : undefined,
+                    }}
+                  />
+                ))}
                 {hoveredIndex === index && <BucketTooltip bucket={bucket} />}
               </button>
             )
           })}
-        </div>
       </div>
 
-      {/* mirrors the bars row's flex layout exactly so each label sits under its bucket */}
-      <div className="ml-12 flex gap-0.5">
-        {buckets.map((bucket, index) => (
-          <span key={bucket.start} className="min-w-0 flex-1 truncate text-center text-xs text-fg-muted">
-            {index % labelEvery === 0 ? formatTime(bucket.start, lang) : ''}
-          </span>
-        ))}
-      </div>
+      {/* Ticks on round boundaries, no gridlines. A line up the plot would have to cross the
+          bars to reach the reader, and the bars are the thing being read. */}
+      {buckets.length > 0 && <TimeAxis from={buckets[0].start} to={rangeEnd} className="mt-1.5" />}
 
       {showLegend && (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
           {LEVELS.map((level) => (
             <div key={level} className="flex items-center gap-1.5 text-xs text-fg-muted">
-              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_HEX[level] }} />
+              <span className="h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: LEVEL_CHART[level] }} />
               <span>{level}</span>
               <span className="tabular">
                 ({buckets.reduce((total, bucket) => total + bucket.counts[level], 0).toLocaleString(lang)})

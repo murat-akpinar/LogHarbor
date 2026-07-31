@@ -21,15 +21,20 @@ export function PropertyRows({ properties, onFilter }: PropertyRowsProps) {
   const nested = entries.filter(([, value]) => !isScalar(value))
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col divide-y divide-white/[0.04]">
       {scalars.map(([key, value]) => {
         const text = value === null ? 'null' : String(value)
         return (
-          <div key={key} className="group flex items-baseline gap-2 border-b border-border py-1 last:border-b-0">
-            <span className="w-32 shrink-0 truncate font-mono text-xs text-fg-muted" title={key}>
+          // the row lights up under the pointer, which is what says its two actions are there
+          // at all — they stay hidden otherwise, because forty rows times two glyphs is noise
+          <div
+            key={key}
+            className="group -mx-1 flex items-baseline gap-2 rounded-md px-1 py-1 transition-colors duration-150 hover:bg-surface-hover"
+          >
+            <span className="w-28 shrink-0 truncate font-mono text-xs text-fg-subtle" title={key}>
               {key}
             </span>
-            <span className="min-w-0 flex-1 break-words font-mono text-xs text-fg">{text}</span>
+            <span className="min-w-0 flex-1 font-mono text-xs break-words text-fg">{text}</span>
             <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
               {onFilter && value !== null && (
                 <button
@@ -37,7 +42,7 @@ export function PropertyRows({ properties, onFilter }: PropertyRowsProps) {
                   onClick={() => onFilter(propertyEquals(key, text))}
                   aria-label={t.detail.filterBy(key)}
                   title={t.detail.filterBy(key)}
-                  className="rounded px-1.5 py-0.5 text-xs text-fg-muted transition-colors hover:bg-surface-hover hover:text-accent"
+                  className="rounded px-1.5 py-0.5 text-xs text-fg-muted transition-colors hover:bg-surface-raised hover:text-accent"
                 >
                   ⌕
                 </button>

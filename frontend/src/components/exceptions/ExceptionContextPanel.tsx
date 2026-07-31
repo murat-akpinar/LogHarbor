@@ -43,7 +43,7 @@ export function ExceptionContextPanel({ type, from, to }: ExceptionContextPanelP
           {latest.message}
         </p>
         {latest.exception && (
-          <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-surface-raised p-2 text-xs whitespace-pre-wrap text-fg">
+          <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-surface-inset p-2 text-xs whitespace-pre-wrap text-fg">
             {latest.exception}
           </pre>
         )}

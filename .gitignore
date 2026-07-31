@@ -29,9 +29,7 @@ test/anomaly-test/.state
 test/anomaly-test/webhook.log
 test/anomaly-test/tick.log
 test/anomaly-test/__pycache__/
-last.md
-fix.md
-todo.md
+
 # UI design references (root folder only: a bare "UI" also swallowed
 # frontend/src/components/ui/ on case-insensitive filesystems)
 

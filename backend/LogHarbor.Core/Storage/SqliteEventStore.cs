@@ -339,6 +339,74 @@ public sealed class SqliteEventStore : IEventStore
         return result;
     }
 
+    public async Task<LatencyOverview> GetLatencyAsync(
+        QuerySql? filter, DateTimeOffset from, DateTimeOffset to, int buckets, CancellationToken cancellationToken = default)
+    {
+        var fromUtc = ClefParser.FormatTimestamp(from);
+        var toUtc = ClefParser.FormatTimestamp(to);
+        var bucketSeconds = (to - from).TotalSeconds / buckets;
+
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "timestamp, properties", fromUtc, toUtc, cancellationToken);
+
+        // One pass, two shapes: the per-bucket rows and the whole range as bucket -1. A range p95
+        // cannot be recovered from bucket p95s, so it has to be ranked over the same rows here
+        // rather than averaged afterwards.
+        //
+        // ROW_NUMBER rather than NTILE, matching the operation and service overviews: a burst of
+        // identical durations must not collapse the rank to 0 and report the fastest as the p95.
+        command.CommandText =
+            "WITH v AS MATERIALIZED (" +
+            "SELECT CAST((julianday(timestamp) - julianday(@from)) * 86400.0 / @bucketSeconds AS INTEGER) AS b, " +
+            "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms " +
+            $"FROM {source}), " +
+            "w AS (SELECT b, ms FROM v WHERE ms IS NOT NULL), " +
+            "rb AS (SELECT b, ms, ROW_NUMBER() OVER (PARTITION BY b ORDER BY ms) AS rn, " +
+            "COUNT(*) OVER (PARTITION BY b) AS n FROM w), " +
+            "ra AS (SELECT ms, ROW_NUMBER() OVER (ORDER BY ms) AS rn, COUNT(*) OVER () AS n FROM w) " +
+            "SELECT b, COUNT(*) AS sampled, AVG(ms) AS avg_ms, " +
+            "MIN(ms) FILTER (WHERE rn >= 0.95 * n) AS p95 FROM rb GROUP BY b " +
+            "UNION ALL " +
+            "SELECT -1, COUNT(*), AVG(ms), MIN(ms) FILTER (WHERE rn >= 0.95 * n) FROM ra;";
+        command.Parameters.AddWithValue("@bucketSeconds", bucketSeconds);
+
+        var perBucket = new Dictionary<int, (double? Avg, double? P95)>();
+        double? rangeAvg = null;
+        double? rangeP95 = null;
+        long sampled = 0;
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var index = reader.GetInt64(0);
+            var count = reader.GetInt64(1);
+            var avg = reader.IsDBNull(2) ? (double?)null : reader.GetDouble(2);
+            var p95 = reader.IsDBNull(3) ? (double?)null : reader.GetDouble(3);
+            if (index < 0)
+            {
+                // the UNION's second leg: one row for the whole range, and it is empty-safe
+                // (COUNT over no rows is 0, and both figures come back null)
+                sampled = count;
+                rangeAvg = avg;
+                rangeP95 = p95;
+                continue;
+            }
+            // clamp in long space first: an event exactly at `to` can float-round into bucket `buckets`
+            perBucket[(int)Math.Clamp(index, 0, buckets - 1)] = (avg, p95);
+        }
+
+        var series = new List<LatencyBucket>(buckets);
+        for (var i = 0; i < buckets; i++)
+        {
+            var start = ClefParser.FormatTimestamp(from.AddSeconds(bucketSeconds * i));
+            var found = perBucket.TryGetValue(i, out var value);
+            series.Add(new LatencyBucket(start, found ? value.Avg : null, found ? value.P95 : null));
+        }
+        return new LatencyOverview(rangeAvg, rangeP95, sampled, series);
+    }
+
     public async Task<StatsSummary> GetSummaryAsync(
         QuerySql? filter, string fromUtc, string toUtc, CancellationToken cancellationToken = default)
     {

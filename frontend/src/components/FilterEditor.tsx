@@ -7,7 +7,7 @@ import { Button } from './ui/Button'
 import { Input } from './ui/Input'
 
 const POPOVER =
-  'absolute left-0 top-full z-20 mt-1 w-72 rounded-card border border-border bg-surface-raised p-2 text-sm shadow-card'
+  'absolute left-0 top-full z-20 mt-1 w-72 glass rounded-card border border-border bg-surface-float p-2 text-sm shadow-pop'
 const ROW =
   'block w-full rounded-lg px-2 py-1.5 text-left text-fg-muted transition-colors duration-150 hover:bg-surface-hover hover:text-fg'
 

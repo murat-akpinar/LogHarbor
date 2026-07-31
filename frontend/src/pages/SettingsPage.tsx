@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getArchiveSegments,
@@ -14,8 +15,11 @@ import { formatBytes } from '../lib/bytes'
 import { formatTimestamp } from '../lib/dates'
 import type { CreatedApiKey, StorageForecast, UserRole } from '../types'
 import { ArchiveSegments } from '../components/ArchiveSegments'
-import { Card } from '../components/ui/Card'
+import { KeyValueList } from '../components/ui/KeyValueList'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { LdapCard } from '../components/settings/LdapCard'
+import { SettingsTabs } from '../components/settings/SettingsTabs'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Button } from '../components/ui/Button'
@@ -37,20 +41,13 @@ function HealthCard() {
     return <p className="text-sm text-level-error">{error.message}</p>
   }
   return (
-    <dl className="grid grid-cols-3 gap-4 text-sm">
-      <div>
-        <dt className="text-xs text-fg-muted">{t.settings.status}</dt>
-        <dd className="text-fg">{health?.status ?? '—'}</dd>
-      </div>
-      <div>
-        <dt className="text-xs text-fg-muted">{t.settings.events}</dt>
-        <dd className="tabular text-fg">{health?.eventCount.toLocaleString(lang) ?? '—'}</dd>
-      </div>
-      <div>
-        <dt className="text-xs text-fg-muted">{t.settings.dbSize}</dt>
-        <dd className="tabular text-fg">{health ? formatBytes(health.dbSizeBytes) : '—'}</dd>
-      </div>
-    </dl>
+    <KeyValueList
+      items={[
+        { label: t.settings.status, value: health?.status ?? '—' },
+        { label: t.settings.events, value: health?.eventCount.toLocaleString(lang) ?? '—' },
+        { label: t.settings.dbSize, value: health ? formatBytes(health.dbSizeBytes) : '—' },
+      ]}
+    />
   )
 }
 
@@ -502,15 +499,47 @@ function UsersCard() {
   )
 }
 
+/** One titled area inside a tab, in the app's plate-and-well language: the tab already says
+ *  which part of settings this is, so the heading only has to name the area itself. */
+function SettingsSection({
+  title,
+  index,
+  children,
+}: {
+  title: string
+  index?: number
+  children: React.ReactNode
+}) {
+  return (
+    <SectionBlock title={title} index={index}>
+      <Panel className="p-4">{children}</Panel>
+    </SectionBlock>
+  )
+}
+
+const TAB_PARAM = 'tab'
+
 export function SettingsPage() {
   const { t } = useI18n()
   const { data: authStatus } = useAuthStatus()
   const isAdmin = useIsAdmin()
   const logoutMutation = useLogout()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // access holds the two admin-only cards, so a viewer is never offered the tab at all
+  const tabs = [
+    { id: 'server', label: t.settings.tabServer },
+    { id: 'ingestion', label: t.settings.tabIngestion },
+    { id: 'storage', label: t.settings.tabStorage },
+    ...(isAdmin ? [{ id: 'access', label: t.settings.tabAccess }] : []),
+  ]
+  // a link to a tab this account cannot open falls back to the first one rather than 404ing
+  const requested = searchParams.get(TAB_PARAM) ?? ''
+  const active = tabs.some((tab) => tab.id === requested) ? requested : tabs[0].id
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-4">
-      <div className="mb-4 flex items-center justify-between">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-fg">{t.settings.title}</h1>
         {authStatus?.authRequired && (
           <div className="flex items-center gap-3">
@@ -524,60 +553,62 @@ export function SettingsPage() {
         )}
       </div>
 
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.health}</h2>
-        <Card className="p-4">
-          <HealthCard />
-        </Card>
-      </section>
+      <SettingsTabs
+        tabs={tabs}
+        active={active}
+        // replace, not push: flipping through tabs should not fill the back button
+        onChange={(id) => setSearchParams({ [TAB_PARAM]: id }, { replace: true })}
+      />
 
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.apiKeys}</h2>
-        <Card className="p-4">
-          <ApiKeysCard />
-        </Card>
-      </section>
+      <div
+        role="tabpanel"
+        id={`settings-panel-${active}`}
+        aria-labelledby={`settings-tab-${active}`}
+        className="flex flex-col gap-4"
+      >
+        {active === 'server' && (
+          <>
+            <SettingsSection title={t.settings.health} index={0}>
+              <HealthCard />
+            </SettingsSection>
+            {isAdmin && (
+              <SettingsSection title={t.settings.backup} index={1}>
+                <p className="mb-3 text-sm text-fg-muted">{t.settings.backupHint}</p>
+                {/* a plain anchor: the session cookie rides along and the browser handles the download */}
+                <a
+                  href="/api/admin/backup"
+                  className="inline-block rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-hover"
+                >
+                  {t.settings.downloadBackup}
+                </a>
+              </SettingsSection>
+            )}
+          </>
+        )}
 
-      <section className="mb-6">
-        <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.archiving}</h2>
-        <Card className="p-4">
-          <ArchiveCard />
-        </Card>
-      </section>
+        {active === 'ingestion' && (
+          <SettingsSection title={t.settings.apiKeys}>
+            <ApiKeysCard />
+          </SettingsSection>
+        )}
 
-      {isAdmin && (
-        <section className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.backup}</h2>
-          <Card className="p-4">
-            <p className="mb-3 text-sm text-fg-muted">{t.settings.backupHint}</p>
-            {/* a plain anchor: the session cookie rides along and the browser handles the download */}
-            <a
-              href="/api/admin/backup"
-              className="inline-block rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-fg transition-colors duration-150 hover:bg-surface-hover"
-            >
-              {t.settings.downloadBackup}
-            </a>
-          </Card>
-        </section>
-      )}
+        {active === 'storage' && (
+          <SettingsSection title={t.settings.archiving}>
+            <ArchiveCard />
+          </SettingsSection>
+        )}
 
-      {isAdmin && (
-        <section className="mb-6">
-          <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.users}</h2>
-          <Card className="p-4">
-            <UsersCard />
-          </Card>
-        </section>
-      )}
-
-      {isAdmin && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-fg">{t.settings.ldapTitle}</h2>
-          <Card className="p-4">
-            <LdapCard />
-          </Card>
-        </section>
-      )}
+        {active === 'access' && isAdmin && (
+          <>
+            <SettingsSection title={t.settings.users} index={0}>
+              <UsersCard />
+            </SettingsSection>
+            <SettingsSection title={t.settings.ldapTitle} index={1}>
+              <LdapCard />
+            </SettingsSection>
+          </>
+        )}
+      </div>
     </div>
   )
 }

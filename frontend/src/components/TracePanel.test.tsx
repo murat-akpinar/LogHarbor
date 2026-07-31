@@ -7,6 +7,7 @@ import { getEvents } from '../api/events'
 import { getTrace } from '../api/traces'
 import type { Event } from '../types'
 import { TracePanel } from './TracePanel'
+import { DURATION_W, LABEL_W } from './SpanTimeline'
 
 vi.mock('../api/events', () => ({
   getEvents: vi.fn(async () => ({ events: [], hasMore: false, archivedDays: [] })),
@@ -143,8 +144,12 @@ it('renders the real waterfall when the trace has spans', async () => {
   vi.mocked(getEvents).mockResolvedValue({ events: [], hasMore: false, archivedDays: [] })
   renderPanel()
 
-  expect(await screen.findByText('GET /cart')).toBeDefined()
-  expect(screen.getByText('120 ms')).toBeDefined()
+  expect(await screen.findByRole('button', { name: /GET \/cart/ })).toBeDefined()
+  // twice, and correctly so: a one-span trace's total IS that span's duration — once in the
+  // header's Total chip, once in the row's own duration column
+  expect(screen.getAllByText('120 ms')).toHaveLength(2)
+  // the header names what the trace is and what it cost, before any bar is read
+  expect(screen.getByRole('heading', { name: 'GET /cart' })).toBeDefined()
 
   // clicking the span opens its detail with the status message
   screen.getByRole('button', { name: /GET \/cart/ }).click()
@@ -157,7 +162,7 @@ it('stretches the timeline on zoom and snaps back to fit', async () => {
   vi.mocked(getTrace).mockResolvedValue({ spans: [span()] })
   renderPanel()
 
-  await screen.findByText('GET /cart')
+  await screen.findByRole('button', { name: /GET \/cart/ })
   const track = screen.getByTestId('span-timeline')
   expect(track.style.width).toBe('100%')
   expect((screen.getByLabelText('Fit the whole trace') as HTMLButtonElement).disabled).toBe(true)
@@ -175,15 +180,17 @@ it('reads the offset under the pointer off the time axis', async () => {
   vi.mocked(getTrace).mockResolvedValue({ spans: [span()] })
   renderPanel()
 
-  await screen.findByText('GET /cart')
+  await screen.findByRole('button', { name: /GET \/cart/ })
   const track = screen.getByTestId('span-timeline')
   // jsdom has no layout: give the element a box so the pointer maths has something to divide by
   Object.defineProperty(track, 'getBoundingClientRect', {
     value: () => ({ left: 0, top: 0, right: 640, bottom: 100, width: 640, height: 100, x: 0, y: 0, toJSON: () => ({}) }),
   })
 
-  // 176px of labels, 64px of durations, so the track itself is 400px wide: halfway is 60 ms
-  fireEvent.mouseMove(track, { clientX: 176 + 200 })
+  // the track is what is left of 640px once the label and duration columns have taken theirs;
+  // the widths come from the component so this cannot drift when a column is resized
+  const trackWidth = 640 - LABEL_W - DURATION_W
+  fireEvent.mouseMove(track, { clientX: LABEL_W + trackWidth / 2 })
   expect(await screen.findByText('60.0ms')).toBeDefined()
 
   fireEvent.mouseLeave(track)

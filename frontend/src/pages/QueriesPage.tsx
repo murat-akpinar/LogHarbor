@@ -10,14 +10,15 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
 import { SqlText } from '../components/SqlText'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { formatTimestamp } from '../lib/dates'
 import { formatDuration } from '../lib/duration'
 import { quote } from '../lib/filter'
-import { LEVEL_HEX } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -134,9 +135,12 @@ export function QueriesPage() {
       {queries.error && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queries.error.message}</p>}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <Card className="min-h-0 overflow-auto lg:w-1/2">
+        {/* master and detail are one object read left to right, so neither half takes a
+            header of its own — the h1 names them both */}
+        <SectionBlock className="flex min-h-0 flex-col lg:w-1/2">
+          <Panel className="min-h-0 flex-1 overflow-auto">
           <table className="w-full">
-            <thead className="sticky top-0 border-b border-border bg-surface">
+            <thead className="sticky top-0 border-b border-border bg-surface-inset">
               <tr>
                 <th className={TH_CLASS}>{t.queries.query}</th>
                 {sortableHeader('calls', t.queries.calls)}
@@ -178,25 +182,37 @@ export function QueriesPage() {
               ))}
             </tbody>
           </table>
-          {queries.data && rows.length === 0 && (
-            <div className="p-4">
-              <p className="text-sm text-fg">{t.queries.noQueries}</p>
-              <p className="mt-2 text-sm text-fg-muted">{t.queries.noQueriesHint}</p>
-            </div>
-          )}
-        </Card>
+            {queries.data && rows.length === 0 && (
+              <div className="p-4">
+                <p className="text-sm text-fg">{t.queries.noQueries}</p>
+                <p className="mt-2 text-sm text-fg-muted">{t.queries.noQueriesHint}</p>
+              </div>
+            )}
+          </Panel>
+        </SectionBlock>
 
-        <Card className="min-h-0 overflow-y-auto p-4 lg:w-1/2">
-          {selected && (
-            <div className="flex flex-col gap-4">
+        {/* no plate at all until something is selected: an empty half is a box with nothing
+            in it, and the list beside it already explains why */}
+        {selected && (
+          <SectionBlock className="flex min-h-0 flex-col lg:w-1/2">
+            <Panel className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="flex flex-col gap-4">
               <pre className="max-h-72 overflow-auto rounded-lg border border-border bg-surface-inset p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap text-fg">
                 <SqlText text={selected.value} />
               </pre>
               <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                <DetailTile label={t.queries.calls} value={selected.calls.toLocaleString(lang)} />
-                <DetailTile label={t.queries.total} value={formatDuration(selected.totalMs, lang)} />
-                <DetailTile label={t.queries.avg} value={formatDuration(selected.avgMs, lang)} />
-                <DetailTile label={t.queries.p95} value={formatDuration(selected.p95Ms, lang)} />
+                <DetailTile
+                  label={t.queries.calls}
+                  value={selected.calls.toLocaleString(lang)}
+                  color={SERIES.volume}
+                />
+                <DetailTile
+                  label={t.queries.total}
+                  value={formatDuration(selected.totalMs, lang)}
+                  color="var(--color-chart-line)"
+                />
+                <DetailTile label={t.queries.avg} value={formatDuration(selected.avgMs, lang)} color={SERIES.avg} />
+                <DetailTile label={t.queries.p95} value={formatDuration(selected.p95Ms, lang)} color={SERIES.p95} />
               </div>
               <dl className="grid grid-cols-2 gap-2 text-sm">
                 <dt className="text-fg-muted">{t.queries.connection}</dt>
@@ -225,7 +241,7 @@ export function QueriesPage() {
                   </Link>
                 </div>
                 <div className="mt-2">
-                  <Sparkline filter={selectedFilter} color={LEVEL_HEX.Information} from={range.from} to={range.to} />
+                  <Sparkline filter={selectedFilter} color={SERIES.volume} from={range.from} to={range.to} />
                 </div>
                 <ul className="mt-2">
                   {(occurrences.data?.events ?? []).map((event) => {
@@ -248,19 +264,32 @@ export function QueriesPage() {
                   })}
                 </ul>
               </div>
-            </div>
-          )}
-        </Card>
+              </div>
+            </Panel>
+          </SectionBlock>
+        )}
       </div>
     </div>
   )
 }
 
-function DetailTile({ label, value }: { label: string; value: string }) {
+/**
+ * One figure about the selected query, in the same shape as the dashboard's glance band: a
+ * hairline of the series' own colour along the top edge, an eyebrow, and the number.
+ *
+ * The hue is the one the series owns everywhere else (lib/series), so a reader who has learnt
+ * that p95 is violet on the dashboard does not have to learn it again here.
+ */
+function DetailTile({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2">
-      <p className="text-xs text-fg-muted">{label}</p>
-      <p className="tabular text-lg font-semibold text-fg">{value}</p>
+    <div className="rounded-well relative overflow-hidden bg-surface px-3 py-2 ring-1 ring-white/[0.04]">
+      <span
+        className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        style={{ background: `linear-gradient(90deg, ${color}, transparent 70%)` }}
+        aria-hidden="true"
+      />
+      <p className="text-[0.625rem] font-semibold tracking-[0.12em] text-fg-muted uppercase">{label}</p>
+      <p className="tabular mt-0.5 text-lg font-semibold text-fg">{value}</p>
     </div>
   )
 }

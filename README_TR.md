@@ -139,8 +139,8 @@ cd frontend && npm run build && npm run lint
 
 ## Web arayüzü
 
-Her şey giriş kapısının arkasındadır. Üst çubukta sayfa menüsünün yanında EN/TR dil ve
-açık/koyu tema düğmeleri bulunur.
+Her şey giriş kapısının arkasındadır. Üst çubukta sayfa menüsünün yanında EN/TR dil
+düğmesi bulunur. Tek tema vardır ve koyudur — gerekçesi docs/frontend.md'de.
 
 **Zaman boyutu olan her sayfada** (Panel, Olaylar, İstekler, İstisnalar, Sorgular, Servisler,
 Kullanıcılar, Analiz) sağ üstte aynı iki kontrol durur:

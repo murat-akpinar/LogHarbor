@@ -32,7 +32,8 @@ const SAMPLE_STREAM: { time: string; level: Level; source: string; message: stri
 function SampleStream() {
   const { t } = useI18n()
   return (
-    <div className="mt-8 hidden overflow-hidden rounded-card border border-border bg-surface-inset lg:block">
+    // the stream stands in for the product, so it gets the product's own reading bed
+    <div className="glass mt-8 hidden overflow-hidden rounded-card border border-border bg-surface shadow-card lg:block">
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="font-mono text-xs text-fg-subtle">events</span>
         <span className="rounded border border-border px-1.5 py-0.5 text-[0.625rem] font-semibold tracking-wider text-fg-subtle uppercase">
@@ -57,33 +58,31 @@ function SampleStream() {
   )
 }
 
-/** The page around the form: the product on the left, one card on the right. The two washes
- *  are the only decoration in the app, and they are what makes this page not a grey box. */
+/** The page around the form: the product on the left, one card on the right. The canvas already
+ *  carries the app's ambient wash; this page turns it up, because it is the only screen with
+ *  room to be an impression rather than a readout. */
 function Shell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   const { t } = useI18n()
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-40 -left-32 size-[42rem] rounded-full blur-3xl"
-        style={{
-          background: 'radial-gradient(closest-side, var(--color-glow-a), transparent)',
-          opacity: 'var(--logharbor-glow-opacity)',
-        }}
+        className="pointer-events-none absolute -top-40 -left-32 size-[42rem] rounded-full opacity-25 blur-3xl"
+        style={{ background: 'radial-gradient(closest-side, var(--color-glow-a), transparent)' }}
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-32 -bottom-40 size-[38rem] rounded-full blur-3xl"
-        style={{
-          background: 'radial-gradient(closest-side, var(--color-glow-b), transparent)',
-          opacity: 'var(--logharbor-glow-opacity)',
-        }}
+        className="pointer-events-none absolute -right-32 -bottom-40 size-[38rem] rounded-full opacity-20 blur-3xl"
+        style={{ background: 'radial-gradient(closest-side, var(--color-glow-b), transparent)' }}
       />
 
-      <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1.1fr_20rem] lg:gap-16">
+      <div className="animate-rise relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[1.1fr_20rem] lg:gap-16">
         <section>
           <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-fg uppercase">
-            <span className="size-1.5 rounded-full bg-accent" aria-hidden="true" />
+            <span
+              className="size-1.5 rounded-full bg-accent shadow-[0_0_10px_1px_var(--color-accent)]"
+              aria-hidden="true"
+            />
             LogHarbor
             <span className="font-medium text-fg-subtle">· {t.login.tagline}</span>
           </p>
@@ -94,7 +93,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
           <SampleStream />
         </section>
 
-        <Card className="w-full p-6">
+        <Card variant="lifted" className="w-full p-6">
           <h2 className="text-lg font-semibold text-fg">{title}</h2>
           <p className="mt-1 mb-5 text-xs leading-relaxed text-fg-muted">{subtitle}</p>
           {children}
@@ -156,8 +155,10 @@ function MethodTabs({ method, onChange }: { method: LoginMethod; onChange: (next
           aria-selected={method === tab.id}
           aria-controls={LOGIN_FORM_ID}
           onClick={() => onChange(tab.id)}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
-            method === tab.id ? 'bg-surface-raised text-fg' : 'text-fg-muted hover:text-fg'
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200 focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:outline-none ${
+            method === tab.id
+              ? 'bg-accent/15 text-accent shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--color-accent)_30%,transparent)]'
+              : 'text-fg-muted hover:bg-surface-hover hover:text-fg'
           }`}
         >
           {tab.label}

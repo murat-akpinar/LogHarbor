@@ -4,10 +4,11 @@ import { useUserActivity } from '../hooks/useStats'
 import { Sparkline } from '../components/Sparkline'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { formatTimestamp } from '../lib/dates'
 import { propertyEquals } from '../lib/filter'
-import { LEVEL_HEX } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
@@ -65,7 +66,9 @@ export function UsersPage() {
 
       {users.error && <p className="bg-level-error/10 p-2 text-sm text-level-error">{users.error.message}</p>}
 
-      <Card className="overflow-x-auto">
+      {/* headerless: the h1 above already names the one table on this page */}
+      <SectionBlock>
+        <Panel className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -94,7 +97,7 @@ export function UsersPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={propertyEquals(property, row.value)}
-                      color={errorPct > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
+                      color={SERIES.volume}
                       from={range.from}
                       to={range.to}
                     />
@@ -104,8 +107,9 @@ export function UsersPage() {
             })}
           </tbody>
         </table>
-        {users.data?.users.length === 0 && <p className="p-3 text-sm text-fg-muted">{t.users.empty(property)}</p>}
-      </Card>
+          {users.data?.users.length === 0 && <p className="p-3 text-sm text-fg-muted">{t.users.empty(property)}</p>}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

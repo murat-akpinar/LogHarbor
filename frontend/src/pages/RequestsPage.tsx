@@ -1,16 +1,19 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { OperationOverview } from '../types'
 import { useOperations } from '../hooks/useStats'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { Sparkline } from '../components/Sparkline'
-import { StatusChart, STATUS_FILTERS } from '../components/requests/StatusChart'
-import type { StatusClass } from '../components/requests/StatusChart'
-import { Card } from '../components/ui/Card'
+import { OperationName } from '../components/OperationName'
+import { StatusChart } from '../components/requests/StatusChart'
+import { STATUS_FILTERS } from '../lib/status'
+import type { StatusClass } from '../lib/status'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { Input } from '../components/ui/Input'
 import { METHOD_PROPERTY, ROUTE_PROPERTY, operationFilter } from '../lib/operations'
-import { LEVEL_HEX } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
@@ -34,7 +37,13 @@ export function RequestsPage() {
   const navigate = useNavigate()
   const { live, range, toggleLive, setRange } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
-  const [statusClass, setStatusClass] = useState<StatusClass | null>(null)
+  // ?status=server arrives from the dashboard's request chart: clicking 5xx there opens this
+  // page already narrowed to it, rather than dropping the reader on the unfiltered table
+  const [searchParams] = useSearchParams()
+  const requestedStatus = searchParams.get('status')
+  const [statusClass, setStatusClass] = useState<StatusClass | null>(
+    requestedStatus !== null && requestedStatus in STATUS_FILTERS ? (requestedStatus as StatusClass) : null,
+  )
   // the sink decides the spelling: Path/Method here, RequestPath/RequestMethod under Serilog's
   // ASP.NET middleware, http.route under OTel. Blank falls back to grouping by message template
   const [routeProperty, setRouteProperty] = useState(ROUTE_PROPERTY)
@@ -120,9 +129,14 @@ export function RequestsPage() {
         <p className="bg-level-error/10 p-2 text-sm text-level-error">{operations.error.message}</p>
       )}
 
-      <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} />
+      <SectionBlock icon="requests" title={t.requests.statusCodes} className="shrink-0">
+        <Panel className="p-4">
+          <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} title={null} />
+        </Panel>
+      </SectionBlock>
 
-      <Card className="overflow-x-auto">
+      <SectionBlock icon="analysis" title={t.dashboard.routes} meta={rows.length.toLocaleString(lang)}>
+        <Panel className="overflow-x-auto">
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -142,15 +156,24 @@ export function RequestsPage() {
                   onClick={() => openEvents(op)}
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
                 >
-                  <td className={`${TD_CLASS} font-mono`}>{op.template}</td>
+                  <td className={TD_CLASS}>
+                    <OperationName operation={op} />
+                  </td>
                   <td className={`${TD_CLASS} tabular text-right`}>
                     {(op.total / rangeMinutes).toLocaleString(lang, {
                       minimumFractionDigits: 1,
                       maximumFractionDigits: 1,
                     })}
                   </td>
-                  <td className={`${TD_CLASS} tabular text-right ${errorPct > 0 ? 'text-level-error' : ''}`}>
-                    {errorPct.toFixed(1)}%
+                  {/* a mark, not a coloured row: only the figure that is wrong changes colour */}
+                  <td className={`${TD_CLASS} tabular text-right`}>
+                    {errorPct > 0 ? (
+                      <span className="inline-block rounded bg-level-error/12 px-1.5 py-0.5 text-level-error">
+                        {errorPct.toFixed(1)}%
+                      </span>
+                    ) : (
+                      <span className="text-fg-subtle">{errorPct.toFixed(1)}%</span>
+                    )}
                   </td>
                   <td className={`${TD_CLASS} tabular text-right`}>
                     {op.p95ElapsedMs === null ? '—' : formatMs(op.p95ElapsedMs, lang)}
@@ -158,7 +181,7 @@ export function RequestsPage() {
                   <td className={TD_CLASS}>
                     <Sparkline
                       filter={rowFilter(op)}
-                      color={errorPct > 0 ? LEVEL_HEX.Error : LEVEL_HEX.Information}
+                      color={SERIES.volume}
                       from={range.from}
                       to={range.to}
                     />
@@ -168,10 +191,11 @@ export function RequestsPage() {
             })}
           </tbody>
         </table>
-        {operations.data?.operations.length === 0 && (
-          <p className="p-3 text-sm text-fg-muted">{t.analysis.noOperations}</p>
-        )}
-      </Card>
+          {operations.data?.operations.length === 0 && (
+            <p className="p-3 text-sm text-fg-muted">{t.analysis.noOperations}</p>
+          )}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

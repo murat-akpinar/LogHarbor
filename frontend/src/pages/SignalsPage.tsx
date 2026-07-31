@@ -3,7 +3,8 @@ import type { Signal } from '../types'
 import { useCreateSignal, useDeleteSignal, useSignals, useUpdateSignal } from '../hooks/useSignals'
 import { useIsAdmin } from '../hooks/useAuth'
 import { SignalForm } from '../components/SignalForm'
-import { Card } from '../components/ui/Card'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
 
@@ -60,26 +61,28 @@ export function SignalsPage() {
   const isAdmin = useIsAdmin()
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-4">
-      <h1 className="mb-4 text-lg font-semibold text-fg">{t.signals.title}</h1>
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+      <h1 className="text-lg font-semibold text-fg">{t.signals.title}</h1>
 
       {isAdmin && (
-        <Card className="mb-6 p-4">
-          <SignalForm submitLabel={t.common.create} onSubmit={(request) => createSignal.mutateAsync(request)} />
-        </Card>
+        <SectionBlock icon="signals" title={t.signals.newSignal} index={0}>
+          <Panel className="p-4">
+            <SignalForm submitLabel={t.common.create} onSubmit={(request) => createSignal.mutateAsync(request)} />
+          </Panel>
+        </SectionBlock>
       )}
 
-      {isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
-      {error && <p className="text-sm text-level-error">{error.message}</p>}
-      {signals && signals.length === 0 && <p className="text-sm text-fg-muted">{t.signals.noSignals}</p>}
-
-      {signals && signals.length > 0 && (
-        <Card className="overflow-hidden">
-          {signals.map((signal) => (
+      {/* headerless: the page's own h1 already names the one list on it */}
+      <SectionBlock index={1}>
+        <Panel className="overflow-hidden">
+          {isLoading && <p className="p-4 text-sm text-fg-muted">{t.common.loading}</p>}
+          {error && <p className="p-4 text-sm text-level-error">{error.message}</p>}
+          {signals && signals.length === 0 && <p className="p-4 text-sm text-fg-muted">{t.signals.noSignals}</p>}
+          {signals?.map((signal) => (
             <SignalRow key={signal.id} signal={signal} isAdmin={isAdmin} />
           ))}
-        </Card>
-      )}
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

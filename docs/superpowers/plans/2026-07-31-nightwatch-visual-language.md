@@ -234,3 +234,37 @@ Each step is done when the frontend tests pass, the page reads in both themes, a
 it has been seen at a narrow window. Steps 3 and 4 also get looked at on the test
 server, signed in as a viewer as well as an admin, because half these panels are
 admin-gated.
+
+---
+
+## Part 4 — What the plan got wrong, found by building it
+
+Written after the fact, on the `ui-improve` branch. Four things did not survive
+contact with the code.
+
+**Decision 4 (mono for data, sans for chrome) is reverted.** A system sans was put
+in for the interface and the owner asked for Cascadia back the same evening: this
+is a log tool and it should read like one. Data is still marked `font-mono` — the
+same face today, and the marking is what would carry the difference if that ever
+changes. One line in `index.css`.
+
+**Decision 5's outer section card was not built.** Nightwatch wraps a section in a
+card because its inner cards are borderless insets. Ours already have a border and
+a shadow, so porting the wrapper would have framed everything twice. `SectionHeader`
+took the icon plate and the count instead, and `SectionBlock` was deleted unused.
+
+**Decision 8's chip is gone too.** `routes.png` and `request.png` both set the HTTP
+verb as coloured text, not on a plate — `RoutesPanel` had already got this right by
+hand. `OperationName` took that shape, shares the colour map with the panel, and no
+caller was left for a `Chip`. The tinted-plate token stays for whatever needs one.
+
+**Step 5 turned out to be nothing.** `EventRow` is already the `details.png` row —
+mono timestamp, level badge, columns, message — and `EventDetail` already sets the
+exception block and trace ids in mono. The reference's two-column dotted-leader
+detail page does not fit a 28rem drawer without losing the click-to-filter property
+rows, which is a capability, so nothing there was churned. The leader list went to
+the settings health figures instead, which is a pure read.
+
+The rest landed as written: neutral-by-default bars with the quiet levels summed
+into one block, no axes, mono window ends under every plot, the metric header as
+the legend, and the four-tile band gone.

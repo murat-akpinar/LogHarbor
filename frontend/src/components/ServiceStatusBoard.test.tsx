@@ -70,7 +70,9 @@ it('groups services under their host and counts what is not up', () => {
   expect(screen.getByText('web-1')).toBeDefined()
   expect(screen.getByText('web-2')).toBeDefined()
   expect(screen.getByText('2 up')).toBeDefined()
-  expect(screen.getByText('1 not up')).toBeDefined()
+  // each host line counts its own host; the section header counts the whole board, so the one
+  // host that is down is reported in both places
+  expect(screen.getAllByText('1 not up')).toHaveLength(2)
 })
 
 it('shows the raw state word and how old the reading is', () => {

@@ -179,6 +179,22 @@ export interface ServiceStatusBoard {
   services: ServiceStatusRow[]
 }
 
+/** One time bucket of the latency series; both figures are null where nothing in it was timed. */
+export interface LatencyBucket {
+  start: string
+  avgMs: number | null
+  p95Ms: number | null
+}
+
+/** Latency across a range and over it. sampled counts the events that carried Elapsed, so
+ *  "nothing is timed here" is tellable from "everything was quick". */
+export interface LatencyOverview {
+  avgMs: number | null
+  p95Ms: number | null
+  sampled: number
+  buckets: LatencyBucket[]
+}
+
 /** RED numbers for one operation (CLEF message template); p95ElapsedMs is null when no event carried Elapsed. */
 export interface OperationOverview {
   /** The group's identity: "GET /orders/{id}" for a route, the message template otherwise. */

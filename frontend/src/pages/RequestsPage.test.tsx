@@ -33,13 +33,13 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function renderPage() {
+function renderPage(url = '/requests') {
   localStorage.setItem('logharbor-lang', 'en')
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[url]}>
           <RequestsPage />
         </MemoryRouter>
       </LanguageProvider>
@@ -56,10 +56,11 @@ function bodyRowTexts(): string[] {
 
 it('lists operations with their RED numbers, busiest first', async () => {
   renderPage()
-  expect(await screen.findByText('GET /api/orders/{id}')).toBeDefined()
+  expect(await screen.findByText('/api/orders/{id}')).toBeDefined()
   // error % = 5 / 10 = 50.0%
   expect(screen.getByText('50.0%')).toBeDefined()
-  expect(bodyRowTexts()[0]).toContain('GET /api/orders/{id}')
+  expect(bodyRowTexts()[0]).toContain('GET')
+  expect(bodyRowTexts()[0]).toContain('/api/orders/{id}')
 })
 
 it('stacks status-class series with their totals in the legend', async () => {
@@ -87,7 +88,7 @@ it('starts live, and keeps the range picker alongside in both states', async () 
 
 it('isolates a status class and narrows the table to it', async () => {
   renderPage()
-  await screen.findByText('GET /api/orders/{id}')
+  await screen.findByText('/api/orders/{id}')
 
   const only5xx = screen.getByRole('button', { name: /5xx/ })
   only5xx.click()
@@ -101,11 +102,31 @@ it('isolates a status class and narrows the table to it', async () => {
   await waitFor(() => expect(only5xx.getAttribute('aria-pressed')).toBe('false'))
 })
 
+// the dashboard's request chart links here per status class; landing on the unfiltered table
+// would throw away the thing the reader clicked
+it('opens already narrowed when the URL names a status class', async () => {
+  renderPage('/requests?status=server')
+
+  await waitFor(() => {
+    expect(vi.mocked(getOperations).mock.calls.some(([params]) => params.filter === 'StatusCode >= 500')).toBe(true)
+  })
+  expect(screen.getByRole('button', { name: /5xx/ }).getAttribute('aria-pressed')).toBe('true')
+})
+
+it('ignores a status class it does not know', async () => {
+  renderPage('/requests?status=teapot')
+
+  await screen.findByText('/api/orders/{id}')
+  expect(screen.getByRole('button', { name: /5xx/ }).getAttribute('aria-pressed')).toBe('false')
+})
+
 it('re-sorts by error % when that header is clicked', async () => {
   renderPage()
-  await screen.findByText('GET /api/orders/{id}')
+  await screen.findByText('/api/orders/{id}')
   screen.getByRole('button', { name: 'Error %' }).click()
   await waitFor(() => {
-    expect(bodyRowTexts()[0]).toContain('POST /api/orders')
+    // the verb and the path are separate elements now, so the row text has no space between them
+    expect(bodyRowTexts()[0]).toContain('POST')
+    expect(bodyRowTexts()[1]).toContain('GET')
   })
 })

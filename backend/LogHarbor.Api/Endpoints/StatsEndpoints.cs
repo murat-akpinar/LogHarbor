@@ -11,6 +11,7 @@ public static class StatsEndpoints
         var group = app.MapGroup("/api/stats");
 
         group.MapGet("/histogram", HistogramAsync);
+        group.MapGet("/latency", LatencyAsync);
         group.MapGet("/heatmap", HeatmapAsync);
         group.MapGet("/summary", SummaryAsync);
         group.MapGet("/ingestion-lag", IngestionLagAsync);
@@ -342,6 +343,27 @@ public static class StatsEndpoints
 
         var result = await eventStore.GetHistogramAsync(filterSql, fromValue, toValue, buckets, cancellationToken);
         return Results.Ok(new { buckets = result });
+    }
+
+    private static async Task<IResult> LatencyAsync(
+        IEventStore eventStore,
+        CancellationToken cancellationToken,
+        string from,
+        string to,
+        string? filter = null,
+        int buckets = 50)
+    {
+        if (buckets is < 1 or > 500)
+        {
+            return Problems.BadRequest("Invalid query", "buckets must be between 1 and 500.");
+        }
+        if (!TryValidateRange(from, to, filter, out var fromValue, out var toValue, out var filterSql, out var error))
+        {
+            return error!;
+        }
+
+        var result = await eventStore.GetLatencyAsync(filterSql, fromValue, toValue, buckets, cancellationToken);
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> HeatmapAsync(

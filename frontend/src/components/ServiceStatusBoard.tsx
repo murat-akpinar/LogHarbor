@@ -1,7 +1,7 @@
 import { formatAge } from '../lib/dates'
 import { useI18n } from '../i18n'
 import type { ServiceStatusRow } from '../types'
-import { Card } from './ui/Card'
+import { SectionBlock } from './ui/SectionBlock'
 
 interface ServiceStatusBoardProps {
   /** Host services as the probe last reported them, worst first (the server orders them). */
@@ -13,10 +13,13 @@ interface ServiceStatusBoardProps {
  * Filled dot = the probe got an answer, hollow = it did not (no heartbeat, or it could not ask).
  * The status word is next to it either way: colour alone must not carry the meaning.
  */
+// The same rule the charts follow: what is wrong is lit, what is fine is not. A board of
+// twenty healthy services glows nowhere, so the one that is down is findable before the words
+// are read — and the words are still there, because colour never carries the meaning alone.
 const DOT_CLASS: Record<ServiceStatusRow['status'], string> = {
   up: 'bg-accent',
-  down: 'bg-level-error',
-  unhealthy: 'bg-level-warning',
+  down: 'bg-level-error shadow-[0_0_10px_-1px_var(--color-level-error)]',
+  unhealthy: 'bg-level-warning shadow-[0_0_10px_-1px_var(--color-level-warning)]',
   stale: 'border-2 border-level-warning',
   unknown: 'border-2 border-fg-subtle',
 }
@@ -40,12 +43,16 @@ export function ServiceStatusBoard({ services, onOpen }: ServiceStatusBoardProps
 
   const hosts = [...new Set(services.map((row) => row.host))]
 
+  const notUpTotal = services.filter((row) => row.status !== 'up').length
+
   return (
-    <Card className="flex flex-col gap-4 p-4">
-      <div>
-        <h2 className="text-sm font-semibold text-fg">{t.services.statusTitle}</h2>
-        <p className="text-xs text-fg-muted">{t.services.statusHint}</p>
-      </div>
+    <SectionBlock
+      icon="services"
+      title={t.services.statusTitle}
+      meta={notUpTotal > 0 ? t.services.statusNotUpCount(notUpTotal) : t.services.statusUpCount(services.length)}
+      className="flex flex-col gap-3"
+    >
+      <p className="-mt-1 px-2 text-xs text-fg-muted">{t.services.statusHint}</p>
 
       {hosts.map((host) => {
         const rows = services.filter((row) => row.host === host)
@@ -64,7 +71,7 @@ export function ServiceStatusBoard({ services, onOpen }: ServiceStatusBoardProps
                   key={`${row.host}/${row.service}`}
                   type="button"
                   onClick={() => onOpen(row)}
-                  className="flex flex-col gap-1 rounded-card border border-border p-2 text-left hover:bg-surface-hover"
+                  className="flex flex-col gap-1 rounded-well bg-surface-inset p-2 text-left transition-colors hover:bg-surface-hover"
                 >
                   <span className="flex items-center gap-2">
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT_CLASS[row.status]}`} />
@@ -84,6 +91,6 @@ export function ServiceStatusBoard({ services, onOpen }: ServiceStatusBoardProps
           </section>
         )
       })}
-    </Card>
+    </SectionBlock>
   )
 }

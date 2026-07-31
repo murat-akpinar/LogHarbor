@@ -38,7 +38,7 @@ function renderNav() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <MemoryRouter>
-          <NavBar theme="light" onToggleTheme={() => {}} />
+          <NavBar />
         </MemoryRouter>
       </LanguageProvider>
     </QueryClientProvider>,

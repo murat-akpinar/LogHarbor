@@ -1,28 +1,21 @@
 import { useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useHistogram } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
-import { LEVELS, LEVEL_HEX } from '../../lib/levels'
+import { SeriesChip } from '../ui/SeriesChip'
+import { LEVELS } from '../../lib/levels'
+import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
+import type { StatusClass } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
-import { niceCeil } from '../../lib/niceScale'
+import { plotMax, sweep } from '../../lib/plotScale'
+import { barFill, barGlow } from '../../lib/series'
 import { useI18n } from '../../i18n'
+import { TimeAxis } from '../TimeAxis'
 
-const BUCKET_COUNT = 24
+// matches the volume chart: enough columns to read the shape of an hour, each thin enough to
+// read as a tick rather than a slab
+const BUCKET_COUNT = 60
 const PLOT_HEIGHT_PX = 128
-
-/** Status classes as query-language filters; the page reuses them to narrow its table. */
-export const STATUS_FILTERS = {
-  ok: 'StatusCode < 400',
-  client: 'StatusCode >= 400 and StatusCode < 500',
-  server: 'StatusCode >= 500',
-} as const
-
-export type StatusClass = keyof typeof STATUS_FILTERS
-
-const SERIES: { key: StatusClass; label: string; color: string }[] = [
-  { key: 'ok', label: '1/2/3xx', color: LEVEL_HEX.Information },
-  { key: 'client', label: '4xx', color: LEVEL_HEX.Warning },
-  { key: 'server', label: '5xx', color: LEVEL_HEX.Error },
-]
 
 interface StatusChartProps {
   from: string
@@ -30,17 +23,20 @@ interface StatusChartProps {
   /** null shows every class stacked; a class isolates it here and in the caller's table. */
   selected: StatusClass | null
   onSelect: (next: StatusClass | null) => void
+  /** Defaults to "Status codes". null drops the heading for a caller whose section header
+   *  already carries it, leaving the chips as the chart's own row. */
+  title?: string | null
+  /** A link out, for callers that are only sampling this (the dashboard). */
+  action?: ReactNode
 }
+
+/** Frameless on purpose: the Requests page puts it in a card, the dashboard in a section well. */
 
 function bucketTotals(buckets: { start: string; counts: Record<string, number> }[] | undefined): number[] {
   return (buckets ?? []).map((bucket) => LEVELS.reduce((sum, level) => sum + bucket.counts[level], 0))
 }
 
-function formatTime(iso: string, locale: string): string {
-  return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-}
-
-export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) {
+export function StatusChart({ from, to, selected, onSelect, title, action }: StatusChartProps) {
   const { t, lang } = useI18n()
   const [hovered, setHovered] = useState<number | null>(null)
   const shared = { from, to, buckets: BUCKET_COUNT }
@@ -51,7 +47,7 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
     server: useHistogram({ ...shared, filter: STATUS_FILTERS.server }),
   }
 
-  const series = SERIES.map((entry) => ({
+  const series = STATUS_SERIES.map((entry) => ({
     ...entry,
     data: bucketTotals(queries[entry.key].data?.buckets),
     dimmed: selected !== null && selected !== entry.key,
@@ -60,75 +56,76 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
   const bucketCount = Math.max(...series.map((s) => s.data.length), 0)
   const visible = series.filter((s) => !s.dimmed)
 
-  const niceMax = niceCeil(
-    Math.max(1, ...Array.from({ length: bucketCount }, (_, i) => visible.reduce((sum, s) => sum + (s.data[i] ?? 0), 0))),
+  const max = plotMax(
+    Array.from({ length: bucketCount }, (_, i) => visible.reduce((sum, s) => sum + (s.data[i] ?? 0), 0)),
   )
   const grandTotal = series.reduce((sum, s) => sum + s.data.reduce((a, b) => a + b, 0), 0)
-  const labelEvery = Math.max(1, Math.ceil(bucketCount / 6))
   const compact = (value: number) =>
     new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
   return (
-    <Card className="shrink-0 p-4">
+    <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-fg">{t.requests.statusCodes}</h2>
+        {title === null ? (
+          <span>{action}</span>
+        ) : (
+          <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg">
+            <span className="truncate">{title ?? t.requests.statusCodes}</span>
+            {action}
+          </h2>
+        )}
         <div className="flex items-center gap-1.5">
           {series.map(({ key, label, color, data, dimmed }) => (
-            <button
+            <SeriesChip
               key={key}
-              type="button"
+              color={color}
+              label={label}
+              value={compact(data.reduce((a, b) => a + b, 0))}
+              pressed={selected === key}
+              dimmed={dimmed}
               onClick={() => onSelect(selected === key ? null : key)}
-              aria-pressed={selected === key}
               title={selected === key ? t.requests.showAll : t.requests.onlyThis(label)}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
-                selected === key
-                  ? 'border-accent/50 bg-accent/10 text-fg'
-                  : `border-border-strong bg-surface hover:bg-surface-hover ${dimmed ? 'opacity-50' : ''}`
-              }`}
-            >
-              <span className="size-2 rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
-              <span className="text-fg-muted">{label}</span>
-              <span className="tabular font-medium text-fg">{compact(data.reduce((a, b) => a + b, 0))}</span>
-            </button>
+            />
           ))}
         </div>
       </div>
 
       {grandTotal > 0 ? (
         <>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3">
             <div
-              className="flex w-10 shrink-0 flex-col justify-between text-right text-xs text-fg-muted"
-              style={{ height: PLOT_HEIGHT_PX }}
-            >
-              <span className="tabular">{niceMax.toLocaleString(lang)}</span>
-              <span className="tabular">0</span>
-            </div>
-            <div
-              className="flex min-w-0 flex-1 items-end gap-0.5 border-b border-border"
+              className="flex min-w-0 items-end gap-[2px]"
               style={{ height: PLOT_HEIGHT_PX }}
             >
               {Array.from({ length: bucketCount }, (_, index) => (
+                // keyed by position, not by timestamp: in live mode the window moves every ten
+                // seconds and keying on the start would replay the entrance on every refresh
                 <div
-                  key={starts[index] ?? index}
+                  key={index}
                   onMouseEnter={() => setHovered(index)}
                   onMouseLeave={() => setHovered(null)}
-                  className="group relative flex h-full min-w-0 flex-1 flex-col-reverse gap-0.5"
+                  className="group animate-grow relative flex h-full min-w-0 flex-1 flex-col-reverse"
+                  style={{ '--delay': `${sweep(index, bucketCount)}ms` } as CSSProperties}
                 >
                   <span className="absolute inset-0 -m-px rounded-sm group-hover:bg-surface-hover" />
-                  {series.map(({ key, color, data, dimmed }) => {
+                  {series.map(({ key, color, data, dimmed, lit }) => {
                     const count = data[index] ?? 0
                     if (count === 0 || dimmed) return null
                     return (
                       <span
                         key={key}
-                        className="relative w-full shrink-0 rounded-sm transition-[height] duration-300"
-                        style={{ height: `${(count / niceMax) * 100}%`, backgroundColor: color }}
+                        className="relative w-full shrink-0 rounded-t-[2px] transition-[height] duration-500"
+                        style={{
+                          height: `${(count / max) * 100}%`,
+                          minHeight: '1px',
+                          background: barFill(color),
+                          boxShadow: lit ? barGlow(color) : undefined,
+                        }}
                       />
                     )
                   })}
                   {hovered === index && starts[index] && (
-                    <Card className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 p-2 text-xs">
+                    <Card variant="float" className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 w-40 -translate-x-1/2 p-2 text-xs">
                       <p className="mb-1 text-fg-muted">{formatTimestamp(starts[index], lang)}</p>
                       {series.map(({ key, label, color, data }) => (
                         <div key={key} className="flex items-center gap-2 py-0.5">
@@ -147,18 +144,11 @@ export function StatusChart({ from, to, selected, onSelect }: StatusChartProps) 
               ))}
             </div>
           </div>
-          {/* mirrors the bars row's flex layout so each label sits under its bucket */}
-          <div className="ml-12 flex gap-0.5">
-            {Array.from({ length: bucketCount }, (_, index) => (
-              <span key={starts[index] ?? index} className="min-w-0 flex-1 truncate text-center text-xs text-fg-muted">
-                {index % labelEvery === 0 && starts[index] ? formatTime(starts[index], lang) : ''}
-              </span>
-            ))}
-          </div>
+          {starts[0] && <TimeAxis from={starts[0]} to={to} className="mt-1.5" />}
         </>
       ) : (
         <p className="mt-3 text-sm text-fg-muted">{t.requests.noStatus}</p>
       )}
-    </Card>
+    </div>
   )
 }

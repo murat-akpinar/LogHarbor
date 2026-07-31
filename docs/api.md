@@ -179,6 +179,16 @@ GET /api/stats/histogram
   Query: filter?, from, to, buckets (default 50)
   200: { "buckets": [ { "start", "counts": { "Error": n, "Warning": n, ... } } ] }
 
+GET /api/stats/latency
+  Query: filter?, from, to, buckets (default 50)
+  Average and p95 of the Elapsed property, over the range and per bucket. The
+  range figures are ranked over the same rows in one pass: a range p95 cannot be
+  recovered from the bucket p95s. avgMs/p95Ms are null wherever nothing carried
+  Elapsed - an untimed bucket is not a fast one - and `sampled` counts the events
+  that did, so "nothing is timed here" is tellable from "everything was quick".
+  200: { "avgMs", "p95Ms", "sampled",
+         "buckets": [ { "start", "avgMs", "p95Ms" } ] }
+
 GET /api/stats/summary
   Query: filter?, from, to  (same filter support as histogram, so dashboard
   cards and chart always describe the same slice)

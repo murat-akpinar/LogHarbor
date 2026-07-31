@@ -71,7 +71,7 @@ export function OnboardingPanel() {
 
   return (
     <div className="flex h-full items-start justify-center overflow-y-auto p-6">
-      <div className="w-full max-w-2xl rounded-card border border-border bg-surface-raised p-6 shadow-card">
+      <div className="w-full max-w-2xl glass rounded-card border border-border bg-surface p-6 shadow-card">
         <h2 className="mb-1 text-lg font-semibold text-fg">{t.onboarding.title}</h2>
         <p className="mb-4 text-sm text-fg-muted">{t.onboarding.intro}</p>
 

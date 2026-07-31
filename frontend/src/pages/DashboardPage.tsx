@@ -5,6 +5,7 @@ import {
   useHistogram,
   useIngestionLag,
   useIngestRejections,
+  useLatency,
   useOperations,
   useServices,
   useSlowOperations,
@@ -13,11 +14,13 @@ import {
   useTopExceptions,
   useUserActivity,
 } from '../hooks/useStats'
-import { MetricCard } from '../components/dashboard/MetricCard'
-import { StatTile } from '../components/StatTile'
-import { IngestionLagStrip, formatLag } from '../components/dashboard/IngestionLagStrip'
+import { ActivityTimeline, TIMELINE_BUCKETS } from '../components/dashboard/ActivityTimeline'
+import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
-import { SectionHeader } from '../components/dashboard/SectionHeader'
+import { SectionBlock } from '../components/ui/SectionBlock'
+import { Panel } from '../components/ui/Panel'
+import { StatTile } from '../components/StatTile'
+import { formatDuration } from '../lib/duration'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { TopErrorsPanel } from '../components/dashboard/TopErrorsPanel'
@@ -26,19 +29,17 @@ import { ServicesPanel } from '../components/dashboard/ServicesPanel'
 import { SlowOpsPanel } from '../components/dashboard/SlowOpsPanel'
 import { RoutesPanel } from '../components/dashboard/RoutesPanel'
 import { UsersPanel } from '../components/dashboard/UsersPanel'
-import { Histogram } from '../components/Histogram'
 import { Heatmap } from '../components/Heatmap'
 import { Card } from '../components/ui/Card'
 import type { HistogramBucket } from '../types'
-import { LEVELS, LEVEL_HEX } from '../lib/levels'
+import { LEVELS } from '../lib/levels'
+import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
-const BUCKET_COUNT = 24
 const PANEL_LIMIT = 5
-// the services panel shows the top few, but the tile counts them, so the query has to see more
-// than five. 100 is the endpoint's ceiling, which is why the tile says "100+" when it hits it
+// the services panel shows the top few, but the section header counts them, so the query has to
+// see more than five. 100 is the endpoint's ceiling, which is why it says "100+" when it hits it
 const SERVICE_SCAN_LIMIT = 100
-const ERROR_FILTER = "@Level = 'Error' or @Level = 'Fatal'"
 // deliberately not tied to the page's time range: a client that broke on Friday is still
 // broken on Monday, and the operator needs to see that on a dashboard set to "last hour"
 const REJECTION_DAYS = 7
@@ -69,10 +70,10 @@ export function DashboardPage() {
 
   const summary = useSummary(range)
   const previousSummary = useSummary(previousRange)
-  const histogram = useHistogram({ ...range, buckets: BUCKET_COUNT })
-  const errorHistogram = useHistogram({ ...range, buckets: BUCKET_COUNT, filter: ERROR_FILTER })
+  const histogram = useHistogram({ ...range, buckets: TIMELINE_BUCKETS })
   const heatmap = useHeatmap(range)
   const ingestionLag = useIngestionLag(range)
+  const latency = useLatency({ ...range, buckets: TIMELINE_BUCKETS })
   const rejections = useIngestRejections(REJECTION_DAYS)
   const topErrors = useTopErrors({ ...range, limit: PANEL_LIMIT })
   const topExceptions = useTopExceptions({ ...range, limit: PANEL_LIMIT })
@@ -91,8 +92,13 @@ export function DashboardPage() {
   const previousByLevel = previousSummary.data?.byLevel
   const previousErrors = (previousByLevel?.Error ?? 0) + (previousByLevel?.Fatal ?? 0)
   const eventTrend = trendOf(histogram.data?.buckets)
-  const errorTrend = trendOf(errorHistogram.data?.buckets)
-  const lag = ingestionLag.data?.lag
+  // the same buckets the volume chart draws, read for their top two levels: an error series is
+  // a slice of the volume series, not a second query
+  const errorTrend = (histogram.data?.buckets ?? []).map((bucket) => bucket.counts.Error + bucket.counts.Fatal)
+  // a gap in a latency series is "nothing was timed here", and the line carries it as a flat
+  // stretch rather than a drop to zero, which would read as "it got fast"
+  const avgTrend = (latency.data?.buckets ?? []).map((bucket) => bucket.avgMs ?? 0)
+  const p95Trend = (latency.data?.buckets ?? []).map((bucket) => bucket.p95Ms ?? 0)
   const serviceCount = services.data?.services.length ?? 0
 
   // a panel called Routes shows routes; an install whose events carry no route property has none
@@ -110,7 +116,7 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold text-fg">{t.dashboard.title}</h1>
         <LiveRangeControls
@@ -142,129 +148,127 @@ export function DashboardPage() {
         />
       )}
 
-      {/* The glance band: four figures and whether each is more or less than the window before */}
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* The glance band: five figures, each with the shape it took getting there and whether
+          that is more or less than the window before it */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {/* each tile's line is drawn in that series' own colour, and it is the same colour the
+            series takes in the timeline below and in its chip: volume green, errors red, avg
+            cyan, p95 violet. The bars stay neutral — only measured lines are named. */}
         <StatTile
-          label={t.dashboard.totalEvents}
+          label={t.nav.events}
           value={compact(total)}
           icon="events"
           trend={eventTrend}
-          trendColor={LEVEL_HEX.Information}
+          trendColor={SERIES.volume}
           delta={percentChange(total, previousSummary.data?.total ?? 0)}
+          index={0}
         />
         <StatTile
-          label={t.dashboard.errors}
-          value={compact(errors)}
+          label={t.dashboard.errorRate}
+          value={`${errorRate.toFixed(1)}%`}
           icon="exceptions"
           plate="error"
           trend={errorTrend}
-          trendColor={LEVEL_HEX.Error}
+          trendColor={SERIES.errors}
           delta={percentChange(errors, previousErrors)}
           upIsBad
+          index={1}
         />
         <StatTile
-          label={t.nav.services}
+          label={t.dashboard.avgLatency}
+          value={formatDuration(latency.data?.avgMs ?? null, lang)}
+          icon="requests"
+          plate="info"
+          trend={avgTrend}
+          trendColor={SERIES.avg}
+          upIsBad
+          index={2}
+        />
+        <StatTile
+          label={t.dashboard.p95Latency}
+          value={formatDuration(latency.data?.p95Ms ?? null, lang)}
+          icon="queries"
+          plate="warning"
+          trend={p95Trend}
+          trendColor={SERIES.p95}
+          upIsBad
+          index={3}
+        />
+        <StatTile
+          label={t.dashboard.activeServices}
           value={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
           icon="services"
-          plate="info"
-        />
-        <StatTile
-          label={t.dashboard.ingestionLag}
-          value={lag && lag.total > 0 ? formatLag(lag.maxSeconds, t.dashboard.lagUnits) : '—'}
-          icon="requests"
-          plate="warning"
+          plate="accent"
+          index={4}
         />
       </div>
 
-      {/* Activity: the pulse of raw volume and errors over time */}
-      <section>
-        <SectionHeader title={t.dashboard.activity} to="/events" linkLabel={t.dashboard.viewAll} />
-        {/* sits above the volume charts on purpose: it says whether to trust their x-axis */}
+      {/* Activity: volume, duration and requests over one time axis. They were four cards with
+          four axes, which made comparing them a job for the reader's eyes; the lanes share a
+          hover, a brush and a window, so a slow minute and the errors in it line up. */}
+      <SectionBlock
+        icon="events"
+        title={t.dashboard.activity}
+        to="/events"
+        linkLabel={t.dashboard.viewAll}
+        index={1}
+      >
+        {/* sits above the timeline on purpose: it says whether to trust its x-axis */}
         {ingestionLag.data && (
           <div className="mb-3">
             <IngestionLagStrip lag={ingestionLag.data.lag} />
           </div>
         )}
-        <div className="grid gap-4 lg:grid-cols-2">
-          <MetricCard
-            eyebrow={t.nav.events}
-            value={compact(total)}
-            icon="events"
-            breakdown={[
-              { label: t.dashboard.info, value: compact(byLevel?.Information ?? 0), color: LEVEL_HEX.Information },
-              { label: t.dashboard.warn, value: compact(byLevel?.Warning ?? 0), color: LEVEL_HEX.Warning, tone: 'warning' },
-              { label: t.dashboard.errors, value: compact(errors), color: LEVEL_HEX.Error, tone: 'error' },
-            ]}
-          >
-            {histogram.data && (
-              <div className={histogram.isFetching ? 'opacity-60 transition-opacity' : ''}>
-                <Histogram
-                  buckets={histogram.data.buckets}
-                  rangeEnd={range.to}
-                  onBucketClick={goToEvents}
-                  onBrush={(from, to) => setRange({ from, to })}
-                  showLegend={false}
-                />
-              </div>
-            )}
-          </MetricCard>
-
-          <MetricCard
-            eyebrow={t.dashboard.errors}
-            value={compact(errors)}
-            icon="exceptions"
-            plate="error"
-            breakdown={[
-              { label: t.dashboard.rate, value: `${errorRate.toFixed(1)}%`, tone: errorRate > 0 ? 'error' : 'default' },
-              { label: t.dashboard.fatal, value: compact(byLevel?.Fatal ?? 0), color: LEVEL_HEX.Fatal, tone: 'error' },
-            ]}
-          >
-            {errorHistogram.data && (
-              <div className={errorHistogram.isFetching ? 'opacity-60 transition-opacity' : ''}>
-                <Histogram
-                  buckets={errorHistogram.data.buckets}
-                  rangeEnd={range.to}
-                  onBucketClick={goToEvents}
-                  onBrush={(from, to) => setRange({ from, to })}
-                  showLegend={false}
-                />
-              </div>
-            )}
-          </MetricCard>
-        </div>
-      </section>
+        <ActivityTimeline
+          buckets={histogram.data?.buckets ?? []}
+          latency={latency.data}
+          from={range.from}
+          to={range.to}
+          onBucketClick={goToEvents}
+          onBrush={(from, to) => setRange({ from, to })}
+          fetching={histogram.isFetching || latency.isFetching}
+        />
+      </SectionBlock>
 
       {/* Analysis: what is failing and what is slow */}
-      <section>
-        <SectionHeader title={t.analysis.title} to="/analysis" linkLabel={t.dashboard.viewAll} />
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <SectionBlock
+        icon="analysis"
+        title={t.analysis.title}
+        to="/analysis"
+        linkLabel={t.dashboard.viewAll}
+        index={2}
+      >
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <TopErrorsPanel errors={topErrors.data?.errors ?? []} from={range.from} to={range.to} />
           <ExceptionsPanel exceptions={topExceptions.data?.exceptions ?? []} />
           <RoutesPanel operations={routeRows} from={range.from} to={range.to} />
           <SlowOpsPanel result={slow.data} from={range.from} to={range.to} />
         </div>
-      </section>
+      </SectionBlock>
 
       {/* Who and where: services and the users behind the traffic */}
-      <section>
-        <SectionHeader title={t.dashboard.servicesUsers} />
-        <div className="grid gap-4 lg:grid-cols-2">
+      <SectionBlock
+        icon="services"
+        title={t.dashboard.servicesUsers}
+        meta={serviceCount >= SERVICE_SCAN_LIMIT ? `${SERVICE_SCAN_LIMIT}+` : serviceCount.toLocaleString(lang)}
+        index={3}
+      >
+        <div className="grid gap-3 lg:grid-cols-2">
           <ServicesPanel services={(services.data?.services ?? []).slice(0, PANEL_LIMIT)} from={range.from} to={range.to} />
           <UsersPanel users={users.data?.users ?? []} from={range.from} to={range.to} />
         </div>
-      </section>
+      </SectionBlock>
 
-      <section>
-        <SectionHeader title={t.dashboard.activityByHour} />
-        <Card className="p-4">
+      <SectionBlock icon="dashboard" title={t.dashboard.activityByHour} index={4}>
+        <Panel className="p-4">
           {heatmap.isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
           {heatmap.data && (
             <div className={heatmap.isFetching ? 'opacity-60 transition-opacity' : ''}>
               <Heatmap cells={heatmap.data.cells} />
             </div>
           )}
-        </Card>
-      </section>
+        </Panel>
+      </SectionBlock>
     </div>
   )
 }

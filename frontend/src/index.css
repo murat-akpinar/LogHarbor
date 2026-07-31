@@ -2,79 +2,63 @@
 
 /* ---------------------------------------------------------------------------
    Token layer. Components name roles (surface, fg, accent), never raw palette
-   colours. @theme cannot switch on a class, so the values live as custom
-   properties on :root / :root.dark and @theme maps them into utility names.
-   Changing the palette means changing this file and nothing else.
+   colours. Changing the palette means changing this file and nothing else.
+
+   One theme, on purpose (owner's call, 2026-07-31). The light theme was cut
+   rather than kept as a plainer twin: this palette is built out of translucent
+   whites over a lit canvas, and every one of those surfaces turns to mud on
+   white. A theme that cannot carry the design is not a second theme, it is a
+   second design — so there is one, and it is dark.
    --------------------------------------------------------------------------- */
 
 :root {
-  color-scheme: light;
-
-  --logharbor-bg: #f6f6f7;
-  --logharbor-surface: #ffffff;
-  --logharbor-surface-hover: #f0f0f2;
-  /* must stay distinct from surface: it carries selected rows and active tabs, which sit
-     *on* a surface and would otherwise be invisible in the light theme */
-  --logharbor-surface-raised: #e8e8eb;
-  /* a well *inside* a panel (chart beds, code blocks): darker than the panel on light,
-     darker than the panel on dark, so nesting reads as depth in both themes */
-  --logharbor-surface-inset: #fafafb;
-
-  --logharbor-border: #e4e4e8;
-  --logharbor-border-strong: #c8c8cf;
-
-  --logharbor-fg: #16181b;
-  --logharbor-fg-muted: #52525b;
-  --logharbor-fg-subtle: #8a8a94;
-
-  /* the two ambient washes behind the login page; barely there on light */
-  --logharbor-glow-a: #6366f1;
-  --logharbor-glow-b: #c026d3;
-  --logharbor-glow-opacity: 0.1;
-
-  /* #059669 on white was 3.77:1, short of the 4.5:1 body-text floor for 14px font-medium
-     button labels; #047857 clears it at 5.48:1 (WCAG relative-luminance contrast) */
-  --logharbor-accent: #047857;
-  --logharbor-accent-hover: #065f46;
-  --logharbor-accent-fg: #ffffff;
-
-  /* Every level carries a hue, so a level is identifiable without reading the label. The
-     low levels are separated by hue rather than by lightness, because all six must clear
-     4.5:1 as text on white and on --logharbor-surface-raised (the active chip). */
-  --logharbor-level-fatal: #be123c;
-  --logharbor-level-error: #dc2626;
-  --logharbor-level-warning: #b45309;
-  --logharbor-level-information: #2563eb;
-  --logharbor-level-debug: #0e7490;
-  --logharbor-level-verbose: #7c3aed;
-
-  /* drop shadows read on light backgrounds; on dark they are replaced by a border */
-  --logharbor-shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 12px rgb(16 24 40 / 0.06);
-}
-
-:root.dark {
   color-scheme: dark;
 
-  /* a neutral near-black: pure black is harsh on OLED, grey is lifeless. The canvas sits
-     four steps under the panel so a card reads as a card without needing a shadow */
-  --logharbor-bg: #09090b;
-  --logharbor-surface: #131316;
-  --logharbor-surface-hover: #1a1a1e;
-  --logharbor-surface-raised: #212127;
-  --logharbor-surface-inset: #0e0e11;
+  /* The canvas is not flat black. Two very dark stops with a green cast, lit
+     from the top-left by the ambient wash below, so a translucent surface laid
+     on it has something to be translucent *against*. */
+  --logharbor-bg: #0a0f11;
+  --logharbor-bg-deep: #05080a;
 
-  --logharbor-border: #26262c;
-  --logharbor-border-strong: #3c3c44;
+  /* Surfaces are white at low alpha, not opaque greys: the wash and the grain
+     read through them, which is the whole of "slightly transparent". Depth is
+     alpha, not lightness — a plate lifts off the canvas, a well sinks into it. */
+  --logharbor-surface: rgb(255 255 255 / 0.06);
+  --logharbor-surface-hover: rgb(255 255 255 / 0.09);
+  /* selected rows and active tabs, which sit *on* a surface */
+  --logharbor-surface-raised: rgb(255 255 255 / 0.12);
+  /* a well *inside* a plate (chart beds, code blocks): sunk, so it goes darker
+     than the plate rather than lighter, and nesting reads as depth */
+  --logharbor-surface-inset: rgb(0 0 0 / 0.3);
 
-  --logharbor-fg: #f4f4f6;
-  --logharbor-fg-muted: #a1a1aa;
-  --logharbor-fg-subtle: #71717a;
+  /* The one opaque surface, and the exception that proves the rule: the event stream. Ten
+     thousand rows scrolling over a radial wash makes every row a slightly different colour
+     from the one above it, which is exactly what a reading surface must not do. So the
+     stream gets a flat bed and the glass stops at its edge. */
+  --logharbor-surface-read: #0a0e10;
 
-  /* the same hex never reads the same in both themes, so the accent is tuned per theme */
+  /* Anything that floats over content — a dropdown, a popover, a tooltip. Nearly opaque, and
+     that is the point: a menu you can read the page through is a menu you cannot read. It
+     still takes the blur, so it reads as thick glass rather than as a grey slab. */
+  --logharbor-surface-float: rgb(17 22 24 / 0.92);
+
+  --logharbor-border: rgb(255 255 255 / 0.1);
+  --logharbor-border-strong: rgb(255 255 255 / 0.18);
+
+  --logharbor-fg: #eef3f2;
+  --logharbor-fg-muted: #98a4a3;
+  --logharbor-fg-subtle: #67736f;
+
+  /* the ambient wash: a green key light and a cooler fill, both far off screen */
+  --logharbor-glow-a: #10b981;
+  --logharbor-glow-b: #6366f1;
+
   --logharbor-accent: #34d399;
   --logharbor-accent-hover: #6ee7b7;
   --logharbor-accent-fg: #04120c;
 
+  /* Every level carries a hue, so a level is identifiable without reading the
+     label. All six clear 4.5:1 as text on the canvas and on a raised surface. */
   --logharbor-level-fatal: #fb7185;
   --logharbor-level-error: #f87171;
   --logharbor-level-warning: #fbbf24;
@@ -82,19 +66,49 @@
   --logharbor-level-debug: #22d3ee;
   --logharbor-level-verbose: #a78bfa;
 
-  --logharbor-shadow-card: 0 0 0 1px rgb(255 255 255 / 0.03), 0 1px 2px rgb(0 0 0 / 0.5);
+  /* BARS are neutral by default: colour in a histogram means trouble and
+     nothing else, so a healthy window is a grey skyline and a bad hour is
+     visible without reading the legend. Only Warning and above take a hue. */
+  --logharbor-chart-neutral: #4e585d;
 
-  --logharbor-glow-a: #3b82f6;
-  --logharbor-glow-b: #d946ef;
-  --logharbor-glow-opacity: 0.16;
+  /* LINES are the exception, and deliberately so: a lane holding two lines has
+     to say which is which, and two greys cannot. Each measured series owns a
+     hue and keeps it everywhere it appears — the lane, the tile sparkline and
+     the chip all draw p95 in the same violet. */
+  --logharbor-series-volume: #34d399;
+  --logharbor-series-avg: #22d3ee;
+  --logharbor-series-p95: #c084fc;
+  --logharbor-series-errors: #f87171;
+  /* the quieter of two lines where neither is a named series */
+  --logharbor-chart-line: #6b7a80;
+
+  --logharbor-chip-bg: rgb(255 255 255 / 0.06);
+  /* the dotted rule that carries the eye from a label to its value */
+  --logharbor-leader: rgb(255 255 255 / 0.12);
+
+  /* A glass card is a hairline of light on top, a soft shadow underneath, and
+     nothing else — no heavy border, or the transparency stops reading. */
+  --logharbor-shadow-card:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.05),
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 8px 24px -8px rgb(0 0 0 / 0.5);
+  --logharbor-shadow-pop:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+    0 2px 4px rgb(0 0 0 / 0.4),
+    0 16px 40px -12px rgb(0 0 0 / 0.7);
+
+  --logharbor-blur: 14px;
 }
 
 @theme {
   --color-bg: var(--logharbor-bg);
+  --color-bg-deep: var(--logharbor-bg-deep);
   --color-surface: var(--logharbor-surface);
   --color-surface-hover: var(--logharbor-surface-hover);
   --color-surface-raised: var(--logharbor-surface-raised);
   --color-surface-inset: var(--logharbor-surface-inset);
+  --color-surface-read: var(--logharbor-surface-read);
+  --color-surface-float: var(--logharbor-surface-float);
 
   --color-glow-a: var(--logharbor-glow-a);
   --color-glow-b: var(--logharbor-glow-b);
@@ -117,11 +131,30 @@
   --color-level-debug: var(--logharbor-level-debug);
   --color-level-verbose: var(--logharbor-level-verbose);
 
+  --color-chart-neutral: var(--logharbor-chart-neutral);
+  --color-chart-line: var(--logharbor-chart-line);
+  --color-series-volume: var(--logharbor-series-volume);
+  --color-series-avg: var(--logharbor-series-avg);
+  --color-series-p95: var(--logharbor-series-p95);
+  --color-series-errors: var(--logharbor-series-errors);
+  --color-chip-bg: var(--logharbor-chip-bg);
+  --color-leader: var(--logharbor-leader);
+
+  /* One face, on purpose (owner's call, 2026-07-31): Cascadia sets the whole interface, not
+     just the data. A separate sans for chrome was tried and rejected — this is a log tool and
+     it should read like one. Mark data with font-mono anyway: it is the same face today, and
+     the marking is what would carry the difference if that ever changes. */
   --font-sans: "CaskaydiaMono NF", ui-monospace, monospace;
   --font-mono: "CaskaydiaMono NF", ui-monospace, monospace;
 
-  --radius-card: 10px;
+  /* Softer than before, and graded by how big the object is: the outer plate
+     carries the loosest corner, the wells inside it a tighter one, a chip is a
+     pill. Nesting is legible from the corners alone. */
+  --radius-card: 12px;
+  --radius-section: 18px;
+  --radius-well: 14px;
   --shadow-card: var(--logharbor-shadow-card);
+  --shadow-pop: var(--logharbor-shadow-pop);
 
   /* type scale: 11/13/15/18px. Line-heights are tight for xs/sm (the density used in the
      event list and table cells) and ~1.5-1.6 for base/lg prose */
@@ -135,10 +168,52 @@
   --text-lg--line-height: 1.75rem;
 }
 
+/* ---------------------------------------------------------------------------
+   The lit canvas: three washes over a gradient, painted on the root and fixed
+   so it does not travel with a scrolling page. Every translucent surface in the
+   app is transparent *to this* — without a lit background the glass has nothing
+   to be glass over and the whole palette collapses into flat grey.
+   --------------------------------------------------------------------------- */
+
+html {
+  background-color: var(--color-bg-deep);
+  /* the key light sits just inside the top-left corner rather than off the page: a wash whose
+     centre is outside the viewport shows only its own falloff, which is why the first attempt
+     read as flat black. Ellipses stay large so no edge of the gradient is ever visible. */
+  background-image:
+    radial-gradient(55rem 38rem at 12% 0%, color-mix(in oklab, var(--color-glow-a) 26%, transparent), transparent 70%),
+    radial-gradient(50rem 34rem at 92% 6%, color-mix(in oklab, var(--color-glow-b) 20%, transparent), transparent 68%),
+    radial-gradient(45rem 30rem at 65% 100%, color-mix(in oklab, var(--color-glow-a) 14%, transparent), transparent 72%),
+    linear-gradient(165deg, var(--color-bg) 0%, var(--color-bg-deep) 65%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-bg);
+  background-color: transparent;
   color: var(--color-fg);
+}
+
+/* Fractal noise at very low alpha. It does two jobs: it kills the banding a
+   large radial gradient shows on 8-bit displays, and it gives the glass a
+   texture to sit on so the blur is visible rather than merely assumed. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  /* behind the app, in front of the canvas gradient that lives on <html> */
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* The glass itself. Applied by Card / Panel / SectionBlock / NavBar rather than
+   scattered: one place decides how much the app sees through itself. */
+.glass {
+  backdrop-filter: blur(var(--logharbor-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--logharbor-blur)) saturate(150%);
 }
 
 /* timestamps and counters must not jitter as the virtualized list scrolls */
@@ -146,13 +221,111 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Scrollbars, so a scrolling well does not put a stock light-grey bar on the glass */
+* {
+  scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+  scrollbar-width: thin;
+}
+
+/* Checkboxes and radios are drawn by the browser and default to its own blue, which is the one
+   colour on screen that belongs to no part of this palette. */
+input[type='checkbox'],
+input[type='radio'],
+progress {
+  accent-color: var(--color-accent);
+}
+
+/* The caret and the selection are the last two browser colours left */
+::selection {
+  background-color: color-mix(in oklab, var(--color-accent) 32%, transparent);
+}
+
+input,
+textarea {
+  caret-color: var(--color-accent);
+}
+
+/* ---------------------------------------------------------------------------
+   Motion. Charts draw themselves in, cards arrive in sequence, live data
+   announces itself. Everything here is entrance-only and short: a dashboard
+   that re-animates while you are reading it is a dashboard you stop reading.
+   --------------------------------------------------------------------------- */
+
+/* a plate arriving: up and in. --delay staggers a row of them from the caller */
+@keyframes lh-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  opacity: 0;
+  animation: lh-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* a bar growing out of the floor. The whole lane shares one animation rather
+   than one per column: 120 staggered columns is a wave, and a wave is a toy. */
+@keyframes lh-grow {
+  from {
+    transform: scaleY(0.02);
+    opacity: 0.3;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.animate-grow {
+  transform-origin: bottom;
+  animation: lh-grow 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* a line drawing itself left to right. The dash length is set inline from the
+   path's own measured length, because a fixed one either falls short or lags. */
+@keyframes lh-draw {
+  from {
+    stroke-dashoffset: var(--length);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-draw {
+  stroke-dasharray: var(--length);
+  animation: lh-draw 900ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes lh-wash {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: var(--to-opacity, 1);
+  }
+}
+
+.animate-wash {
+  animation: lh-wash 700ms ease-out 300ms both;
+}
+
 /* live-tail arrival flash (docs/frontend.md: new events prepend with highlight) */
 @keyframes tail-in {
   from {
-    background-color: color-mix(in oklab, var(--color-accent) 22%, transparent);
+    background-color: color-mix(in oklab, var(--color-accent) 26%, transparent);
+    transform: translateY(-0.25rem);
   }
   to {
     background-color: transparent;
+    transform: none;
   }
 }
 
@@ -160,8 +333,7 @@ body {
   animation: tail-in 900ms ease-out;
 }
 
-/* the login page's sample stream: lines arrive the way real ones do, one after another.
-   The delay per line comes from an inline animation-delay */
+/* the login page's sample stream: lines arrive the way real ones do */
 @keyframes line-in {
   from {
     opacity: 0;
@@ -178,10 +350,49 @@ body {
   animation: line-in 420ms ease-out forwards;
 }
 
+/* the live indicator: a slow breath, not a blink */
+@keyframes lh-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-accent) 55%, transparent);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 0.3rem color-mix(in oklab, var(--color-accent) 0%, transparent);
+  }
+}
+
+.animate-pulse-dot {
+  animation: lh-pulse 2.4s ease-in-out infinite;
+}
+
+/* a value that just changed, in a figure that updates while you watch it */
+@keyframes lh-tick {
+  from {
+    color: var(--color-accent);
+  }
+  to {
+    color: inherit;
+  }
+}
+
+.animate-tick {
+  animation: lh-tick 900ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-tail-in,
-  .animate-line-in {
+  .animate-line-in,
+  .animate-rise,
+  .animate-grow,
+  .animate-draw,
+  .animate-wash,
+  .animate-pulse-dot,
+  .animate-tick {
     animation: none;
     opacity: 1;
+    transform: none;
+    stroke-dasharray: none;
   }
 }

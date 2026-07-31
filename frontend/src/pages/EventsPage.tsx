@@ -3,7 +3,9 @@ import { useSearchParams } from 'react-router-dom'
 import type { Event, Level } from '../types'
 import { buildExportUrl } from '../api/events'
 import { useEventSearch } from '../hooks/useEventSearch'
+import { useHistogram } from '../hooks/useStats'
 import { useLiveTail } from '../hooks/useLiveTail'
+import { sumLevels } from '../lib/levels'
 import { useSignals } from '../hooks/useSignals'
 import { useLocalStorage } from '../hooks/useLocalStorage'
 import { extractHighlightTerms } from '../lib/highlight'
@@ -12,6 +14,8 @@ import { matchTraceFilter } from '../lib/trace'
 import { useI18n } from '../i18n'
 import { Button } from '../components/ui/Button'
 import { FilterBar } from '../components/FilterBar'
+import { Histogram } from '../components/Histogram'
+import { Panel } from '../components/ui/Panel'
 import { LevelChips } from '../components/LevelChips'
 import { SignalToggles } from '../components/SignalToggles'
 import { LiveRangeControls } from '../components/LiveRangeControls'
@@ -22,6 +26,24 @@ import { EventDetail } from '../components/EventDetail'
 import { OnboardingPanel } from '../components/OnboardingPanel'
 import { TracePanel } from '../components/TracePanel'
 import { ArchivedDaysBanner } from '../components/ArchivedDaysBanner'
+
+/** Wide enough to read the shape of a day, narrow enough that each column is still a tick. */
+const CHART_BUCKETS = 80
+const CHART_WINDOW_MS = 24 * 60 * 60 * 1000
+
+/**
+ * The window the chart covers when the reader has not picked one.
+ *
+ * The last 24 hours, except on an instance whose newest matching event is older than that —
+ * there the 24 hours are taken to end at that event instead. Otherwise a server that stopped
+ * receiving on Friday draws an empty chart over a full list, which reads as a broken chart
+ * rather than as an idle server.
+ */
+function defaultChartEnd(newestMatch: string | undefined, nowMinute: number): number {
+  if (!newestMatch) return nowMinute
+  const at = new Date(newestMatch).getTime()
+  return Number.isFinite(at) && at < nowMinute - CHART_WINDOW_MS ? at : nowMinute
+}
 
 // shortcuts must not fire while the user is typing into a field
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -96,6 +118,25 @@ export function EventsPage() {
   }, [tail.events, searchEvents])
 
   const liveEventIds = useMemo(() => new Set(tail.events.map((event) => event.id)), [tail.events])
+
+  // The stream says what happened; the chart says when. It carries the page's own filter, so
+  // narrowing the search reshapes it — which is the whole reason it belongs here rather than
+  // being a second copy of the dashboard's.
+  // Anchored on the search results, not the live tail: in live mode the tail prepends an event
+  // every few seconds and the window would slide out from under anyone reading it.
+  const newestMatch = searchEvents[0]?.timestamp
+  const chartRange = useMemo(() => {
+    // to the minute, so the query key is stable between ticks instead of refetching per render
+    const nowMinute = Math.floor(Date.now() / 60_000) * 60_000
+    const end = range.to ? new Date(range.to).getTime() : defaultChartEnd(newestMatch, nowMinute)
+    const start = range.from ? new Date(range.from).getTime() : end - CHART_WINDOW_MS
+    return { from: new Date(start).toISOString(), to: new Date(end).toISOString() }
+  }, [range.from, range.to, newestMatch])
+
+  const chart = useHistogram({ ...chartRange, filter, buckets: CHART_BUCKETS })
+  const chartBuckets = chart.data?.buckets ?? []
+  // an empty plot is a 160px hole that teaches nothing; the page keeps its full height instead
+  const hasChart = chartBuckets.some((bucket) => sumLevels(bucket.counts) > 0)
 
   // every page of one range reports the same cold days, so the first page is enough
   const archivedDays = search.data?.pages[0]?.archivedDays ?? []
@@ -185,7 +226,7 @@ export function EventsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 border-b border-border bg-surface">
+      <div className="glass shrink-0 border-b border-border bg-surface shadow-card">
         <div className="flex items-start gap-3 p-3">
           <div className="min-w-0 flex-1">
             <FilterBar key={filterSeed} initialText={searchText} onCommit={setSearchText} />
@@ -229,6 +270,23 @@ export function EventsPage() {
         </div>
       </div>
 
+      {/* The level chips directly above are already the chart's colour key, so it carries no
+          legend of its own. Clicking a bar narrows the range to it, dragging across bars zooms
+          — the same two gestures the dashboard's timeline answers to. */}
+      {hasChart && (
+        <div className="shrink-0 px-3 pt-3">
+          <Panel className={`p-4 ${chart.isFetching ? 'opacity-60 transition-opacity' : ''}`}>
+            <Histogram
+              buckets={chartBuckets}
+              rangeEnd={chartRange.to}
+              onBucketClick={(from, to) => chooseRange({ from, to })}
+              onBrush={(from, to) => chooseRange({ from, to })}
+              showLegend={false}
+            />
+          </Panel>
+        </div>
+      )}
+
       {search.error && (
         <p className="shrink-0 bg-level-error/10 p-2 text-sm text-level-error">{search.error.message}</p>
       )}
@@ -240,7 +298,7 @@ export function EventsPage() {
         <button
           type="button"
           onClick={resume}
-          className="shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg transition-colors duration-150 hover:bg-accent-hover"
+          className="shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg shadow-[0_0_24px_-4px_var(--color-accent)] transition-colors duration-150 hover:bg-accent-hover"
         >
           {t.events.newEvents(tail.pendingCount)}
         </button>
@@ -248,7 +306,9 @@ export function EventsPage() {
 
       {traceId && <TracePanel traceId={traceId} onSelectEvent={setSelectedEvent} />}
 
-      <div className="flex min-h-0 flex-1">
+      {/* the stream's own bed: flat and opaque, so a row's colour is its level's and not the
+          canvas wash showing through wherever it happens to be scrolled to */}
+      <div className="flex min-h-0 flex-1 bg-surface-read">
         <div className="min-w-0 flex-1">
           {search.isLoading ? (
             <div className="animate-pulse space-y-px p-3">
@@ -294,19 +354,19 @@ export function EventsPage() {
           <button
             type="button"
             aria-label={t.events.closeShortcuts}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             onClick={() => setShowHelp(false)}
           />
           <div
             role="dialog"
             aria-modal="true"
             aria-label={t.events.keyboardShortcuts}
-            className="relative w-72 rounded-card border border-border bg-surface-raised p-4 text-sm shadow-card"
+            className="glass animate-rise relative w-72 rounded-card border border-border bg-surface p-4 text-sm shadow-pop"
           >
             <h2 className="mb-3 font-semibold text-fg">{t.events.keyboardShortcuts}</h2>
             {shortcuts.map(([key, action]) => (
               <div key={key} className="flex items-center justify-between py-1">
-                <kbd className="rounded border border-border bg-surface-hover px-1.5 py-0.5 font-mono text-xs">
+                <kbd className="rounded border border-border bg-surface-inset px-1.5 py-0.5 font-mono text-xs">
                   {key}
                 </kbd>
                 <span className="text-fg-muted">{action}</span>
