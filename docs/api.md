@@ -337,11 +337,16 @@ GET /api/stats/operations
                            folded } ] }
 
 GET /api/stats/user-activity
-  Query: property? default UserId ([A-Za-z0-9_.] only), limit? default 50
+  Query: property? default UserId ([A-Za-z0-9_.] only), limit? default 50,
+         trendBuckets? default 0 (max 120)
   Per-value activity for one user-identifying property: total events, Error + Fatal
   count and last-seen timestamp, grouped by the property (events without it excluded),
   ordered by total descending.
-  200: { "users": [ { value, total, errorCount, lastSeen } ] }
+  trendBuckets works exactly as it does on /api/stats/operations: that many event counts
+  per row, cut on the same bucket arithmetic as /api/stats/histogram, or null when it was
+  not asked for. The Users page draws fifty strips, which was fifty histogram requests
+  that could not start until this endpoint had answered.
+  200: { "users": [ { value, total, errorCount, lastSeen, trend } ] }
 
 GET /api/stats/queries
   Query: property? default commandText, durationProperty? default elapsed,

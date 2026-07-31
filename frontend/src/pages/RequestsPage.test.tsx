@@ -4,6 +4,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
+import { TimeRangeProvider } from '../hooks/useLiveRange'
 import { getHistogram, getOperations } from '../api/stats'
 import { RequestsPage } from './RequestsPage'
 
@@ -39,9 +40,11 @@ function renderPage(url = '/requests') {
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <TimeRangeProvider>
         <MemoryRouter initialEntries={[url]}>
           <RequestsPage />
         </MemoryRouter>
+      </TimeRangeProvider>
       </LanguageProvider>
     </QueryClientProvider>,
   )
@@ -74,15 +77,17 @@ it('stacks status-class series with their totals in the legend', async () => {
   expect(screen.getByText('4')).toBeDefined()
 })
 
-it('starts live, and keeps the range picker alongside in both states', async () => {
+// live starts off everywhere: an hour of history is the useful first thing to see, and a page
+// that starts moving before anyone asked it to was the complaint that changed this
+it('starts paused, and keeps the range picker alongside in both states', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(toggle.getAttribute('aria-pressed')).toBe('false')
   // the pair is one control group: the picker never appears or vanishes under the cursor
   expect(screen.getByTitle('Time range')).toBeDefined()
 
   toggle.click()
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
   expect(screen.getByTitle('Time range')).toBeDefined()
 })
 

@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUserActivity } from '../hooks/useStats'
-import { Sparkline } from '../components/Sparkline'
+import { TrendBars } from '../components/Sparkline'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { SectionBlock } from '../components/ui/SectionBlock'
@@ -11,9 +11,11 @@ import { propertyEquals } from '../lib/filter'
 import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
-const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 50
 const DEFAULT_PROPERTY = 'UserId'
+// columns in each row's trend strip, sent down with the rows. Fifty rows used to mean fifty
+// histogram requests, none of which could start until this page's own query had answered.
+const TREND_BUCKETS = 24
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -22,12 +24,12 @@ const INPUT_CLASS =
 
 export function UsersPage() {
   const { t, lang } = useI18n()
-  // a 24 h window like before, now pausable/livened from the same control as every other page
-  const { live, range, toggleLive, setRange } = useLiveRange({ windowMs: DEFAULT_WINDOW_MS, initialLive: false })
+  // the app's one window: whatever range the reader picked on any page, they still have here
+  const { live, range, toggleLive, setRange } = useLiveRange()
   const [property, setProperty] = useState(DEFAULT_PROPERTY)
   const navigate = useNavigate()
 
-  const users = useUserActivity({ ...range, property, limit: ROW_LIMIT })
+  const users = useUserActivity({ ...range, property, limit: ROW_LIMIT, trendBuckets: TREND_BUCKETS })
 
   function openEvents(value: string) {
     const params = new URLSearchParams({ from: range.from, to: range.to, filter: propertyEquals(property, value) })
@@ -95,12 +97,7 @@ export function UsersPage() {
                   </td>
                   <td className={`${TD_CLASS} whitespace-nowrap`}>{formatTimestamp(row.lastSeen, lang)}</td>
                   <td className={TD_CLASS}>
-                    <Sparkline
-                      filter={propertyEquals(property, row.value)}
-                      color={SERIES.volume}
-                      from={range.from}
-                      to={range.to}
-                    />
+                    <TrendBars values={row.trend ?? []} color={SERIES.volume} />
                   </td>
                 </tr>
               )

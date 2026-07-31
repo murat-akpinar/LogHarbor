@@ -12,7 +12,6 @@ import { quote } from '../lib/filter'
 import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
 
-const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 20
 // baseline window start: anything before this predates the server itself
 const BASELINE_START = '2000-01-01T00:00:00.000Z'
@@ -29,8 +28,8 @@ function formatMs(ms: number, locale: string): string {
 
 export function AnalysisPage() {
   const { t, lang } = useI18n()
-  // a 24 h window like before, now pausable/livened from the same control as every other page
-  const { live, range, toggleLive, setRange } = useLiveRange({ windowMs: DEFAULT_WINDOW_MS, initialLive: false })
+  // the app's one window: whatever range the reader picked on any page, they still have here
+  const { live, range, toggleLive, setRange } = useLiveRange()
   const navigate = useNavigate()
 
   const errors = useTopErrors({ ...range, limit: ROW_LIMIT })

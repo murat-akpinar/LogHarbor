@@ -5,6 +5,8 @@ import { buildExportUrl } from '../api/events'
 import { useEventSearch } from '../hooks/useEventSearch'
 import { useHistogram } from '../hooks/useStats'
 import { useLiveTail } from '../hooks/useLiveTail'
+import { useSharedRange } from '../hooks/useLiveRange'
+import { useHealth } from '../hooks/useHealth'
 import { sumLevels } from '../lib/levels'
 import { useSignals } from '../hooks/useSignals'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -68,14 +70,25 @@ export function EventsPage() {
   const [filterSeed, setFilterSeed] = useState(0)
   const [activeLevels, setActiveLevels] = useState<Set<Level>>(new Set())
   const [activeSignalIds, setActiveSignalIds] = useState<Set<number>>(new Set())
-  const [range, setRange] = useState<{ from: string | undefined; to: string | undefined }>(() => ({
-    from: searchParams.get('from') ?? undefined,
-    to: searchParams.get('to') ?? undefined,
-  }))
+  // the app's one window, shared with every other page — see hooks/useLiveRange
+  const { range: sharedRange, setRange } = useSharedRange()
   const [selectedEvent, setSelectedEvent] = useState<Event | undefined>(undefined)
   const [isLive, setIsLive] = useState(false)
   const [isAtTop, setIsAtTop] = useState(true)
   const [showHelp, setShowHelp] = useState(false)
+
+  // A live tail is "now", so while it runs the search under it is unbounded — but only here.
+  // Writing that open range into the shared store would reset every other page's window
+  // because somebody watched the stream for a minute.
+  const range = isLive ? { from: undefined, to: undefined } : sharedRange
+
+  // ?from=&to= from a dashboard or analysis deep link sets the shared window, once
+  const deepFrom = searchParams.get('from')
+  const deepTo = searchParams.get('to')
+  useEffect(() => {
+    if (deepFrom || deepTo) setRange({ from: deepFrom ?? undefined, to: deepTo ?? undefined })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [columns, setColumns] = useLocalStorage<string[]>('logharbor.columns', [])
   const [relativeTime, setRelativeTime] = useLocalStorage<boolean>('logharbor.relativeTime', false)
 
@@ -104,8 +117,13 @@ export function EventsPage() {
   // no filter, no chips/signals (folded into `filter`), no range: an empty result can
   // only mean the server has no events at all -> first-run onboarding (see the spec).
   // Unless everything is archived, which is what the banner below says instead.
-  const isUnfiltered = !filter && !range.from && !range.to
-  const search = useEventSearch({ filter, from: range.from, to: range.to, pollWhenEmpty: isUnfiltered })
+  //
+  // "No events at all" used to be inferred from an unbounded search, which worked only while
+  // this page opened on all time. It opens on the shared window now, so the question is asked
+  // directly: /healthz counts the whole database, and zero there is the actual first run.
+  const health = useHealth()
+  const isFirstRun = health.data?.eventCount === 0
+  const search = useEventSearch({ filter, from: range.from, to: range.to, pollWhenEmpty: isFirstRun })
   const tail = useLiveTail({ filter, enabled: isLive, paused: !isAtTop })
 
   const searchEvents = useMemo(() => search.data?.pages.flatMap((page) => page.events) ?? [], [search.data])
@@ -171,11 +189,8 @@ export function EventsPage() {
   }
 
   function toggleLive() {
-    setIsLive((current) => {
-      // live tail always shows "now", so a fixed time range would contradict it
-      if (!current) setRange({ from: undefined, to: undefined })
-      return !current
-    })
+    // the range the tail implies is applied locally above, not written to the shared store
+    setIsLive((current) => !current)
   }
 
   function resume() {
@@ -316,7 +331,7 @@ export function EventsPage() {
                 <div key={index} className="h-7 rounded bg-surface-hover" />
               ))}
             </div>
-          ) : isUnfiltered && !search.error && events.length === 0 && archivedDays.length === 0 ? (
+          ) : isFirstRun && !filter && !search.error && events.length === 0 && archivedDays.length === 0 ? (
             <OnboardingPanel />
           ) : (
             <VirtualizedEventList

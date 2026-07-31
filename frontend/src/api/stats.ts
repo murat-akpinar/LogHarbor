@@ -72,7 +72,7 @@ export function getOperations(
 }
 
 export function getUserActivity(
-  params: StatsRangeParams & { property?: string; limit?: number },
+  params: StatsRangeParams & { property?: string; limit?: number; trendBuckets?: number },
 ): Promise<{ users: UserActivity[] }> {
   return api.get<{ users: UserActivity[] }>(`/api/stats/user-activity${buildQuery(params)}`)
 }

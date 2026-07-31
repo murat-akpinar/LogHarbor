@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
+import { TimeRangeProvider } from '../hooks/useLiveRange'
 import { getEvents } from '../api/events'
 import { startHydration } from '../api/archive'
 import type { Event } from '../types'
@@ -24,6 +25,8 @@ vi.mock('../api/settings', () => ({
     role: 'admin',
   })),
   createApiKey: vi.fn(),
+  // the onboarding panel asks the server how many events it holds in total; zero is a first run
+  getHealth: vi.fn(async () => ({ status: 'ok', eventCount: 0, dbSizeBytes: 0, freeDiskBytes: 0 })),
 }))
 vi.mock('../hooks/useSignals', () => ({
   useSignals: () => ({ data: [] }),
@@ -75,9 +78,11 @@ function renderPage(initialEntry = '/') {
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <TimeRangeProvider>
         <MemoryRouter initialEntries={[initialEntry]}>
           <EventsPage />
         </MemoryRouter>
+      </TimeRangeProvider>
       </LanguageProvider>
     </QueryClientProvider>,
   )

@@ -164,14 +164,108 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.Equal([2, 0, 0, 1], trend);
     }
 
+    // the Users table draws fifty of these, which is why the strip has to come down with the row
+    [Fact]
+    public async Task UserActivity_CarriesEachRowsTrend_WhenAsked()
+    {
+        // 2026-07-11: a day the shared seeds never touch
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-11T10:00:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"ada"}""", null, "2026-07-11T10:00:00.0000000Z"),
+            new Event(0, "2026-07-11T10:05:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"ada"}""", null, "2026-07-11T10:05:00.0000000Z"),
+            new Event(0, "2026-07-11T10:50:00.0000000Z", "Error", "hit", "hit",
+                """{"UserId":"ada"}""", null, "2026-07-11T10:50:00.0000000Z"),
+            new Event(0, "2026-07-11T10:30:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"grace"}""", null, "2026-07-11T10:30:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/user-activity?from=2026-07-11T10:00:00Z&to=2026-07-11T11:00:00Z&trendBuckets=4");
+
+        var rows = page.GetProperty("users").EnumerateArray()
+            .ToDictionary(row => row.GetProperty("value").GetString()!);
+
+        // four quarter-hour buckets: 10:00 and 10:05 in the first, 10:50 in the last
+        Assert.Equal([2, 0, 0, 1],
+            rows["ada"].GetProperty("trend").EnumerateArray().Select(v => v.GetInt64()).ToArray());
+        // and the second user carries its own, not a copy of the busiest row's
+        Assert.Equal([0, 0, 1, 0],
+            rows["grace"].GetProperty("trend").EnumerateArray().Select(v => v.GetInt64()).ToArray());
+        // the strip has to agree with the total beside it
+        Assert.Equal(3, rows["ada"].GetProperty("total").GetInt64());
+        Assert.Equal(1, rows["ada"].GetProperty("errorCount").GetInt64());
+    }
+
+    [Fact]
+    public async Task UserActivity_StillTrendsTheRowItKeeps_WhenTheLimitCutsTheRest()
+    {
+        // 2026-07-10: its own day, so this does not lean on another test having run first
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-10T10:00:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"busy"}""", null, "2026-07-10T10:00:00.0000000Z"),
+            new Event(0, "2026-07-10T10:05:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"busy"}""", null, "2026-07-10T10:05:00.0000000Z"),
+            new Event(0, "2026-07-10T10:50:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"busy"}""", null, "2026-07-10T10:50:00.0000000Z"),
+            new Event(0, "2026-07-10T10:30:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"quiet"}""", null, "2026-07-10T10:30:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/user-activity?from=2026-07-10T10:00:00Z&to=2026-07-10T11:00:00Z&trendBuckets=4&limit=1");
+
+        var row = page.GetProperty("users").EnumerateArray().Single();
+        Assert.Equal("busy", row.GetProperty("value").GetString());
+        Assert.Equal([2, 0, 0, 1],
+            row.GetProperty("trend").EnumerateArray().Select(v => v.GetInt64()).ToArray());
+    }
+
+    [Fact]
+    public async Task UserActivity_OmitsTrend_WhenNotAsked()
+    {
+        // 2026-07-09: its own day. Seeded here so the assertion below has a row to run on —
+        // an empty list would make the loop vacuous and the test worthless.
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-09T10:00:00.0000000Z", "Information", "hit", "hit",
+                """{"UserId":"someone"}""", null, "2026-07-09T10:00:00.0000000Z"),
+        ]);
+
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/user-activity?from=2026-07-09T10:00:00Z&to=2026-07-09T11:00:00Z");
+
+        var rows = page.GetProperty("users").EnumerateArray().ToArray();
+        Assert.NotEmpty(rows);
+        foreach (var row in rows)
+        {
+            Assert.Equal(JsonValueKind.Null, row.GetProperty("trend").ValueKind);
+        }
+    }
+
     [Fact]
     public async Task Operations_OmitsTrend_WhenNotAsked()
     {
-        // callers that draw no strip should not pay for the aggregation
-        var page = await _client.GetFromJsonAsync<JsonElement>(
-            "/api/stats/operations?from=2026-07-17T10:00:00Z&to=2026-07-17T11:00:00Z");
+        // callers that draw no strip should not pay for the aggregation.
+        // 2026-07-08: seeded here rather than borrowed, so the loop below has a row to run on
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        await store.WriteBatchAsync(
+        [
+            new Event(0, "2026-07-08T10:00:00.0000000Z", "Information", "ok", "GET /thing",
+                """{"Path":"/thing","Method":"GET"}""", null, "2026-07-08T10:00:00.0000000Z"),
+        ]);
 
-        foreach (var row in page.GetProperty("operations").EnumerateArray())
+        var page = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/operations?from=2026-07-08T10:00:00Z&to=2026-07-08T11:00:00Z");
+
+        var rows = page.GetProperty("operations").EnumerateArray().ToArray();
+        Assert.NotEmpty(rows);
+        foreach (var row in rows)
         {
             Assert.Equal(JsonValueKind.Null, row.GetProperty("trend").ValueKind);
         }

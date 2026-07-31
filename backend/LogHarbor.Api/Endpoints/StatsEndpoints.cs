@@ -226,7 +226,8 @@ public static class StatsEndpoints
         string to,
         string? filter = null,
         string property = "UserId",
-        int limit = 50)
+        int limit = 50,
+        int trendBuckets = 0)
     {
         // same alphabet as query-language identifiers; anything else could escape the JSON path
         if (property.Length == 0 || !property.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
@@ -237,10 +238,15 @@ public static class StatsEndpoints
         {
             return error!;
         }
+        if (trendBuckets < 0 || trendBuckets > MaxTrendBuckets)
+        {
+            return Problems.BadRequest("Invalid query",
+                $"trendBuckets must be between 0 and {MaxTrendBuckets}.");
+        }
 
         var users = await eventStore.GetUserActivityAsync(
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
-            property, limit, cancellationToken);
+            property, limit, trendBuckets, cancellationToken);
         return Results.Ok(new { users });
     }
 

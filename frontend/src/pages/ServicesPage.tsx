@@ -11,7 +11,6 @@ import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 import type { ServiceStatusRow } from '../types'
 
-const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000
 const ROW_LIMIT = 50
 const STATUS_LIMIT = 100
 
@@ -30,8 +29,8 @@ function probeFilter(row: ServiceStatusRow): string {
 
 export function ServicesPage() {
   const { t, lang } = useI18n()
-  // a 24 h window like before, now pausable/livened from the same control as every other page
-  const { live, range, toggleLive, setRange } = useLiveRange({ windowMs: DEFAULT_WINDOW_MS, initialLive: false })
+  // the app's one window: whatever range the reader picked on any page, they still have here
+  const { live, range, toggleLive, setRange } = useLiveRange()
   const navigate = useNavigate()
 
   const services = useServices({ ...range, limit: ROW_LIMIT })

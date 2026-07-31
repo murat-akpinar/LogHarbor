@@ -8,7 +8,8 @@ import {
   getStorageForecast,
   saveArchiveSettings,
 } from '../api/archive'
-import { createApiKey, getApiKeys, getHealth, revokeApiKey } from '../api/settings'
+import { createApiKey, getApiKeys, revokeApiKey } from '../api/settings'
+import { useHealth } from '../hooks/useHealth'
 import { useAuthStatus, useIsAdmin, useLogout } from '../hooks/useAuth'
 import { useCreateUser, useDeleteUser, useUsers } from '../hooks/useUsers'
 import { formatBytes } from '../lib/bytes'
@@ -35,7 +36,7 @@ const TD_CLASS = 'py-2 text-fg'
 
 function HealthCard() {
   const { t, lang } = useI18n()
-  const { data: health, error } = useQuery({ queryKey: ['health'], queryFn: getHealth })
+  const { data: health, error } = useHealth()
 
   if (error) {
     return <p className="text-sm text-level-error">{error.message}</p>

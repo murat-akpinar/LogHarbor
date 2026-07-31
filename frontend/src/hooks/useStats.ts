@@ -102,7 +102,9 @@ export function useOperations(
   })
 }
 
-export function useUserActivity(params: StatsRangeParams & { property?: string; limit?: number }) {
+export function useUserActivity(
+  params: StatsRangeParams & { property?: string; limit?: number; trendBuckets?: number },
+) {
   return useQuery({
     queryKey: ['stats', 'user-activity', params],
     queryFn: () => getUserActivity(params),

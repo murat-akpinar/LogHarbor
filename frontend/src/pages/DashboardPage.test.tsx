@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
+import { TimeRangeProvider } from '../hooks/useLiveRange'
 import { DashboardPage } from './DashboardPage'
 import * as stats from '../api/stats'
 
@@ -98,9 +99,11 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <TimeRangeProvider>
         <MemoryRouter>
           <DashboardPage />
         </MemoryRouter>
+      </TimeRangeProvider>
       </LanguageProvider>
     </QueryClientProvider>,
   )
@@ -278,10 +281,12 @@ describe('DashboardPage', () => {
     expect(screen.getByText('2.5 s')).toBeDefined()
   })
 
-  it('is live by default, with the range picker beside it', async () => {
+  // live is off until asked for: an operator who opens the dashboard wants the last hour to
+  // hold still while they read it, not to slide out from under them
+  it('is paused by default, with the range picker beside it', async () => {
     renderPage()
     const toggle = await screen.findByRole('button', { name: 'Live' })
-    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
     expect(screen.getByTitle('Time range')).toBeDefined()
   })
 
@@ -294,7 +299,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/3 arrived late/)).toBeDefined()
   })
 
-  it('picking a range leaves live mode and narrows the queried window', async () => {
+  it('picking a range narrows the queried window', async () => {
     renderPage()
 
     const picker = await screen.findByTitle('Time range')
@@ -303,12 +308,14 @@ describe('DashboardPage', () => {
 
     const getSummary = vi.mocked(stats.getSummary)
     await waitFor(() => {
-      // two windows are queried now — the visible one and the one before it, for the tile
-      // comparison — so the window under test is the one that ends latest
+      // two windows are queried — the visible one and the one before it, for the tile
+      // comparison — so the window under test is the one that *starts* latest. Picking by `to`
+      // used to work only because live mode kept moving it; the window holds still now, so
+      // several calls share an end and the tie went to the widest, oldest one.
       const visible = getSummary.mock.calls
         .map((call) => call[0])
         .reduce<{ from: string; to: string } | null>(
-          (newest, params) => (newest === null || params.to > newest.to ? params : newest),
+          (latest, params) => (latest === null || params.from > latest.from ? params : latest),
           null,
         )
       expect(visible).not.toBeNull()

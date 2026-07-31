@@ -4,6 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
+import { TimeRangeProvider } from '../hooks/useLiveRange'
 import { getServices } from '../api/stats'
 import { ServicesPage } from './ServicesPage'
 
@@ -24,15 +25,25 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+// 2880 events across this window is 2.0 per minute, which is what the table should print
+const DAY_RANGE = {
+  from: '2026-07-24T00:00:00.000Z',
+  to: '2026-07-25T00:00:00.000Z',
+}
+
 function renderPage() {
   localStorage.setItem('logharbor-lang', 'en')
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        {/* an explicit 24 h window: the rate assertions below are events-per-minute, and
+            tying them to whatever the default happens to be makes them break for no reason */}
+        <TimeRangeProvider initialRange={DAY_RANGE}>
         <MemoryRouter>
           <ServicesPage />
         </MemoryRouter>
+      </TimeRangeProvider>
       </LanguageProvider>
     </QueryClientProvider>,
   )

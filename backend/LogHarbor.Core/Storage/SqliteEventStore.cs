@@ -583,13 +583,6 @@ public sealed class SqliteEventStore : IEventStore
         // the rows are already grouped here, so counting them per bucket is one more GROUP BY over
         // a CTE that has been materialized anyway.
         //
-        // Bucket width is computed the way GetHistogramAsync computes it — same arithmetic, so a
-        // row's strip and the chart above it cut time at exactly the same instants. Epsilon rather
-        // than a zero guard: the API rejects to <= from, but this is a public store method and a
-        // division by zero here would silently put every event in one NULL bucket.
-        var bucketSeconds = wantsTrend
-            ? Math.Max(double.Epsilon, (ParseUtc(toUtc) - ParseUtc(fromUtc)).TotalSeconds / trendBuckets)
-            : 0;
         var trendTs = wantsTrend ? ", timestamp AS ts" : "";
         var carryTs = wantsTrend ? ", ts" : "";
 
@@ -650,7 +643,7 @@ public sealed class SqliteEventStore : IEventStore
         command.Parameters.AddWithValue("@limit", limit);
         if (wantsTrend)
         {
-            command.Parameters.AddWithValue("@bucketSeconds", bucketSeconds);
+            command.Parameters.AddWithValue("@bucketSeconds", BucketSeconds(fromUtc, toUtc, trendBuckets));
         }
 
         var rows = new List<OperationOverview>();
@@ -672,6 +665,17 @@ public sealed class SqliteEventStore : IEventStore
     /// ClefParser.FormatTimestamp, so a failure to parse is a bug rather than bad input.</summary>
     private static DateTimeOffset ParseUtc(string timestamp) =>
         DateTimeOffset.Parse(timestamp, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal);
+
+    /// <summary>
+    /// One trend column's width in seconds, computed the way GetHistogramAsync computes it — same
+    /// arithmetic, so a row's strip and the chart above it cut time at the same instants.
+    /// </summary>
+    /// <remarks>
+    /// Epsilon rather than a zero guard: the API rejects to &lt;= from, but these are public store
+    /// methods and a division by zero would silently put every event in one NULL bucket.
+    /// </remarks>
+    private static double BucketSeconds(string fromUtc, string toUtc, int buckets) =>
+        Math.Max(double.Epsilon, (ParseUtc(toUtc) - ParseUtc(fromUtc)).TotalSeconds / buckets);
 
     /// <summary>
     /// The sparse [[bucket, count], ...] SQLite aggregated, widened to one number per bucket.
@@ -701,31 +705,52 @@ public sealed class SqliteEventStore : IEventStore
 
     public async Task<IReadOnlyList<UserActivity>> GetUserActivityAsync(
         QuerySql? filter, string fromUtc, string toUtc, string property, int limit,
-        CancellationToken cancellationToken = default)
+        int trendBuckets = 0, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
+        var wantsTrend = trendBuckets > 0;
         var source = await BuildStatsSourceAsync(
             connection, command, filter, "level, properties, timestamp", fromUtc, toUtc, cancellationToken);
 
         // safe to embed: property is restricted to [A-Za-z0-9_.] at the API boundary; the quoted
         // step keeps dots literal. CAST AS TEXT so numeric ids group and display uniformly.
+        //
+        // The trend rides along for the same reason it does on the operations query: the Users
+        // table draws one strip per row and there are fifty of them, which was fifty histogram
+        // requests that could not start until this one had answered. See GetOperationOverviewAsync.
         command.CommandText =
             "WITH v AS (" +
             $"SELECT CAST(json_extract(properties, '$.\"{property}\"') AS TEXT) AS usr, level, timestamp " +
-            $"FROM {source}) " +
-            "SELECT usr, COUNT(*) AS total, " +
+            $"FROM {source}), " +
+            "s AS (SELECT usr, COUNT(*) AS total, " +
             "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors, " +
             "MAX(timestamp) AS last_seen " +
-            "FROM v WHERE usr IS NOT NULL GROUP BY usr ORDER BY total DESC, usr LIMIT @limit;";
+            "FROM v WHERE usr IS NOT NULL GROUP BY usr) " +
+            (wantsTrend
+                // `top` first, so only the rows that survive the limit are bucketed and encoded
+                ? ", top AS (SELECT usr FROM s ORDER BY total DESC, usr LIMIT @limit), " +
+                  "b AS (SELECT v.usr AS usr, " +
+                  "CAST((julianday(v.timestamp) - julianday(@from)) * 86400.0 / @bucketSeconds AS INTEGER) AS bi, " +
+                  "COUNT(*) AS c FROM v JOIN top ON top.usr = v.usr GROUP BY v.usr, bi), " +
+                  "t AS (SELECT usr, json_group_array(json_array(bi, c)) AS trend FROM b GROUP BY usr) " +
+                  "SELECT s.usr, s.total, s.errors, s.last_seen, t.trend FROM s " +
+                  "LEFT JOIN t ON t.usr = s.usr ORDER BY s.total DESC, s.usr LIMIT @limit;"
+                : "SELECT s.usr, s.total, s.errors, s.last_seen, NULL AS trend FROM s " +
+                  "ORDER BY s.total DESC, s.usr LIMIT @limit;");
         command.Parameters.AddWithValue("@limit", limit);
+        if (wantsTrend)
+        {
+            command.Parameters.AddWithValue("@bucketSeconds", BucketSeconds(fromUtc, toUtc, trendBuckets));
+        }
 
         var rows = new List<UserActivity>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
             rows.Add(new UserActivity(
-                reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetString(3)));
+                reader.GetString(0), reader.GetInt64(1), reader.GetInt64(2), reader.GetString(3),
+                wantsTrend && !reader.IsDBNull(4) ? ExpandTrend(reader.GetString(4), trendBuckets) : null));
         }
         return rows;
     }

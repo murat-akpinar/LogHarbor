@@ -4,6 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
+import { TimeRangeProvider } from '../hooks/useLiveRange'
 import { getSlowOperations } from '../api/stats'
 import { AnalysisPage } from './AnalysisPage'
 
@@ -33,9 +34,11 @@ function renderPage() {
   render(
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
+        <TimeRangeProvider>
         <MemoryRouter>
           <AnalysisPage />
         </MemoryRouter>
+      </TimeRangeProvider>
       </LanguageProvider>
     </QueryClientProvider>,
   )

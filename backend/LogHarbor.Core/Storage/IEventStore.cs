@@ -70,7 +70,14 @@ public sealed record OperationOverview(
     IReadOnlyList<long>? Trend = null);
 
 /// <summary>Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen timestamp.</summary>
-public sealed record UserActivity(string Value, long Total, long ErrorCount, string LastSeen);
+public sealed record UserActivity(
+    string Value,
+    long Total,
+    long ErrorCount,
+    string LastSeen,
+    /// <summary>Event counts per bucket, for the row's trend strip. Present only when asked for;
+    /// see OperationOverview.Trend for why it travels with the row.</summary>
+    IReadOnlyList<long>? Trend = null);
 
 /// <summary>One DB-query group: events sharing a query-text property value.</summary>
 public sealed record QueryOverview(
@@ -208,9 +215,10 @@ public interface IEventStore
     /// count, last-seen), largest first. Events without the property are excluded. <paramref name="property"/>
     /// must be a bare identifier ([A-Za-z0-9_.]); the API boundary validates it. Searches hot + hydrated data.
     /// </summary>
+    /// <param name="trendBuckets">Columns in each row's trend strip. 0 skips the aggregation.</param>
     Task<IReadOnlyList<UserActivity>> GetUserActivityAsync(
         QuerySql? filter, string fromUtc, string toUtc, string property, int limit,
-        CancellationToken cancellationToken = default);
+        int trendBuckets = 0, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Per-query stats grouped by one query-text <paramref name="property"/> (calls, Error+Fatal

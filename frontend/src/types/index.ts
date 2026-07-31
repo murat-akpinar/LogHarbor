@@ -218,6 +218,8 @@ export interface UserActivity {
   total: number
   errorCount: number
   lastSeen: string
+  /** Counts per bucket, present only when trendBuckets was asked for — see OperationOverview. */
+  trend?: number[] | null
 }
 
 /** One OTLP span from GET /api/traces/{id}; parentSpanId null for a root span. */

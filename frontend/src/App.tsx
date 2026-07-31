@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { LoginGate } from './components/LoginGate'
 import { NavBar } from './components/NavBar'
+import { TimeRangeProvider } from './hooks/useLiveRange'
 import { EventsPage } from './pages/EventsPage'
 import { RequestsPage } from './pages/RequestsPage'
 import { ExceptionsPage } from './pages/ExceptionsPage'
@@ -39,6 +40,9 @@ function App() {
       <LanguageProvider>
         <BrowserRouter>
           <LoginGate>
+            {/* inside the gate on purpose: signing in mounts a fresh window rather than
+                resuming whatever the last session was looking at */}
+            <TimeRangeProvider>
             <div className="flex h-screen flex-col text-fg">
               <NavBar />
               <main className="min-h-0 flex-1">
@@ -60,6 +64,7 @@ function App() {
                 </Routes>
               </main>
             </div>
+            </TimeRangeProvider>
           </LoginGate>
         </BrowserRouter>
       </LanguageProvider>
