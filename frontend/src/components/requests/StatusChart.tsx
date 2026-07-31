@@ -63,31 +63,45 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
   const compact = (value: number) =>
     new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
+  const chips = (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {series.map(({ key, label, color, data, dimmed }) => (
+        <SeriesChip
+          key={key}
+          color={color}
+          label={label}
+          value={compact(data.reduce((a, b) => a + b, 0))}
+          pressed={selected === key}
+          dimmed={dimmed}
+          onClick={() => onSelect(selected === key ? null : key)}
+          title={selected === key ? t.requests.showAll : t.requests.onlyThis(label)}
+        />
+      ))}
+    </div>
+  )
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         {title === null ? (
-          <span>{action}</span>
-        ) : (
-          <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg">
-            <span className="truncate">{title ?? t.requests.statusCodes}</span>
+          // The section header above already names this chart, so the chips are the whole of its
+          // header row and they start at the left edge — where Events puts its level chips, which
+          // are the same kind of control. Right-aligned against an empty space, they were the one
+          // filter row in the app that sat somewhere else, and moving between the two pages made
+          // them jump across the screen.
+          <>
+            {chips}
             {action}
-          </h2>
+          </>
+        ) : (
+          <>
+            <h2 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-fg">
+              <span className="truncate">{title ?? t.requests.statusCodes}</span>
+              {action}
+            </h2>
+            {chips}
+          </>
         )}
-        <div className="flex items-center gap-1.5">
-          {series.map(({ key, label, color, data, dimmed }) => (
-            <SeriesChip
-              key={key}
-              color={color}
-              label={label}
-              value={compact(data.reduce((a, b) => a + b, 0))}
-              pressed={selected === key}
-              dimmed={dimmed}
-              onClick={() => onSelect(selected === key ? null : key)}
-              title={selected === key ? t.requests.showAll : t.requests.onlyThis(label)}
-            />
-          ))}
-        </div>
       </div>
 
       {grandTotal > 0 ? (
