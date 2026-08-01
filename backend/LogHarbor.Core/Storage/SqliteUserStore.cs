@@ -6,7 +6,7 @@ namespace LogHarbor.Core.Storage;
 
 public sealed class SqliteUserStore : IUserStore
 {
-    private const string Columns = "id, username, role, created_at, must_change_password";
+    private const string Columns = "id, username, role, created_at, must_change_password, last_login_at";
     private const int SqliteConstraintErrorCode = 19;
 
     // verified against when the username does not exist, so a miss costs the same
@@ -120,8 +120,8 @@ public sealed class SqliteUserStore : IUserStore
         }
 
         var stored = new PasswordHasher.HashedPassword(
-            Convert.FromBase64String(reader.GetString(5)),
-            Convert.FromBase64String(reader.GetString(6)));
+            Convert.FromBase64String(reader.GetString(6)),
+            Convert.FromBase64String(reader.GetString(7)));
         return PasswordHasher.Verify(password, stored) ? ReadUser(reader) : null;
     }
 
@@ -158,5 +158,54 @@ public sealed class SqliteUserStore : IUserStore
         reader.GetString(1),
         reader.GetString(2),
         reader.GetString(3),
-        reader.GetInt64(4) != 0);
+        reader.GetInt64(4) != 0,
+        reader.IsDBNull(5) ? null : reader.GetString(5));
+
+    public async Task RecordLoginAsync(long id, CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE users SET last_login_at = @at WHERE id = @id;";
+        command.Parameters.AddWithValue("@at", ClefParser.FormatTimestamp(DateTimeOffset.UtcNow));
+        command.Parameters.AddWithValue("@id", id);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task RecordDirectoryLoginAsync(
+        string username, string role, CancellationToken cancellationToken = default)
+    {
+        var at = ClefParser.FormatTimestamp(DateTimeOffset.UtcNow);
+
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        // first_seen_at is left alone by the update: "since when has this person been coming in"
+        // is the one thing the row knows that a fresh sign-in cannot say
+        command.CommandText =
+            "INSERT INTO directory_users (username, last_role, first_seen_at, last_login_at) " +
+            "VALUES (@username, @role, @at, @at) " +
+            "ON CONFLICT(username) DO UPDATE SET last_role = @role, last_login_at = @at;";
+        command.Parameters.AddWithValue("@username", username);
+        command.Parameters.AddWithValue("@role", role);
+        command.Parameters.AddWithValue("@at", at);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<DirectoryUser>> ListDirectoryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT username, last_role, first_seen_at, last_login_at FROM directory_users " +
+            "ORDER BY last_login_at DESC;";
+
+        var users = new List<DirectoryUser>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            users.Add(new DirectoryUser(
+                reader.GetString(0), reader.GetString(1), reader.GetString(2), reader.GetString(3)));
+        }
+        return users;
+    }
 }

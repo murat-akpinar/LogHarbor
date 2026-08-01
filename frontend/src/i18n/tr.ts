@@ -558,6 +558,12 @@ export const tr: Messages = {
     password: 'Parola',
     createUser: 'Kullanıcı oluştur',
     noUsers: 'Henüz kullanıcı yok.',
+    colLastLogin: 'Son giriş',
+    colFirstSeen: 'İlk görülme',
+    neverSignedIn: 'hiç',
+    directoryBadge: 'LDAP',
+    directoryRowHint: 'Dizin üzerinden giriş yaptı. Roldeki değer o girişte dizinin verdiği'
+      + ' cevaptır; yetki dizinde verilir ve dizinde alınır.',
     couldNotCreateUser: 'Kullanıcı oluşturulamadı.',
   },
 }

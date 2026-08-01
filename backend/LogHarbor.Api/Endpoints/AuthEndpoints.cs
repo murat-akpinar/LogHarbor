@@ -72,13 +72,25 @@ public static class AuthEndpoints
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials");
         }
 
-        var user = string.Equals(request.Method, LdapMethod, StringComparison.OrdinalIgnoreCase)
+        var viaDirectory = string.Equals(request.Method, LdapMethod, StringComparison.OrdinalIgnoreCase);
+        var user = viaDirectory
             ? await AuthenticateLdapAsync(
                 request, settingsStore, ldap, loggerFactory.CreateLogger("LogHarbor.Ldap"), cancellationToken)
             : await userStore.AuthenticateAsync(request.Username, request.Password, cancellationToken);
         if (user is null)
         {
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Invalid credentials");
+        }
+
+        // after the credentials are accepted and before the cookie goes out: a failed attempt
+        // must not stamp anything, and "last signed in" has to mean the session actually started
+        if (viaDirectory)
+        {
+            await userStore.RecordDirectoryLoginAsync(user.Username, user.Role, cancellationToken);
+        }
+        else
+        {
+            await userStore.RecordLoginAsync(user.Id, cancellationToken);
         }
 
         await SignInAsync(context, user);

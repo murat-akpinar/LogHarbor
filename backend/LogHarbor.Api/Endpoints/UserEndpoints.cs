@@ -17,12 +17,48 @@ public static partial class UserEndpoints
     {
         var group = app.MapGroup("/api/users");
 
-        group.MapGet("/", async (IUserStore store, CancellationToken cancellationToken) =>
-            Results.Ok(await store.ListAsync(cancellationToken)));
+        group.MapGet("/", ListAsync);
 
         group.MapPost("/", CreateAsync);
 
         group.MapDelete("/{id:long}", DeleteAsync);
+    }
+
+    /// <summary>
+    /// Local accounts and the directory principals that have signed in, in one list.
+    /// </summary>
+    /// <remarks>
+    /// The directory rows are history, not accounts: `id` is null because there is nothing to
+    /// delete or edit, and `role` is what the directory answered at the last sign-in rather than
+    /// something LogHarbor stores and enforces. Access is still added and removed in the
+    /// directory — see docs/ldap.md.
+    /// </remarks>
+    private static async Task<IResult> ListAsync(IUserStore store, CancellationToken cancellationToken)
+    {
+        var local = await store.ListAsync(cancellationToken);
+        var directory = await store.ListDirectoryAsync(cancellationToken);
+
+        var users = local
+            .Select(user => new
+            {
+                id = (long?)user.Id,
+                user.Username,
+                user.Role,
+                user.CreatedAt,
+                user.LastLoginAt,
+                source = "local",
+            })
+            .Concat(directory.Select(user => new
+            {
+                id = (long?)null,
+                user.Username,
+                Role = user.LastRole,
+                CreatedAt = user.FirstSeenAt,
+                LastLoginAt = (string?)user.LastLoginAt,
+                source = "ldap",
+            }));
+
+        return Results.Ok(users);
     }
 
     private static async Task<IResult> CreateAsync(

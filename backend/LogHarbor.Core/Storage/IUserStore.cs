@@ -9,7 +9,19 @@ public static class UserRole
 }
 
 /// <summary>An account that can sign in to the UI/management API. Passwords are PBKDF2-hashed.</summary>
-public sealed record User(long Id, string Username, string Role, string CreatedAt, bool MustChangePassword);
+public sealed record User(
+    long Id, string Username, string Role, string CreatedAt, bool MustChangePassword,
+    string? LastLoginAt = null);
+
+/// <summary>
+/// A directory principal that has signed in at least once. A record, not an account.
+/// </summary>
+/// <remarks>
+/// It grants nothing: the directory is asked again at every sign-in, and this row is not
+/// consulted on the way in. <see cref="LastRole"/> is what the directory answered the last time,
+/// kept so the list can say what someone came in as — not so LogHarbor can decide it.
+/// </remarks>
+public sealed record DirectoryUser(string Username, string LastRole, string FirstSeenAt, string LastLoginAt);
 
 public interface IUserStore
 {
@@ -36,6 +48,15 @@ public interface IUserStore
     Task<long> CountAsync(CancellationToken cancellationToken = default);
 
     Task<long> CountAdminsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Stamps a local account's last sign-in. Silently does nothing when it is gone.</summary>
+    Task RecordLoginAsync(long id, CancellationToken cancellationToken = default);
+
+    /// <summary>First sign-in inserts, every later one updates the role and the timestamp.</summary>
+    Task RecordDirectoryLoginAsync(string username, string role, CancellationToken cancellationToken = default);
+
+    /// <summary>Directory principals that have signed in at least once, newest sign-in first.</summary>
+    Task<IReadOnlyList<DirectoryUser>> ListDirectoryAsync(CancellationToken cancellationToken = default);
 }
 
 public sealed class DuplicateUsernameException : Exception

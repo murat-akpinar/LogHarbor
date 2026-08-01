@@ -139,4 +139,47 @@ public sealed class UserEndpointsTests : IDisposable
 
         Assert.Equal(HttpStatusCode.BadRequest, duplicate.StatusCode);
     }
+    // asked for 2026-08-01: a person who has signed in should be in this list, with the date,
+    // and a directory sign-in should be marked as one
+    [Fact]
+    public async Task List_RecordsWhenEachAccountLastSignedIn()
+    {
+        var client = NewClient();
+        Assert.Equal(HttpStatusCode.Created, (await CreateUserAsync(client, "alice", "password123", "admin")).StatusCode);
+        await LoginAsync(client, "alice", "password123");
+        Assert.Equal(HttpStatusCode.Created, (await CreateUserAsync(client, "bob", "password123", "viewer")).StatusCode);
+
+        var users = await ListUsersAsync(client);
+        var alice = users.Single(user => user.GetProperty("username").GetString() == "alice");
+        var bob = users.Single(user => user.GetProperty("username").GetString() == "bob");
+
+        Assert.Equal("local", alice.GetProperty("source").GetString());
+        var stamp = alice.GetProperty("lastLoginAt").GetString();
+        Assert.False(string.IsNullOrEmpty(stamp));
+        // the stamp is the sign-in, not the account: it has to be at or after the creation
+        Assert.True(string.CompareOrdinal(stamp, alice.GetProperty("createdAt").GetString()) >= 0);
+        // bob has an account and has never used it, which is a different thing from having no row
+        Assert.Equal(JsonValueKind.Null, bob.GetProperty("lastLoginAt").ValueKind);
+    }
+
+    [Fact]
+    public async Task List_DoesNotStampAnythingForARejectedPassword()
+    {
+        var client = NewClient();
+        Assert.Equal(HttpStatusCode.Created, (await CreateUserAsync(client, "alice", "password123", "admin")).StatusCode);
+        await LoginAsync(client, "alice", "password123");
+        var signedIn = (await ListUsersAsync(client))[0].GetProperty("lastLoginAt").GetString();
+
+        var refused = await client.PostAsJsonAsync("/api/auth/login", new { username = "alice", password = "wrong" });
+        Assert.Equal(HttpStatusCode.Unauthorized, refused.StatusCode);
+
+        Assert.Equal(signedIn, (await ListUsersAsync(client))[0].GetProperty("lastLoginAt").GetString());
+    }
+
+    private static async Task<List<JsonElement>> ListUsersAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/api/users");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        return (await response.Content.ReadFromJsonAsync<List<JsonElement>>())!;
+    }
 }

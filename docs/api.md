@@ -47,7 +47,16 @@ GET  /api/auth/status    200: { "authRequired": bool, "authenticated": bool, "us
 
 --- USERS (admin only) ---
 
-GET    /api/users      200: [ { id, username, role, createdAt } ]  (passwords never returned)
+GET    /api/users      200: [ { id, username, role, createdAt, lastLoginAt, source } ]
+                        (passwords never returned)
+                        source 'local' — an account in the users table. id is its id,
+                          createdAt is when it was created, lastLoginAt is null until the
+                          first successful sign-in (a rejected password stamps nothing).
+                        source 'ldap' — a directory principal that has signed in at least
+                          once. id is null: there is no local row, nothing to edit or delete,
+                          and the row grants nothing. createdAt is the first sign-in and role
+                          is what the directory answered at the last one — the directory is
+                          still asked again on every login (docs/ldap.md).
 POST   /api/users      body { username, password, role }  201: User | 400 validation
                         (username: 1-64 chars [A-Za-z0-9._-]; password: min 8 chars;
                         role: 'admin'|'viewer'; the first user ever created must be admin)

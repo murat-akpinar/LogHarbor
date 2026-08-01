@@ -297,10 +297,14 @@ export interface LdapTestResult {
 }
 
 export interface User {
-  id: number
+  /** Null for a directory sign-in: there is no local row to edit or delete. */
+  id: number | null
   username: string
   role: UserRole
+  /** Created, for a local account; first signed in, for a directory one. */
   createdAt: string
+  lastLoginAt: string | null
+  source: 'local' | 'ldap'
 }
 
 export type AlertPayloadFormat = 'generic' | 'slack' | 'discord'

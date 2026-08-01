@@ -135,10 +135,19 @@ would otherwise answer "no users exist, so no" — leaving every page open to an
 reach the port, on a server that looked configured.
 
 Local accounts keep working alongside it; the login page offers both and remembers which one
-was used last. The Users page lists local accounts only, and says so — a directory user has no
-row there, because there is no password to keep and the role has to be re-read from the
-directory on every login anyway. A mirrored copy would go stale the moment somebody is moved
-out of a group.
+was used last.
+
+The Users list under Settings shows both, and the difference between them is the point. A
+directory user is **not** given an account: nothing is written before their first sign-in,
+there is no password to keep, and the role is re-read from the directory every single time
+they come in — a mirrored copy would go stale the moment somebody is moved out of a group.
+What is kept, from 2026-08-01, is a record that they signed in: the row is tagged **LDAP**,
+carries the date they last came in, and shows the role the directory answered *at that
+sign-in*. It has no Delete button, because there is nothing there to revoke — access is added
+and removed in the directory, and the row would come back on their next login anyway.
+
+Local accounts carry the same "last sign-in" column, which is empty until the first successful
+one. A rejected password stamps nothing.
 
 ## A directory to try it against
 

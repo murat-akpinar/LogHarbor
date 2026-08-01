@@ -560,6 +560,14 @@ export const en = {
     password: 'Password',
     createUser: 'Create user',
     noUsers: 'No users yet.',
+    colLastLogin: 'Last sign-in',
+    colFirstSeen: 'Since',
+    neverSignedIn: 'never',
+    directoryBadge: 'LDAP',
+    // the row is a record of a sign-in, not an account: the directory decides the role again
+    // every time, so nothing here can be edited or revoked
+    directoryRowHint: 'Signed in through the directory. The role is what the directory answered'
+      + ' at that sign-in; access is granted and removed in the directory.',
     couldNotCreateUser: 'Could not create user.',
   },
 }
