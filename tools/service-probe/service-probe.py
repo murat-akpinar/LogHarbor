@@ -25,6 +25,31 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+def load_env_file():
+    """Read .env next to this script, the way systemd's EnvironmentFile does.
+
+    Without this, the install steps do not work in the order the README gives them: `.env` is
+    filled in and the very next command is `--dry-run`, which under systemd would have the file
+    loaded for it and by hand does not. It exited with "set SERVICES" while SERVICES was sitting
+    in the file two lines above. Real environment variables still win, so the systemd units,
+    which pass the same file, behave exactly as before.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            lines = handle.readlines()
+    except OSError:
+        return
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+load_env_file()
+
 URL = os.environ.get("LOGHARBOR_URL", "http://127.0.0.1:5000").rstrip("/")
 API_KEY = os.environ.get("LOGHARBOR_API_KEY", "")
 HOST = os.environ.get("PROBE_HOST", "") or socket.gethostname()
