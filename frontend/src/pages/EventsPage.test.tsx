@@ -190,20 +190,26 @@ it('keeps the trace panel hidden for non-trace filters', async () => {
 // Events used to keep a private live flag, so the button in the same corner meant the rolling
 // window on every other page and the tail here — and turning it on threw the chosen range away
 // and showed "All time". One flag now: live rolls the window and streams into it.
-it('opens live, like every other page, and streams while it is on', async () => {
+// It opens off, like every other page: nobody asked for a socket on sign-in.
+it('opens paused, like every other page, and streams once it is turned on', async () => {
   renderPage()
 
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(toggle.getAttribute('aria-pressed')).toBe('false')
+  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: false })
+
+  toggle.click()
+
   // the tail follows the same flag rather than a private one
-  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true })
+  await waitFor(() => expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true }))
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
 })
 
-it('keeps the window when live is on, instead of jumping to all time', async () => {
+it('keeps a bounded window while paused, instead of opening on all time', async () => {
   renderPage()
   await screen.findByRole('button', { name: /Live/ })
 
-  // live and a bounded rolling window coexist: new events are inside "the last hour" anyway
+  // paused is not frozen: the un-picked window is still the rolling last hour
   expect(screen.queryByText('All time')).toBeNull()
   expect(vi.mocked(getEvents).mock.calls.at(-1)?.[0]).toEqual(
     expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
@@ -213,7 +219,8 @@ it('keeps the window when live is on, instead of jumping to all time', async () 
 it('stops the tail when a range is picked, since that window is not "now"', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  toggle.click()
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
 
   screen.getByTitle('Time range').click()
   ;(await screen.findByText('Last 15 minutes')).click()

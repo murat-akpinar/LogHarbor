@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { TimeRangeProvider, useLiveRange, useSharedRange } from './useLiveRange'
 
 afterEach(cleanup)
@@ -29,21 +29,72 @@ function OpenRangeProbe() {
   return <span data-testid="open-from">{range.from ?? 'none'}</span>
 }
 
-// live by default, so the hour keeps rolling; paused, it froze at whatever moment the app
-// mounted and a tab left open drifted hours behind without saying so
-it('opens live, on the last hour', async () => {
+// whoever has set nothing gets the last hour and no stream, and turns the stream on themselves
+it('opens on the last hour, not live', async () => {
   render(
     <TimeRangeProvider>
       <ClosedRangeProbe id="a" />
     </TimeRangeProvider>,
   )
 
-  expect(screen.getByTestId('a-live').textContent).toBe('true')
+  expect(screen.getByTestId('a-live').textContent).toBe('false')
   const from = new Date(screen.getByTestId('a-from').textContent!).getTime()
   const to = new Date(screen.getByTestId('a-to').textContent!).getTime()
   // an hour wide, give or take the tick the window is floored to
   expect(to - from).toBeGreaterThanOrEqual(HOUR_MS - 20_000)
   expect(to - from).toBeLessThanOrEqual(HOUR_MS + 20_000)
+})
+
+// the reason the default used to be live: not-live meant frozen, so opening paused pinned the
+// window to the moment of sign-in and a tab left open drifted hours behind without saying so
+it('keeps rolling while paused, until something is actually picked', async () => {
+  vi.useFakeTimers()
+  try {
+    render(
+      <TimeRangeProvider>
+        <ClosedRangeProbe id="a" />
+      </TimeRangeProvider>,
+    )
+    const opened = new Date(screen.getByTestId('a-to').textContent!).getTime()
+
+    await act(async () => {
+      vi.advanceTimersByTime(30_000)
+    })
+
+    const later = new Date(screen.getByTestId('a-to').textContent!).getTime()
+    expect(later).toBeGreaterThan(opened)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+// but a real pause does freeze: that is the only thing the button means once the reader has
+// used it, and a window that kept moving under a reader who asked it to stop would be a lie
+it('holds the window still once live has been turned on and off again', async () => {
+  vi.useFakeTimers()
+  try {
+    render(
+      <TimeRangeProvider>
+        <ClosedRangeProbe id="a" />
+      </TimeRangeProvider>,
+    )
+
+    await act(async () => {
+      screen.getByText('toggle a').click() // live
+    })
+    await act(async () => {
+      screen.getByText('toggle a').click() // paused, on whatever was on screen
+    })
+    const paused = screen.getByTestId('a-to').textContent
+
+    await act(async () => {
+      vi.advanceTimersByTime(60_000)
+    })
+
+    expect(screen.getByTestId('a-to').textContent).toBe(paused)
+  } finally {
+    vi.useRealTimers()
+  }
 })
 
 // the point of the whole provider: narrowing the window on one page and clicking through to
@@ -74,20 +125,24 @@ it('shares live mode too, and picking a range leaves it', async () => {
     </TimeRangeProvider>,
   )
 
-  // pausing on one page pauses on all of them
+  // going live on one page goes live on all of them
   screen.getByText('toggle a').click()
-  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('false'))
+  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('true'))
 
+  // and so does pausing again
   screen.getByText('toggle b').click()
-  await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('true'))
+  await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('false'))
 
-  // and an explicit range contradicts "now", so it drops out of live everywhere
+  // and an explicit range contradicts "now", so it drops out of live everywhere. Turned back
+  // on first, or this would assert a flag that was already false and prove nothing.
+  screen.getByText('toggle a').click()
+  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('true'))
   screen.getByText('pick b').click()
   await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('false'))
 })
 
-// an explicit initialRange means "start here", which contradicts live for the same reason
-// picking a range does — so a page that draws a rate still gets two bounds
+// an explicit initialRange means "start here": a window that was picked, not the rolling
+// default — so a page that draws a rate still gets two bounds
 it('closes an open end for pages that cannot take one', () => {
   render(
     <TimeRangeProvider initialRange={{ from: undefined, to: undefined }}>

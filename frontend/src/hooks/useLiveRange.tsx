@@ -26,7 +26,7 @@ export interface LiveRange {
 
 interface TimeRangeStore {
   live: boolean
-  /** What the reader last chose, once live mode was left. Null while live. */
+  /** The window the reader chose, or froze by pausing. Null means the rolling default. */
   frozen: OpenRange | null
   now: number
   toggleLive: () => void
@@ -45,13 +45,20 @@ const TimeRangeContext = createContext<TimeRangeStore | null>(null)
  * page they happen to be on.
  *
  * Deliberately not persisted, and mounted *inside* LoginGate: a fresh sign-in starts at the
- * default rather than resuming a window from whoever was here before.
+ * default rather than resuming a window from whoever was here before. Asked for on 2026-08-01
+ * in exactly those words — whoever has not set anything gets the last hour, every time.
  *
- * It opens live, on a rolling last hour. Starting paused was tried first and the window then
- * froze at the moment of sign-in — leave a tab open over lunch and you are still reading the
- * hour before it, on a page with nothing to say so. Live keeps the default honest without a
- * staleness warning to write. Choosing a range explicitly still leaves live, because an
- * explicit window contradicts "now", and that choice is what follows you between pages.
+ * It opens on a rolling last hour with live *off*: nobody asked for a stream on sign-in, and
+ * on Events that flag also opens a socket. Two things had to come apart for that to be safe.
+ * Rolling is a property of the window (nothing picked yet, so it follows now); live is a
+ * property of the reading (the tail streams, the clock is allowed to move). Tying them
+ * together is what forced live-on as the default: paused used to mean frozen, so opening
+ * paused froze the window at the moment of sign-in and a tab left open over lunch showed the
+ * hour before it with nothing on the page to say so. Now only an actual pause freezes, and it
+ * freezes what was on screen — there is nothing to hold on to before the reader touches it.
+ *
+ * Choosing a range explicitly still leaves live, because an explicit window contradicts "now",
+ * and that choice is what follows you between pages.
  */
 export function TimeRangeProvider({
   children,
@@ -62,18 +69,19 @@ export function TimeRangeProvider({
    *  does not silently depend on what the default happens to be this month. */
   initialRange?: OpenRange
 }) {
-  // an explicit initialRange contradicts live for the same reason picking one does
-  const [live, setLive] = useState(initialRange === undefined)
+  // the reader turns the stream on themselves; an initialRange is a pick, so it never rolls
+  const [live, setLive] = useState(false)
   const [now, setNow] = useState(flooredNow)
-  // only meaningful once live is left; toggleLive fills it with whatever was on screen
+  // null until something is picked or paused; toggleLive fills it with whatever was on screen
   const [frozen, setFrozen] = useState<OpenRange | null>(initialRange ?? null)
 
-  // one interval for the app rather than one per mounted page
+  // one interval for the app rather than one per mounted page. It runs while the window rolls,
+  // which is exactly "nothing picked" — live only decides whether the tail streams into it.
   useEffect(() => {
-    if (!live) return
+    if (frozen !== null) return
     const id = setInterval(() => setNow(flooredNow()), REFRESH_MS)
     return () => clearInterval(id)
-  }, [live])
+  }, [frozen])
 
   const store = useMemo<TimeRangeStore>(
     () => ({
@@ -127,12 +135,13 @@ export function useSharedRange(): {
 } {
   const store = useStore()
   const range = useMemo<OpenRange>(() => {
-    if (!store.live) return store.frozen ?? { from: undefined, to: undefined }
+    // a pick wins even when both its ends are open — that is the picker's "clear", i.e. all time
+    if (store.frozen !== null) return store.frozen
     return {
       from: new Date(store.now - DEFAULT_WINDOW_MS).toISOString(),
       to: new Date(store.now).toISOString(),
     }
-  }, [store.live, store.frozen, store.now])
+  }, [store.frozen, store.now])
   return { range, setRange: store.setRange, live: store.live, toggleLive: store.toggleLive }
 }
 

@@ -9,6 +9,7 @@ import { DashboardPage } from './DashboardPage'
 import * as stats from '../api/stats'
 
 const FIFTEEN_MIN_MS = 15 * 60 * 1000
+const HOUR_MS = 60 * 60 * 1000
 const ISO = '2026-07-24T10:00:00.000Z'
 
 const SUMMARY = {
@@ -281,12 +282,18 @@ describe('DashboardPage', () => {
     expect(screen.getByText('2.5 s')).toBeDefined()
   })
 
-  // the rolling hour has to keep rolling: paused by default, the window froze at sign-in
-  it('is live by default, with the range picker beside it', async () => {
+  // paused by default and still on the rolling hour: the window has to keep rolling without
+  // the stream being on, or a tab left open reads the hour before sign-in
+  it('opens paused, on an hour-wide window, with the range picker beside it', async () => {
     renderPage()
     const toggle = await screen.findByRole('button', { name: 'Live' })
-    expect(toggle.getAttribute('aria-pressed')).toBe('true')
+    expect(toggle.getAttribute('aria-pressed')).toBe('false')
     expect(screen.getByTitle('Time range')).toBeDefined()
+
+    const queried = vi.mocked(stats.getSummary).mock.calls.at(-1)?.[0]
+    const width = new Date(queried!.to).getTime() - new Date(queried!.from).getTime()
+    expect(width).toBeGreaterThanOrEqual(HOUR_MS - 60_000)
+    expect(width).toBeLessThanOrEqual(HOUR_MS + 60_000)
   })
 
   // the strip sits above the volume charts because it says whether to trust their x-axis

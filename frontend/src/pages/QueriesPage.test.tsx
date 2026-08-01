@@ -108,17 +108,17 @@ it('lets the user change the query property', async () => {
   expect(input.value).toBe('commandText')
 })
 
-// live on by default keeps the rolling hour honest: paused, the window froze at sign-in and
-// a tab left open drifted hours behind with nothing on the page to say so
-it('starts live, and keeps the range picker alongside in both states', async () => {
+// opens paused — the reader turns the stream on — on the rolling last hour rather than on a
+// window pinned to the moment of sign-in
+it('starts paused, and keeps the range picker alongside in both states', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(toggle.getAttribute('aria-pressed')).toBe('false')
   // the pair is one control group: the picker never appears or vanishes under the cursor
   expect(screen.getByTitle('Time range')).toBeDefined()
 
   toggle.click()
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
   expect(screen.getByTitle('Time range')).toBeDefined()
 })
 

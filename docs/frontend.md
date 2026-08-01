@@ -177,14 +177,23 @@ Requests, Exceptions, Queries, Services, Users and Analysis: [Live] | [time rang
 Both stay visible in both states — picking a range leaves live mode rather than making the
 picker appear, so the row never shifts under the cursor.
 
-components/LiveRangeControls.tsx composes it; hooks/useLiveRange.ts owns the state for the
-stat pages. Nothing polls: `now` advances every 10 s while live, the range is part of every
-query key, and React Query refetches because the key changed. Pages that are live by default
-(Dashboard and the three lens pages) use a rolling last hour; Services, Users and Analysis
-keep their 24 h window and start paused, so their default view is unchanged.
-Events is the exception in kind, not in placement: its Live is a SignalR subscription rather
-than a rolling window, so it keeps its own state and only borrows the control. It has no h1,
-so the group sits at the right of the search-bar row — that row is the page's header.
+components/LiveRangeControls.tsx composes it; hooks/useLiveRange.tsx owns one window and one
+live flag for the whole app (TimeRangeProvider, mounted inside LoginGate), so narrowing the
+window on one page and clicking through to another keeps it. Nothing polls: `now` advances
+every 10 s while the window rolls, the range is part of every query key, and React Query
+refetches because the key changed.
+
+Three states, not two:
+  * rolling, paused — how every page opens: the last hour, following now, no stream.
+    Whoever has set nothing gets this, every sign-in.
+  * rolling, live — the reader pressed Live. On Events that also opens the SignalR tail.
+  * fixed — the reader picked a range (or paused, which freezes what was on screen).
+    Picking always leaves live: an explicit window contradicts "now".
+Live off does not mean frozen at sign-in, which is what it used to mean: a tab left open
+over lunch then showed the hour before it with nothing on the page to say so.
+
+Events is the exception in kind, not in placement: its Live also subscribes to /hubs/tail.
+It has no h1, so the group sits at the right of the search-bar row — that row is the header.
 
 --- SECTIONS AND WELLS ---
 
@@ -275,11 +284,11 @@ every row.
 The home page (route /): a Nightwatch-style monitoring overview composed entirely
 from the existing /api/stats/* endpoints (no dedicated endpoint), grouped into
 labelled sections, each with a "view all" link to its full page.
-Live toggle: a heartbeat control in the header. Live (default) polls every 10s over
-a rolling last-hour window (React Query refetch as the window's end ticks;
-keepPreviousData avoids skeleton flashes; pauses when the tab is backgrounded).
-Pausing (or brushing a histogram) freezes on the current window and reveals the
-TimeRangePicker for a static range; going live again resumes the rolling window.
+Live toggle: a heartbeat control in the header, over the app's shared window (see
+LIVE + TIME RANGE above). It opens on a rolling last hour with Live off, and the
+window still refreshes every 10 s as its end ticks (React Query refetch;
+keepPreviousData avoids skeleton flashes). Pressing Live pauses/resumes; pausing
+(or brushing a histogram) freezes on the current window, going live again rolls.
 Section "Activity" (-> Events): one chart, components/dashboard/ActivityTimeline.tsx.
 Three lanes share a single time axis, a single hover and a single brush: EVENTS
 (volume, stacked by severity — errors are the red part of the volume bars, not a
@@ -444,8 +453,8 @@ when no event carries StatusCode. The legend chips are toggles: pressing one
 isolates that class — the chart drops the other series and the operations
 table, its sparklines and its Events deep links all inherit the class filter
 (StatusCode < 400 / >= 400 and < 500 / >= 500). Pressing it again restores all.
-Live toggle: the page follows the dashboard's rolling last-hour auto-refresh
-(pausing shows the TimeRangePicker) — same as Exceptions and Queries.
+Live toggle: the page shares the app's window and live flag — the rolling last
+hour, Live off until the reader presses it — same as Exceptions and Queries.
 
 Operations RED table as its own lens (Nightwatch's "Requests" view):
 /api/stats/operations (limit 50), per-operation RED grouped by route where
@@ -464,8 +473,8 @@ a template group (lib/operations.ts).
 
 Live exception feed: one row per exception group (type, count, trend
 sparkline filtered by @Exception like 'Type%', first/last seen) from
-/api/stats/top-exceptions over a rolling last-hour window refreshed every
-10 s — the dashboard's Live toggle; pausing shows a static TimeRangePicker.
+/api/stats/top-exceptions over the app's rolling last-hour window, refreshed
+every 10 s — the shared Live toggle; pausing holds that window still.
 A narrative headline sums the groups ("152 exceptions in this range.").
 Row click expands an inline context panel: the group's latest occurrence
 (message + exception text, via /api/events with the same like-filter) and,
