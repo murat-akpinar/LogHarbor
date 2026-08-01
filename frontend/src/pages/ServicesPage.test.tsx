@@ -22,7 +22,10 @@ vi.mock('../api/stats', () => ({
 afterEach(() => {
   cleanup()
   localStorage.clear()
-  vi.clearAllMocks()
+  // resetAllMocks, not clearAllMocks: clear wipes recorded calls but leaves an
+  // implementation an earlier test installed, which then answers every test after it
+  // (found 2026-08-01 by running the suite with --sequence.shuffle)
+  vi.resetAllMocks()
 })
 
 // 2880 events across this window is 2.0 per minute, which is what the table should print

@@ -9,7 +9,9 @@ import { getSlowOperations } from '../api/stats'
 import { AnalysisPage } from './AnalysisPage'
 
 const SLOW_OP = { template: 'Report query {Query} took {Elapsed} ms', baselineP95: 70, currentP95: 606, count: 88 }
-const ONE_HOUR_MS = 60 * 60 * 1000
+// half an hour, not an hour: the default window *is* the last hour, so a threshold of exactly
+// one hour would decide this test on the milliseconds between the floored `from` and Date.now()
+const RECENT_MS = 30 * 60 * 1000
 
 // mirrors the server: `from` splits baseline from current, so an operation whose history is
 // younger than the selected range has no baseline and only regresses on a recent `from`
@@ -18,7 +20,7 @@ vi.mock('../api/stats', () => ({
   getTopExceptions: vi.fn(async () => ({ exceptions: [] })),
   getHistogram: vi.fn(async () => ({ buckets: [] })),
   getSlowOperations: vi.fn(async ({ from }: { from: string }) =>
-    Date.now() - new Date(from).getTime() <= ONE_HOUR_MS
+    Date.now() - new Date(from).getTime() <= RECENT_MS
       ? { operations: [SLOW_OP], timedOperationCount: 1, comparableOperationCount: 1 }
       : { operations: [], timedOperationCount: 0, comparableOperationCount: 0 },
   ),
@@ -27,6 +29,10 @@ vi.mock('../api/stats', () => ({
 afterEach(() => {
   cleanup()
   localStorage.clear()
+  // the tests below install their own answers; without a reset the last one to run keeps
+  // answering, and the first test in this file depends on the mock above
+  // (found 2026-08-01 by running the suite with --sequence.shuffle)
+  vi.resetAllMocks()
 })
 
 function renderPage() {
@@ -47,7 +53,8 @@ function renderPage() {
 it('lists a regression hidden by the default range once the 15-minute preset is picked', async () => {
   localStorage.setItem('logharbor-lang', 'en')
   renderPage()
-  // default 24h range: nothing to compare against that far back, so the table stays empty
+  // the default window is the last hour: nothing to compare against that far back, so
+  // the table stays empty until the reader narrows it
   expect(screen.queryByText(SLOW_OP.template)).toBeNull()
 
   screen.getByTitle('Time range').click()

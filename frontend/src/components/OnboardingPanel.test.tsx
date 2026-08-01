@@ -27,7 +27,10 @@ vi.mock('../api/settings', () => ({
 afterEach(() => {
   cleanup()
   localStorage.clear()
-  vi.clearAllMocks()
+  // resetAllMocks, not clearAllMocks: clear wipes recorded calls but leaves an
+  // implementation an earlier test installed, which then answers every test after it
+  // (found 2026-08-01 by running the suite with --sequence.shuffle)
+  vi.resetAllMocks()
 })
 
 function renderPanel() {

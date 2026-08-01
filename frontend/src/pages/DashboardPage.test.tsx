@@ -77,7 +77,7 @@ const LAG = {
 /**
  * Per-test answers, cleared in afterEach.
  *
- * Not mockResolvedValue on the mock itself: vi.clearAllMocks() clears recorded calls but keeps
+ * Not mockResolvedValue on the mock itself: vi.resetAllMocks() clears recorded calls but keeps
  * implementations, so one test's stub silently answers every test that runs after it.
  */
 const stub = vi.hoisted(() => ({
@@ -129,7 +129,10 @@ function renderPage() {
 afterEach(() => {
   cleanup()
   localStorage.clear()
-  vi.clearAllMocks()
+  // resetAllMocks, not clearAllMocks: clear wipes recorded calls but leaves an
+  // implementation an earlier test installed, which then answers every test after it
+  // (found 2026-08-01 by running the suite with --sequence.shuffle)
+  vi.resetAllMocks()
   stub.histogram = null
   stub.operations = null
   stub.previousSummary = null
