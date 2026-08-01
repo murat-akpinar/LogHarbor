@@ -98,16 +98,28 @@ and StartTLS on 389 bound and read the user's groups with this setting off**, no
 involved. The container carries no `/etc/ldap/ldap.conf`, so libldap is not being told to
 demand a chain it cannot build.
 
-Where it does bite, the failure does not say "certificate" anywhere:
+Where TLS does fail, it never says "certificate" anywhere:
 
 ```
-LDAP error 81: The LDAP server is unavailable.
-LDAP error 91: The connection cannot be established.
+LDAPS    LDAP error 81: The LDAP server is unavailable.
+StartTLS TlsOperationException: An unspecified operation error occurred. The server is unavailable.
+Plain    the directory rejected the credentials      <- reached the directory, wrong password
 ```
 
-— on StartTLS and LDAPS while plain `ldap://` to the same host works fine. That combination is
-a certificate rejection wearing the words "server unavailable", and this setting plus a restart
-is the answer to it.
+Measured 2026-08-01 against a Windows Server AD (`hogwarts.local`, two DCs) from the test
+button, one connection mode at a time. Read the three together, because the same words have
+two different causes:
+
+* **The directory has no certificate at all.** Nothing on this card fixes it — not "accept an
+  untrusted certificate", not a restart. LDAPS is not a switch in AD: a DC serves 636 when it
+  has a certificate with Server Authentication and its own FQDN, and refuses the handshake
+  when it does not. Confirm from outside LogHarbor: a StartTLS request on 389 comes back
+  `resultCode 52` with `comment: Error initializing SSL/TLS`, and 636 accepts the TCP
+  connection and then closes it without sending a certificate. Fix it on the directory —
+  AD CS issues these automatically — and this card needs no change beyond the port.
+* **The directory has a certificate nobody trusts** (self-signed, or an internal CA the
+  container does not know). That is what "accept an untrusted certificate" plus a restart is
+  for.
 
 If you turn the setting on and press **Test** before restarting, and the directory was in fact
 rejecting the certificate, that is exactly what you will still see — so the test button adds
