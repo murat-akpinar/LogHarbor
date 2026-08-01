@@ -84,7 +84,7 @@ export function FilterBar({ initialText = '', onCommit }: FilterBarProps) {
             className="font-mono text-fg hover:text-accent"
             onClick={() => setEditing({ index })}
           >
-            {chipLabel(chip)}
+            {chipLabel(chip, t.filters.ops)}
           </button>
           <button
             type="button"

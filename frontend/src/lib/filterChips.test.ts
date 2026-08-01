@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { chipLabel, compileChips, parseChips, type Chip } from './filterChips'
+import { en } from '../i18n/en'
+import { tr } from '../i18n/tr'
 
 const ROUND_TRIP: Chip[][] = [
   [{ kind: 'text', text: 'timeout' }],
@@ -62,8 +64,25 @@ describe('quoting', () => {
 
 describe('chipLabel', () => {
   it('drops the @ and reads naturally', () => {
-    expect(chipLabel({ kind: 'field', field: '@Level', op: 'is', value: 'Error' })).toBe('Level is Error')
-    expect(chipLabel({ kind: 'exists', field: '@Exception', present: false })).toBe('Exception is not set')
-    expect(chipLabel({ kind: 'text', text: 'timeout' })).toBe('"timeout"')
+    expect(chipLabel({ kind: 'field', field: '@Level', op: 'is', value: 'Error' }, en.filters.ops))
+      .toBe('Level is Error')
+    expect(chipLabel({ kind: 'exists', field: '@Exception', present: false }, en.filters.ops))
+      .toBe('Exception is not set')
+    expect(chipLabel({ kind: 'text', text: 'timeout' }, en.filters.ops)).toBe('"timeout"')
+  })
+
+  // the chip is the only place the reader sees the operator again after picking it, so a
+  // Turkish session that reads "Service is api" has half a sentence in the wrong language
+  it('speaks the language the reader picked', () => {
+    expect(chipLabel({ kind: 'field', field: 'Service', op: 'contains', value: 'api' }, tr.filters.ops))
+      .toBe('Service içerir api')
+    expect(chipLabel({ kind: 'exists', field: '@Exception', present: true }, tr.filters.ops))
+      .toBe('Exception dolu')
+  })
+
+  // the words change, the query does not
+  it('does not let the language reach the compiled filter', () => {
+    const chip: Chip = { kind: 'field', field: 'Service', op: 'contains', value: 'api' }
+    expect(compileChips([chip])).toBe("Service contains 'api'")
   })
 })

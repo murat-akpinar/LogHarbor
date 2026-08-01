@@ -162,6 +162,21 @@ export const en = {
     invalidFilter: 'Invalid filter',
     errorAtPosition: (error: string, position: number) => `${error} (position ${position})`,
     validateConnectionError: 'Could not validate filter; check your connection.',
+    // read on the operator buttons and on the chip the reader ends up with, so the two always
+    // say the same words; the comparisons stay symbols, which every language reads the same
+    ops: {
+      is: 'is',
+      'is-not': 'is not',
+      contains: 'contains',
+      'starts-with': 'starts with',
+      'ends-with': 'ends with',
+      gt: '>',
+      lt: '<',
+      gte: '≥',
+      lte: '≤',
+      isSet: 'is set',
+      isNotSet: 'is not set',
+    },
   },
   timeRange: {
     title: 'Time range',

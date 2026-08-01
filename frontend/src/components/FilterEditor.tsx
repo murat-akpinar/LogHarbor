@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { suggest } from '../api/events'
 import { LEVELS } from '../lib/levels'
 import {
-  FIELD_OP_LABELS, ID_OPS, LEVEL_OPS, STRING_OPS, nullableBuiltin, type Chip, type FieldOp,
+  ID_OPS, LEVEL_OPS, STRING_OPS, nullableBuiltin, type Chip, type FieldOp,
 } from '../lib/filterChips'
 import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
@@ -129,14 +129,14 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
           className={ROW}
           onClick={() => onSubmit({ kind: 'exists', field: '@Exception', present: true })}
         >
-          is set
+          {t.filters.ops.isSet}
         </button>
         <button
           type="button"
           className={ROW}
           onClick={() => onSubmit({ kind: 'exists', field: '@Exception', present: false })}
         >
-          is not set
+          {t.filters.ops.isNotSet}
         </button>
         <Footer onCancel={onCancel} />
       </div>
@@ -166,7 +166,7 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
                 : 'text-fg-muted hover:bg-surface-hover'
             }`}
           >
-            {FIELD_OP_LABELS[candidate]}
+            {t.filters.ops[candidate]}
           </button>
         ))}
         {(structured || nullable) && (
@@ -175,7 +175,7 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
             className="rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-hover"
             onClick={() => onSubmit({ kind: 'exists', field, present: true })}
           >
-            is set
+            {t.filters.ops.isSet}
           </button>
         )}
         {nullable && (
@@ -184,7 +184,7 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
             className="rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-hover"
             onClick={() => onSubmit({ kind: 'exists', field, present: false })}
           >
-            is not set
+            {t.filters.ops.isNotSet}
           </button>
         )}
       </div>
