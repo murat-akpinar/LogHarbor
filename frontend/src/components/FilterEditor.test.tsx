@@ -41,3 +41,25 @@ it('offers the trace and span id fields and builds an exact-match chip', () => {
   fireEvent.click(screen.getByText('Add'))
   expect(onSubmit).toHaveBeenCalledWith({ kind: 'field', field: '@TraceId', op: 'is', value: TRACE })
 })
+
+// most rows have no trace, so "which of these came from a traced request" is the
+// question people actually ask of the field — the same one @Exception answers
+it.each(['Trace id', 'Span id'])('offers is set / is not set on %s', (label) => {
+  const onSubmit = vi.fn()
+  renderEditor(onSubmit)
+  fireEvent.click(screen.getByText(label))
+
+  fireEvent.click(screen.getByText('is not set'))
+  expect(onSubmit).toHaveBeenCalledWith({
+    kind: 'exists',
+    field: label === 'Trace id' ? '@TraceId' : '@SpanId',
+    present: false,
+  })
+
+  fireEvent.click(screen.getByText('is set'))
+  expect(onSubmit).toHaveBeenLastCalledWith({
+    kind: 'exists',
+    field: label === 'Trace id' ? '@TraceId' : '@SpanId',
+    present: true,
+  })
+})

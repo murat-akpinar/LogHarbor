@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { suggest } from '../api/events'
 import { LEVELS } from '../lib/levels'
-import { FIELD_OP_LABELS, ID_OPS, LEVEL_OPS, STRING_OPS, type Chip, type FieldOp } from '../lib/filterChips'
+import {
+  FIELD_OP_LABELS, ID_OPS, LEVEL_OPS, STRING_OPS, nullableBuiltin, type Chip, type FieldOp,
+} from '../lib/filterChips'
 import { useI18n } from '../i18n'
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
@@ -136,6 +138,9 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
   const ops =
     field === '@Level' ? LEVEL_OPS : field === '@TraceId' || field === '@SpanId' ? ID_OPS : STRING_OPS
   const submitField = () => value.trim() && onSubmit({ kind: 'field', field, op, value: value.trim() })
+  // trace/span ids are empty on most rows, so "is set" is as useful here as it is on @Exception —
+  // but they still take a value, so the two buttons join the operator row instead of replacing it
+  const nullable = nullableBuiltin(field) !== null
 
   // @Level and structured properties → operator + value
   return (
@@ -156,13 +161,22 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
             {FIELD_OP_LABELS[candidate]}
           </button>
         ))}
-        {structured && (
+        {(structured || nullable) && (
           <button
             type="button"
             className="rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-hover"
             onClick={() => onSubmit({ kind: 'exists', field, present: true })}
           >
             is set
+          </button>
+        )}
+        {nullable && (
+          <button
+            type="button"
+            className="rounded-lg px-2 py-1 text-xs text-fg-muted hover:bg-surface-hover"
+            onClick={() => onSubmit({ kind: 'exists', field, present: false })}
+          >
+            is not set
           </button>
         )}
       </div>

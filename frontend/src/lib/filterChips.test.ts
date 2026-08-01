@@ -12,6 +12,10 @@ const ROUND_TRIP: Chip[][] = [
   [{ kind: 'field', field: 'Elapsed', op: 'lt', value: '10' }],
   [{ kind: 'exists', field: '@Exception', present: true }],
   [{ kind: 'exists', field: '@Exception', present: false }],
+  [{ kind: 'exists', field: '@TraceId', present: true }],
+  [{ kind: 'exists', field: '@TraceId', present: false }],
+  [{ kind: 'exists', field: '@SpanId', present: true }],
+  [{ kind: 'exists', field: '@SpanId', present: false }],
   [{ kind: 'exists', field: 'OrderId', present: true }],
   [
     { kind: 'text', text: 'timeout' },
@@ -38,6 +42,7 @@ describe('parseChips bails to raw (null) on anything the builder never emits', (
     'not X = 1',
     "P like '%middle%'",
     'garbage tokens here',
+    'OrderId <> null', // a null test only round-trips for the nullable built-ins
   ]) {
     it(text, () => expect(parseChips(text)).toBeNull())
   }
