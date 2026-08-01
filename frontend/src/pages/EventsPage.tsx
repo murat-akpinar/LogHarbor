@@ -74,7 +74,7 @@ export function EventsPage() {
   // thing here as everywhere else: the window rolls, and on this page the tail streams into it
   // as well. Events kept a private flag for a while and it made the button in the corner mean
   // two different things depending on which page you were on.
-  const { range, setRange, live: isLive, toggleLive } = useSharedRange()
+  const { range, setRange, setPreset, presetKey, live: isLive, toggleLive } = useSharedRange()
   const [selectedEvent, setSelectedEvent] = useState<Event | undefined>(undefined)
   const [isAtTop, setIsAtTop] = useState(true)
   const [showHelp, setShowHelp] = useState(false)
@@ -245,7 +245,9 @@ export function EventsPage() {
             onToggleLive={toggleLive}
             from={range.from}
             to={range.to}
+            presetKey={presetKey}
             onRangeChange={chooseRange}
+            onPreset={setPreset}
             status={tail.status}
           />
         </div>

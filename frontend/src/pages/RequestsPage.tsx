@@ -39,7 +39,7 @@ function errorFraction(op: OperationOverview): number {
 export function RequestsPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
-  const { live, range, toggleLive, setRange } = useLiveRange()
+  const { live, range, presetKey, toggleLive, setRange, setPreset } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
   // ?status=server arrives from the dashboard's request chart: clicking 5xx there opens this
   // page already narrowed to it, rather than dropping the reader on the unfiltered table
@@ -125,7 +125,9 @@ export function RequestsPage() {
             onToggleLive={toggleLive}
             from={range.from}
             to={range.to}
+            presetKey={presetKey}
             onRangeChange={setRange}
+            onPreset={setPreset}
           />
         </div>
       </div>

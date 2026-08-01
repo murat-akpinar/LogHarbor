@@ -18,7 +18,7 @@ const TD_CLASS = 'px-3 py-2 text-sm text-fg'
 
 export function ExceptionsPage() {
   const { t, lang } = useI18n()
-  const { live, range, toggleLive, setRange } = useLiveRange()
+  const { live, range, presetKey, toggleLive, setRange, setPreset } = useLiveRange()
   const [expandedType, setExpandedType] = useState<string | null>(null)
 
   const exceptions = useTopExceptions({ ...range, limit: ROW_LIMIT })
@@ -35,7 +35,9 @@ export function ExceptionsPage() {
             onToggleLive={toggleLive}
             from={range.from}
             to={range.to}
+            presetKey={presetKey}
             onRangeChange={setRange}
+            onPreset={setPreset}
           />
         </div>
       </div>

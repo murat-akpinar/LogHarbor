@@ -25,7 +25,7 @@ const INPUT_CLASS =
 export function UsersPage() {
   const { t, lang } = useI18n()
   // the app's one window: whatever range the reader picked on any page, they still have here
-  const { live, range, toggleLive, setRange } = useLiveRange()
+  const { live, range, presetKey, toggleLive, setRange, setPreset } = useLiveRange()
   const [property, setProperty] = useState(DEFAULT_PROPERTY)
   const navigate = useNavigate()
 
@@ -61,7 +61,9 @@ export function UsersPage() {
             onToggleLive={toggleLive}
             from={range.from}
             to={range.to}
+            presetKey={presetKey}
             onRangeChange={setRange}
+            onPreset={setPreset}
           />
         </div>
       </div>

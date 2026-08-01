@@ -216,7 +216,23 @@ it('keeps a bounded window while paused, instead of opening on all time', async 
   )
 })
 
-it('stops the tail when a range is picked, since that window is not "now"', async () => {
+// A preset is deliberately not this case: it rolls, so it *is* "now" and the tail keeps
+// streaming into it. Two ends typed by hand are the window that contradicts live.
+it('stops the tail when a fixed window is typed, since that window is not "now"', async () => {
+  renderPage()
+  const toggle = await screen.findByRole('button', { name: /Live/ })
+  toggle.click()
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
+
+  screen.getByTitle('Time range').click()
+  fireEvent.change(await screen.findByLabelText('To'), { target: { value: '2026-07-24T10:00' } })
+
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
+  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: false })
+})
+
+// the preset half of the same rule, which is what makes "Last 15 minutes" survive a page change
+it('keeps streaming when a preset is picked, and narrows the window to it', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
   toggle.click()
@@ -225,6 +241,11 @@ it('stops the tail when a range is picked, since that window is not "now"', asyn
   screen.getByTitle('Time range').click()
   ;(await screen.findByText('Last 15 minutes')).click()
 
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
-  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: false })
+  await waitFor(() => {
+    const asked = vi.mocked(getEvents).mock.calls.at(-1)?.[0] as { from: string; to: string }
+    const width = new Date(asked.to).getTime() - new Date(asked.from).getTime()
+    expect(width).toBe(15 * 60 * 1000)
+  })
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true })
 })

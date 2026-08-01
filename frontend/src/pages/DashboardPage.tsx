@@ -59,7 +59,7 @@ function percentChange(current: number, previous: number): number | null {
 export function DashboardPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
-  const { live, range, toggleLive, setRange } = useLiveRange()
+  const { live, range, presetKey, toggleLive, setRange, setPreset } = useLiveRange()
 
   // the window immediately before this one, same length: what "vs previous period" measures
   const previousRange = useMemo(() => {
@@ -124,7 +124,9 @@ export function DashboardPage() {
           onToggleLive={toggleLive}
           from={range.from}
           to={range.to}
+          presetKey={presetKey}
           onRangeChange={setRange}
+          onPreset={setPreset}
         />
       </div>
 

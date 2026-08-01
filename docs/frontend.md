@@ -183,14 +183,17 @@ window on one page and clicking through to another keeps it. Nothing polls: `now
 every 10 s while the window rolls, the range is part of every query key, and React Query
 refetches because the key changed.
 
-Three states, not two:
-  * rolling, paused — how every page opens: the last hour, following now, no stream.
-    Whoever has set nothing gets this, every sign-in.
-  * rolling, live — the reader pressed Live. On Events that also opens the SignalR tail.
-  * fixed — the reader picked a range (or paused, which freezes what was on screen).
-    Picking always leaves live: an explicit window contradicts "now".
+The window is one of two shapes, and live is a separate flag:
+  * rolling — a width that follows now, carrying the preset that named it. Every page opens
+    here, on the last hour, with live off: whoever has set nothing gets that, every sign-in.
+    The five presets set this shape, so "Last 6 hours" still means the last six hours ten
+    minutes later, and every page's picker prints the same name rather than two dates.
+    Picking a preset does not leave live — a rolling window *is* "now", only wider.
+  * fixed — two ends that hold still: typed into the picker, brushed out of a chart, arrived
+    in a ?from=&to= deep link, or frozen by pressing Live off. This shape does leave live.
 Live off does not mean frozen at sign-in, which is what it used to mean: a tab left open
-over lunch then showed the hour before it with nothing on the page to say so.
+over lunch then showed the hour before it with nothing on the page to say so. Pressing Live
+again rolls at the width it was paused on, so a paused six-hour window resumes as six hours.
 
 Events is the exception in kind, not in placement: its Live also subscribes to /hubs/tail.
 It has no h1, so the group sits at the right of the search-bar row — that row is the header.

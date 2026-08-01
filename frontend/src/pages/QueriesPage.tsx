@@ -49,7 +49,7 @@ function sortValue(row: QueryOverview, key: SortKey): number {
 
 export function QueriesPage() {
   const { t, lang } = useI18n()
-  const { live, range, toggleLive, setRange } = useLiveRange()
+  const { live, range, presetKey, toggleLive, setRange, setPreset } = useLiveRange()
   const [sortKey, setSortKey] = useState<SortKey>('total')
   const [selectedValue, setSelectedValue] = useState<string | null>(null)
   const [property, setProperty] = useState('commandText')
@@ -127,7 +127,9 @@ export function QueriesPage() {
             onToggleLive={toggleLive}
             from={range.from}
             to={range.to}
+            presetKey={presetKey}
             onRangeChange={setRange}
+            onPreset={setPreset}
           />
         </div>
       </div>

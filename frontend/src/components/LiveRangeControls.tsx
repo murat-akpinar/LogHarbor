@@ -1,4 +1,5 @@
 import type { TailStatus } from '../hooks/useLiveTail'
+import type { PresetKey } from '../lib/timeRange'
 import { LiveToggle } from './LiveToggle'
 import { TimeRangePicker } from './TimeRangePicker'
 
@@ -7,7 +8,9 @@ interface LiveRangeControlsProps {
   onToggleLive: () => void
   from: string | undefined
   to: string | undefined
+  presetKey: PresetKey | null
   onRangeChange: (range: { from: string | undefined; to: string | undefined }) => void
+  onPreset: (key: PresetKey) => void
   /** Live tail only (Events): the SignalR connection state. */
   status?: TailStatus
 }
@@ -22,7 +25,9 @@ export function LiveRangeControls({
   onToggleLive,
   from,
   to,
+  presetKey,
   onRangeChange,
+  onPreset,
   status,
 }: LiveRangeControlsProps) {
   return (
@@ -31,7 +36,13 @@ export function LiveRangeControls({
       <span aria-hidden className="select-none text-fg-subtle">
         |
       </span>
-      <TimeRangePicker from={from} to={to} onChange={onRangeChange} />
+      <TimeRangePicker
+        from={from}
+        to={to}
+        presetKey={presetKey}
+        onChange={onRangeChange}
+        onPreset={onPreset}
+      />
     </div>
   )
 }
