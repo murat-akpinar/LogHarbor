@@ -36,6 +36,10 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
     initial && initial.kind === 'field' ? initial.value : initial && initial.kind === 'text' ? initial.text : '',
   )
   const [values, setValues] = useState<string[]>([])
+  // -1 = nothing picked, which is not SearchBar's default and is deliberate: Enter in this box
+  // already means "add the chip", so a suggestion has to be reached for before it can steal it
+  const [valueHighlight, setValueHighlight] = useState(-1)
+  const [valueListHidden, setValueListHidden] = useState(false)
 
   const structured = field !== null && !isBuiltin(field)
 
@@ -60,6 +64,10 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
       live = false
     }
   }, [structured, field, value])
+
+  // a suggestion identical to what is already typed is not a suggestion, and dropping it is
+  // what lets Enter mean "add the chip" again once the value is complete
+  const valueSuggestions = valueListHidden ? [] : values.filter((candidate) => candidate !== value)
 
   // STEP 1 — choose the field
   if (field === null) {
@@ -200,18 +208,65 @@ export function FilterEditor({ initial, onSubmit, onCancel }: FilterEditorProps)
             mono
             placeholder={t.filters.valuePlaceholder}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(e) => {
+              setValue(e.target.value)
+              setValueHighlight(-1)
+              setValueListHidden(false)
+            }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') submitField()
+              if (e.key === 'ArrowDown' && valueSuggestions.length > 0) {
+                e.preventDefault()
+                setValueHighlight((index) => (index + 1) % valueSuggestions.length)
+              } else if (e.key === 'ArrowUp' && valueSuggestions.length > 0) {
+                e.preventDefault()
+                setValueHighlight((index) => (index <= 0 ? valueSuggestions.length : index) - 1)
+              } else if (e.key === 'Escape' && valueSuggestions.length > 0) {
+                // the list, not the whole editor: closing both would lose the typed value
+                e.preventDefault()
+                setValueListHidden(true)
+              } else if (e.key === 'Enter') {
+                if (valueHighlight >= 0 && valueSuggestions[valueHighlight] !== undefined) {
+                  e.preventDefault()
+                  setValue(valueSuggestions[valueHighlight])
+                  setValueHighlight(-1)
+                } else {
+                  submitField()
+                }
+              }
             }}
             className="mb-1 w-full"
-            list="filter-value-suggestions"
+            role="combobox"
+            aria-expanded={valueSuggestions.length > 0}
+            aria-autocomplete="list"
           />
-          <datalist id="filter-value-suggestions">
-            {values.map((v) => (
-              <option key={v} value={v} />
-            ))}
-          </datalist>
+          {/* was a <datalist>, which the browser draws in its own chrome — a white system
+              list on a dark glass card. Same shape as SearchBar's suggestions instead, and
+              inline rather than floating, so it reads as one card with the field list in
+              step 1 rather than a second popover over the first. */}
+          {valueSuggestions.length > 0 && (
+            <ul className="mb-1 max-h-40 overflow-y-auto rounded-lg border border-border bg-surface-inset">
+              {valueSuggestions.map((candidate, index) => (
+                <li key={candidate}>
+                  <button
+                    type="button"
+                    // onMouseDown, not onClick: the input's blur would otherwise close first
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                      setValue(candidate)
+                      setValueHighlight(-1)
+                    }}
+                    className={`block w-full truncate px-2 py-1 text-left font-mono text-xs transition-colors duration-150 ${
+                      index === valueHighlight
+                        ? 'bg-surface-hover text-fg'
+                        : 'text-fg-muted hover:bg-surface-hover hover:text-fg'
+                    }`}
+                  >
+                    {candidate}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <Actions onCancel={onCancel} onSubmit={submitField} disabled={!value.trim()} />
         </>
       )}
