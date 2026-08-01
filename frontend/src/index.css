@@ -39,8 +39,12 @@
 
   /* Anything that floats over content — a dropdown, a popover, a tooltip. Nearly opaque, and
      that is the point: a menu you can read the page through is a menu you cannot read. It
-     still takes the blur, so it reads as thick glass rather than as a grey slab. */
-  --logharbor-surface-float: rgb(17 22 24 / 0.92);
+     still takes the blur, so it reads as thick glass rather than as a grey slab.
+     0.92 was not enough over the Events header: the level chips and the histogram behind the
+     filter popover read straight through it, and an inset well inside that popover (30% black
+     over 8% of the page) made the bars behind it plainer still. 0.985 leaves the blur and the
+     tint doing the work they were there for and lets nothing through. */
+  --logharbor-surface-float: rgb(17 22 24 / 0.985);
 
   --logharbor-border: rgb(255 255 255 / 0.1);
   --logharbor-border-strong: rgb(255 255 255 / 0.18);
