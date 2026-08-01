@@ -74,14 +74,30 @@ const LAG = {
   },
 }
 
+/**
+ * Per-test answers, cleared in afterEach.
+ *
+ * Not mockResolvedValue on the mock itself: vi.clearAllMocks() clears recorded calls but keeps
+ * implementations, so one test's stub silently answers every test that runs after it.
+ */
+const stub = vi.hoisted(() => ({
+  histogram: null as { buckets: { start: string; counts: Record<string, number> }[] } | null,
+  operations: null as { operations: unknown[] } | null,
+  /** Answers the previous-period call only; null means both windows read the same summary. */
+  previousSummary: null as { total: number; byLevel: Record<string, number> } | null,
+  previousBefore: '',
+}))
+
 vi.mock('../api/stats', () => ({
-  getSummary: vi.fn(async () => SUMMARY),
+  getSummary: vi.fn(async (params: { to: string }) =>
+    stub.previousSummary !== null && params.to < stub.previousBefore ? stub.previousSummary : SUMMARY,
+  ),
   // one endpoint feeds four series: the volume lane unfiltered, the request lane per class
   getHistogram: vi.fn(async (params: { filter?: string }) => {
     if (params.filter?.includes('StatusCode >= 500')) return statusBuckets(2, 1)
     if (params.filter?.includes('StatusCode >= 400')) return statusBuckets(7, 5)
     if (params.filter?.includes('StatusCode < 400')) return statusBuckets(80, 40)
-    return VOLUME
+    return stub.histogram ?? VOLUME
   }),
   getLatency: vi.fn(async () => LATENCY),
   getHeatmap: vi.fn(async () => ({ cells: [] })),
@@ -90,7 +106,7 @@ vi.mock('../api/stats', () => ({
   getTopExceptions: vi.fn(async () => TOP_EXCEPTIONS),
   getServices: vi.fn(async () => SERVICES),
   getSlowOperations: vi.fn(async () => SLOW),
-  getOperations: vi.fn(async () => OPERATIONS),
+  getOperations: vi.fn(async () => stub.operations ?? OPERATIONS),
   getUserActivity: vi.fn(async () => USERS),
 }))
 
@@ -114,6 +130,10 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.clearAllMocks()
+  stub.histogram = null
+  stub.operations = null
+  stub.previousSummary = null
+  stub.previousBefore = ''
 })
 
 describe('DashboardPage', () => {
@@ -125,6 +145,24 @@ describe('DashboardPage', () => {
     expect(screen.getByText('57')).toBeDefined()
   })
 
+  // the other two lanes of the timeline have always explained an empty range; this one drew a
+  // 200px hole instead, which is what a fresh install sees on the page it lands on
+  it('says why the volume lane is empty instead of leaving a blank strip', async () => {
+    stub.histogram = { buckets: [{ start: BUCKET_START, counts: { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 } }] }
+    renderPage()
+
+    expect(await screen.findByText('No events in the selected range.')).toBeDefined()
+  })
+
+  // isolating a level that has nothing in it is the same hole, reached from a populated range
+  it('says which level is empty when one is isolated to nothing', async () => {
+    renderPage()
+    const fatal = await screen.findByRole('button', { name: /Fatal/ })
+    fatal.click()
+
+    expect(await screen.findByText('No Fatal events in the selected range.')).toBeDefined()
+  })
+
   // a headline number on its own says nothing about whether today is unusual; the tiles exist
   // for the comparison, so the comparison is what has to be right
   it('measures the headline figures against the window before them', async () => {
@@ -134,9 +172,8 @@ describe('DashboardPage', () => {
       total: 100,
       byLevel: { Verbose: 0, Debug: 0, Information: 60, Warning: 0, Error: 20, Fatal: 20 },
     }
-    vi.mocked(stats.getSummary).mockImplementation(async (params) =>
-      params.to < cutoff ? PREVIOUS : SUMMARY,
-    )
+    stub.previousBefore = cutoff
+    stub.previousSummary = PREVIOUS
 
     const { container } = renderPage()
     expect(await screen.findByText('Activity')).toBeDefined()
@@ -149,8 +186,8 @@ describe('DashboardPage', () => {
 
   it('leaves the comparison off when the previous window held nothing', async () => {
     const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString()
-    const EMPTY = { total: 0, byLevel: { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 } }
-    vi.mocked(stats.getSummary).mockImplementation(async (params) => (params.to < cutoff ? EMPTY : SUMMARY))
+    stub.previousBefore = cutoff
+    stub.previousSummary = { total: 0, byLevel: { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 } }
 
     const { container } = renderPage()
     expect(await screen.findByText('Activity')).toBeDefined()
@@ -257,12 +294,12 @@ describe('DashboardPage', () => {
   // splitting one request template into routes makes each route smaller than a busy job
   // template, so ordering by volume alone would push every route off a panel called Routes
   it('shows routes even when busier operations are not routes', async () => {
-    vi.mocked(stats.getOperations).mockResolvedValue({
+    stub.operations = {
       operations: [
         { template: 'Processed job {JobId}', method: null, route: null, total: 400, errorCount: 0, p95ElapsedMs: 20, folded: false },
         { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512, folded: false },
       ],
-    })
+    }
     renderPage()
 
     expect(await screen.findByText('/articles')).toBeDefined()
@@ -270,12 +307,12 @@ describe('DashboardPage', () => {
   })
 
   it('counts the routes over the latency line', async () => {
-    vi.mocked(stats.getOperations).mockResolvedValue({
+    stub.operations = {
       operations: [
         { template: 'GET /articles', method: 'GET', route: '/articles', total: 90, errorCount: 2, p95ElapsedMs: 512, folded: false },
         { template: 'POST /orders', method: 'POST', route: '/orders', total: 40, errorCount: 0, p95ElapsedMs: 2450, folded: false },
       ],
-    })
+    }
     renderPage()
 
     expect(await screen.findByText('1 of 2 routes over 1 s')).toBeDefined()

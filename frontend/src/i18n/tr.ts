@@ -216,6 +216,8 @@ export const tr: Messages = {
     duration: 'Süre',
     avg: 'Ort.',
     nothingTimed: 'Bu aralıktaki hiçbir olay Elapsed alanı taşımıyor, ölçülecek bir süre yok.',
+    noVolume: 'Seçilen aralıkta olay yok.',
+    noneOfLevel: (level: string) => `Seçilen aralıkta ${level} seviyesinde olay yok.`,
     avgLatency: 'Ort. gecikme',
     p95Latency: 'P95 gecikme',
     activeServices: 'Aktif servisler',

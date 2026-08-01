@@ -215,6 +215,8 @@ export const en = {
     duration: 'Duration',
     avg: 'Avg',
     nothingTimed: 'No event in this range carried an Elapsed property, so there is nothing to time.',
+    noVolume: 'No events in the selected range.',
+    noneOfLevel: (level: string) => `No ${level} events in the selected range.`,
     avgLatency: 'Avg latency',
     p95Latency: 'P95 latency',
     activeServices: 'Active services',

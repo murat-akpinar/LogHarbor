@@ -245,6 +245,13 @@ export function ActivityTimeline({
     barSegments(bucket.counts).filter((segment) => levelPick === null || segment.key === levelPick),
   )
   const volumeMax = plotMax(volumeBars.map((segments) => segments.reduce((sum, segment) => sum + segment.count, 0)))
+  // what is actually drawn, so isolating a level with nothing in it explains itself too rather
+  // than leaving the lane's full height blank — the other two lanes have always said their piece
+  const volumeTotal = volumeBars.reduce(
+    (sum, segments) => sum + segments.reduce((bucket, segment) => bucket + segment.count, 0),
+    0,
+  )
+  const pickedLabel = volumeSeries.find((series) => series.key === levelPick)?.label
 
   const latencyBuckets = latency?.buckets ?? []
   // the one lane where colour is not severity: an average and a p95 are two measurements of the
@@ -308,6 +315,11 @@ export function ActivityTimeline({
             />
           ))}
         >
+          {volumeTotal === 0 ? (
+            <p className="py-4 text-sm text-fg-muted">
+              {pickedLabel ? t.dashboard.noneOfLevel(pickedLabel) : t.dashboard.noVolume}
+            </p>
+          ) : (
           <div className="relative">
             <div
               className={`flex min-w-0 items-end ${COLUMN_GAP}`}
@@ -355,6 +367,7 @@ export function ActivityTimeline({
               }
             />
           </div>
+          )}
         </Lane>
 
         <Lane
