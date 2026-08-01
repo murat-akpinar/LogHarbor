@@ -1,8 +1,9 @@
 # LogHarbor Test Tooling
 
-Four tools that put real events into a running LogHarbor. They answer different questions, so
-pick by what you want to find out — none of them is a replacement for the unit suites
-(`dotnet test backend`, `npm run test` in `frontend/`).
+Six tools. Five of them put real events into a running LogHarbor; `perf-check` is the odd one
+out and brings its own. They answer different questions, so pick by what you want to find out —
+none of them is a replacement for the unit suites (`dotnet test backend`, `npm run test` in
+`frontend/`).
 
 | Tool | Question it answers | Shape |
 |---|---|---|
@@ -11,6 +12,7 @@ pick by what you want to find out — none of them is a replacement for the unit
 | [`anomaly-test/`](anomaly-test/README.md) | "Does LogHarbor actually notice a slowdown?" | ramped `Elapsed` (60 → 600 ms) until slow-operations and an alert webhook fire |
 | [`db-query-sim/`](db-query-sim/README.md) | "What does a populated Queries page look like, right now?" | one-shot backfill: EF-shaped `Executed DbCommand` events with latency profiles + timeout errors |
 | [`load-char/`](load-char/README.md) | "Does the write path keep up under sustained load?" | two-phase burst: 300 then 1000 ev/s for ~20 min, CLEF + OTLP mixed, latency percentiles recorded — README carries the results |
+| [`perf-check/`](perf-check/README.md) | "Did the pages get slower since last month?" | starts its own server, seeds 18k events from a fixed seed, drives every page in a real browser, prints requests/bytes/settle time — README carries the baseline |
 
 ## Which one do I want?
 
@@ -24,6 +26,10 @@ pick by what you want to find out — none of them is a replacement for the unit
 - **Want to know the ingestion ceiling before optimizing?** `load-char`. One measured run per
   question — its README records the 2026-07-18 verdict (1000 ev/s sustained, p99 < 90 ms, zero
   errors: the write-path channel refactor can wait).
+- **Want to know whether the UI got slower?** `perf-check`. It is the only one here that touches
+  no server of yours: it builds the API, runs it against a temp database with a password it
+  invents, seeds a fixed data set, and deletes all of it afterwards. Run it, compare the table
+  to the baseline in its README, and update that baseline when a change moves it on purpose.
 
 `traffic-sim` and `anomaly-test` can run at the same time against the same server — they use
 different `Source` tags and different message templates, so their events never merge into one group.

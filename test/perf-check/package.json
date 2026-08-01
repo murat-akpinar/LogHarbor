@@ -1,0 +1,12 @@
+{
+  "name": "logharbor-perf-check",
+  "private": true,
+  "type": "module",
+  "description": "Drives the real LogHarbor pages and prints what each one costs to open",
+  "scripts": {
+    "check": "node perf-check.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}
