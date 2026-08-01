@@ -123,8 +123,12 @@ Row click: expands EventDetail with a syntax-highlighted property tree (nested
   log content is untrusted) + raw JSON
 When the event carries a trace id, EventDetail shows it with a "View trace" button
   that replaces the search filter with @TraceId = '<id>' (all events of that request).
-Trace timeline: when the filter is exactly @TraceId = '...' (what "View trace"
-  applies), a waterfall panel renders above the list. When the trace has real spans
+Trace timeline: when the search text is exactly @TraceId = '...' (what "View trace"
+  applies), a waterfall panel renders above the list. Level chips and active signals
+  keep narrowing the list underneath it but do not close the panel — they are AND-ed
+  into the query, not into the question of which trace is open, and matching them too
+  meant a signal left "View trace" drawing nothing. The panel always shows the whole
+  trace; the list below it is what the filter says. When the trace has real spans
   (GET /api/traces/{id}, ingested via OTLP /v1/traces) it draws a real parent/child
   waterfall: rows nested by parent_span_id (orphans and cross-service parents treated
   as roots), bars from each span's actual start + duration, error-status spans tinted

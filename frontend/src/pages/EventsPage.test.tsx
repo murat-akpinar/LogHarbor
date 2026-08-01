@@ -28,8 +28,12 @@ vi.mock('../api/settings', () => ({
   // the onboarding panel asks the server how many events it holds in total; zero is a first run
   getHealth: vi.fn(async () => ({ status: 'ok', eventCount: 0, dbSizeBytes: 0, freeDiskBytes: 0 })),
 }))
+let signals: { id: number; title: string; filter: string }[] = []
 vi.mock('../hooks/useSignals', () => ({
-  useSignals: () => ({ data: [] }),
+  useSignals: () => ({ data: signals }),
+}))
+vi.mock('../api/traces', () => ({
+  getTrace: vi.fn(async () => ({ spans: [] })),
 }))
 vi.mock('../api/archive', () => ({
   startHydration: vi.fn(async () => ({ segments: [] })),
@@ -73,6 +77,7 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
   vi.clearAllMocks()
+  signals = []
 })
 
 function renderPage(initialEntry = '/') {
@@ -156,6 +161,22 @@ it('shows the trace timeline panel when the filter is exactly a trace filter', a
   renderPage('/?filter=' + encodeURIComponent(`@TraceId = '${TRACE}'`))
 
   expect(await screen.findByText('Trace timeline')).toBeDefined()
+})
+
+// regression: "View trace" sets the search text, but level chips and active signals are
+// AND-ed into the same string — and the panel was matched against that combined string, so
+// turning a signal on made the timeline disappear until it was turned off again. The panel
+// answers "which trace am I looking at", which is the search text's question alone.
+it('keeps the trace timeline while a signal narrows the list', async () => {
+  signals = [{ id: 1, title: 'Errors', filter: "@Level = 'Error'" }]
+  const traced = { ...SAMPLE_EVENT, id: 2, traceId: TRACE, spanId: 'b7ad6b7169203331' }
+  vi.mocked(getEvents).mockResolvedValue({ events: [traced], hasMore: false, archivedDays: [] })
+  renderPage('/?filter=' + encodeURIComponent(`@TraceId = '${TRACE}'`))
+
+  expect(await screen.findByText('Trace timeline')).toBeDefined()
+
+  fireEvent.click(screen.getByText('Errors'))
+  await waitFor(() => expect(screen.getByText('Trace timeline')).toBeDefined())
 })
 
 it('keeps the trace panel hidden for non-trace filters', async () => {

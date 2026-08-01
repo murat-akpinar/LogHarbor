@@ -109,7 +109,9 @@ export function EventsPage() {
     [searchText, activeLevels, activeSignalFilters],
   )
   const highlightTerms = useMemo(() => extractHighlightTerms(searchText), [searchText])
-  const traceId = useMemo(() => matchTraceFilter(filter), [filter])
+  // matched against the search text, not `filter`: level chips and signals are AND-ed into
+  // the combined string, and either of them used to make "View trace" draw nothing at all
+  const traceId = useMemo(() => matchTraceFilter(searchText), [searchText])
 
   // no filter, no chips/signals (folded into `filter`), no range: an empty result can
   // only mean the server has no events at all -> first-run onboarding (see the spec).

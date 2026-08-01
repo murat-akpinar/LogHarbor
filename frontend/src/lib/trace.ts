@@ -21,10 +21,12 @@ export interface TraceLayout {
 }
 
 /**
- * The trace id when the filter is exactly what "View trace" applies —
+ * The trace id when the search text is exactly what "View trace" applies —
  * @TraceId = '<32 lowercase hex>' — optionally in the one pair of parens
- * combineFilter adds. Anything else (chips, signals, extra clauses) means
- * the page is not showing a single trace.
+ * combineFilter adds. Any extra clause means the page is not showing a single trace.
+ *
+ * Give this the search text, not the combined filter: level chips and active signals are
+ * AND-ed into that string and narrow the list, but they do not change which trace is open.
  */
 export function matchTraceFilter(filter: string | undefined): string | null {
   if (!filter) return null
