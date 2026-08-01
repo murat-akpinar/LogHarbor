@@ -34,6 +34,12 @@ docker-compose.yml
 
   services:
     vector:
+      # not cosmetic: exclude_containers below matches container *names* by prefix, and
+      # compose would name this one <directory>-vector-1. "vector" then excludes nothing,
+      # so Vector collects its own log lines and posts them to LogHarbor as events — 13 of
+      # them in the first 20 seconds when this was run without the line. Bounded (Vector
+      # logs once per container it picks up, not once per event) but permanent noise.
+      container_name: vector
       image: timberio/vector:latest-alpine
       restart: unless-stopped
       # name the monitored host: without this the Vector container's own id lands in the
@@ -129,7 +135,11 @@ After changing vector.yaml, recreate the volume as well as the container:
 restart and keeps replaying the old failed batch, which hides whether the fix worked.
 
 Vector must exclude its own container: a failed POST makes Vector log an error, which
-would be shipped as an event, which fails again -> feedback loop.
+would be shipped as an event, which fails again -> feedback loop. That exclusion is why
+the compose file pins `container_name: vector` — verified 2026-08-01 by running this
+setup without it, which put 13 of Vector's own lines into LogHarbor in 20 seconds; the
+Events filter below is also how you check it, since Vector's container name shows up in
+the ContainerName column if the exclusion is not matching.
 The disk buffer keeps logs while LogHarbor is down or restarting; without it the in-memory
 default drops them.
 

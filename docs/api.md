@@ -200,6 +200,18 @@ GET /api/stats/heatmap
   Searches hot + hydrated data; cells with no events are omitted.
   200: { "cells": [ { dayOfWeek, hour, count } ] }
 
+GET /api/stats/ingestion-lag
+  Query: filter?, from, to, lateAfterSeconds? (0..86400, default 60)
+  How late the events in the range arrived, measured as ingested_at - timestamp: the
+  dashboard's one answer to "is the x-axis of every chart above trustworthy?". An event
+  whose own timestamp is in the future of its arrival is counted as skewed rather than
+  as negatively late, because a client clock ahead of the server is a different fault.
+  Percentiles are over the whole range, and worstTimestamp/worstIngestedAt name the one
+  event that took longest so it can be looked up.
+  200: { "lateAfterSeconds", "lag": { total, lateCount, skewedCount, p50Seconds,
+                                      p95Seconds, maxSeconds, worstTimestamp,
+                                      worstIngestedAt } }
+
 GET /api/stats/ingest-rejections
   Query: days? (1..30, default 7)
   Ingestion requests that were turned away, so events a client believes it sent but that
