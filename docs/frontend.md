@@ -609,7 +609,11 @@ reading it is a dashboard you stop reading.
 Charts key their columns by position, never by bucket timestamp: live mode moves the window
 every ten seconds, and keying on the start would remount every bar and replay its entrance
 over and over while somebody is reading it. Height changes are a CSS transition instead.
-Every animation is disabled under prefers-reduced-motion.
+Under prefers-reduced-motion the entrances (.animate-rise, .animate-line-in) keep their stagger
+but cross-fade in place instead of sliding: the request is about things moving, not about things
+arriving, and an environment with animations off — a remote desktop session, usually — otherwise
+got the page fully drawn with no entrance at all. Anything that actually travels or never stops
+(.animate-tail-in, .animate-pulse-dot, .animate-tick) is switched off there.
 
 --- STATE RULES ---
 

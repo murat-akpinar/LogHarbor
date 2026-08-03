@@ -361,10 +361,28 @@ textarea {
   animation: lh-tick 900ms ease-out;
 }
 
+/* the same entrance with the movement taken out: reduced motion is a request about things
+   moving, not about arriving, and a cross-fade in place triggers nothing */
+@keyframes lh-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* An environment with animations turned off — a remote desktop session is the usual one, and
+   Windows switches them off there by itself — used to get the page fully drawn and nothing
+   arriving, on the login page most visibly. The plates and the login stream now fade in on the
+   spot, keeping their stagger; only the things that actually move, or never stop, stay off. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-tail-in,
-  .animate-line-in,
   .animate-rise,
+  .animate-line-in {
+    animation-name: lh-fade-in;
+  }
+
+  .animate-tail-in,
   .animate-pulse-dot,
   .animate-tick {
     animation: none;
