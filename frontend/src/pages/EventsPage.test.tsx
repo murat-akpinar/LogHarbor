@@ -193,27 +193,30 @@ it('keeps the trace panel hidden for non-trace filters', async () => {
 // Events used to keep a private live flag, so the button in the same corner meant the rolling
 // window on every other page and the tail here — and turning it on threw the chosen range away
 // and showed "All time". One flag now: live rolls the window and streams into it.
-// It opens off, like every other page: nobody asked for a socket on sign-in.
-it('opens paused, like every other page, and streams once it is turned on', async () => {
+// It opens on, like every other page: a reader who has just opened a log viewer came for the
+// stream, and a reload used to put them back in front of a page with nothing moving on it.
+it('opens live and streaming, and stops once it is turned off', async () => {
   renderPage()
 
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('false')
-  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: false })
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true })
 
   toggle.click()
 
   // the tail follows the same flag rather than a private one
-  await waitFor(() => expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: true }))
-  expect(toggle.getAttribute('aria-pressed')).toBe('true')
+  await waitFor(() =>
+    expect(useLiveTailSpy.mock.calls.at(-1)?.[0]).toMatchObject({ enabled: false }),
+  )
+  expect(toggle.getAttribute('aria-pressed')).toBe('false')
 })
 
-it('keeps a bounded window while paused, instead of opening on all time', async () => {
+it('keeps a bounded window while paused, instead of falling back to all time', async () => {
   renderPage()
-  await screen.findByRole('button', { name: /Live/ })
+  ;(await screen.findByRole('button', { name: /Live/ })).click()
 
-  // paused is not frozen: the un-picked window is still the rolling last hour
-  expect(screen.queryByText('All time')).toBeNull()
+  // pausing holds the hour that was on screen; it does not widen to everything ever logged
+  await waitFor(() => expect(screen.queryByText('All time')).toBeNull())
   expect(vi.mocked(getEvents).mock.calls.at(-1)?.[0]).toEqual(
     expect.objectContaining({ from: expect.any(String), to: expect.any(String) }),
   )
@@ -224,8 +227,7 @@ it('keeps a bounded window while paused, instead of opening on all time', async 
 it('stops the tail when a fixed window is typed, since that window is not "now"', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  toggle.click()
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
 
   screen.getByTitle('Time range').click()
   fireEvent.change(await screen.findByLabelText('To'), { target: { value: '2026-07-24T10:00' } })
@@ -238,8 +240,7 @@ it('stops the tail when a fixed window is typed, since that window is not "now"'
 it('keeps streaming when a preset is picked, and narrows the window to it', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  toggle.click()
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
 
   screen.getByTitle('Time range').click()
   ;(await screen.findByText('Last 15 minutes')).click()

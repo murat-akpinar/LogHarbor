@@ -31,15 +31,16 @@ function OpenRangeProbe() {
   return <span data-testid="open-from">{range.from ?? 'none'}</span>
 }
 
-// whoever has set nothing gets the last hour and no stream, and turns the stream on themselves
-it('opens on the last hour, not live', async () => {
+// whoever has set nothing gets the last hour, streaming — including after a reload, which is
+// where a default of "off" was felt: every F5 landed on a log viewer with nothing moving on it
+it('opens on the last hour, live', async () => {
   render(
     <TimeRangeProvider>
       <ClosedRangeProbe id="a" />
     </TimeRangeProvider>,
   )
 
-  expect(screen.getByTestId('a-live').textContent).toBe('false')
+  expect(screen.getByTestId('a-live').textContent).toBe('true')
   const from = new Date(screen.getByTestId('a-from').textContent!).getTime()
   const to = new Date(screen.getByTestId('a-to').textContent!).getTime()
   // an hour wide, give or take the tick the window is floored to
@@ -47,9 +48,9 @@ it('opens on the last hour, not live', async () => {
   expect(to - from).toBeLessThanOrEqual(HOUR_MS + 20_000)
 })
 
-// the reason the default used to be live: not-live meant frozen, so opening paused pinned the
-// window to the moment of sign-in and a tab left open drifted hours behind without saying so
-it('keeps rolling while paused, until something is actually picked', async () => {
+// the window nobody has picked follows the clock, so a tab left open over lunch does not sit
+// on the hour before it with nothing on the page to say so
+it('keeps the opening window rolling with the clock', async () => {
   vi.useFakeTimers()
   try {
     render(
@@ -72,7 +73,7 @@ it('keeps rolling while paused, until something is actually picked', async () =>
 
 // but a real pause does freeze: that is the only thing the button means once the reader has
 // used it, and a window that kept moving under a reader who asked it to stop would be a lie
-it('holds the window still once live has been turned on and off again', async () => {
+it('holds the window still once live has been turned off', async () => {
   vi.useFakeTimers()
   try {
     render(
@@ -81,9 +82,6 @@ it('holds the window still once live has been turned on and off again', async ()
       </TimeRangeProvider>,
     )
 
-    await act(async () => {
-      screen.getByText('toggle a').click() // live
-    })
     await act(async () => {
       screen.getByText('toggle a').click() // paused, on whatever was on screen
     })
@@ -184,8 +182,6 @@ it('resumes at the width it was paused on', async () => {
   screen.getByText('preset a').click()
   await waitFor(() => expect(screen.getByTestId('a-preset').textContent).toBe('last6h'))
 
-  screen.getByText('toggle a').click() // live
-  await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('true'))
   screen.getByText('toggle a').click() // paused: the window is two dates now
   await waitFor(() => expect(screen.getByTestId('a-preset').textContent).toBe('none'))
   screen.getByText('toggle a').click() // live again
@@ -204,18 +200,16 @@ it('shares live mode too, and picking a range leaves it', async () => {
     </TimeRangeProvider>,
   )
 
-  // going live on one page goes live on all of them
+  // pausing on one page pauses all of them
   screen.getByText('toggle a').click()
-  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('true'))
+  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('false'))
 
-  // and so does pausing again
+  // and so does going live again
   screen.getByText('toggle b').click()
-  await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('false'))
+  await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('true'))
 
-  // and an explicit range contradicts "now", so it drops out of live everywhere. Turned back
-  // on first, or this would assert a flag that was already false and prove nothing.
-  screen.getByText('toggle a').click()
-  await waitFor(() => expect(screen.getByTestId('b-live').textContent).toBe('true'))
+  // and an explicit range contradicts "now", so it drops out of live everywhere — asserted
+  // from live, or this would prove nothing about a flag that was already false
   screen.getByText('pick b').click()
   await waitFor(() => expect(screen.getByTestId('a-live').textContent).toBe('false'))
 })

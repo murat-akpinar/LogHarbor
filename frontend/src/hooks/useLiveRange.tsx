@@ -92,13 +92,17 @@ function roll(chosen: ChosenWindow): ChosenWindow {
  * default rather than resuming a window from whoever was here before. Asked for on 2026-08-01
  * in exactly those words — whoever has not set anything gets the last hour, every time.
  *
- * It opens on a rolling last hour with live *off*: nobody asked for a stream on sign-in, and
- * on Events that flag also opens a socket. Two things had to come apart for that to be safe.
- * Rolling is a property of the window (it follows now); live is a property of the reading (the
- * tail streams, the window is allowed to move). Tying them together is what forced live-on as
- * the default: paused used to mean frozen, so opening paused froze the window at the moment of
- * sign-in and a tab left open over lunch showed the hour before it with nothing on the page to
- * say so. Now only an actual pause freezes, and it freezes what was on screen.
+ * It opens on a rolling last hour, live: a log viewer that has to be switched on before it
+ * shows anything moving reads as broken on the first screen, and a reload put every reader
+ * back there. On Events that flag also opens a socket, which is what a reader who has just
+ * opened a log viewer came for.
+ *
+ * Rolling and live stay two things, though. Rolling is a property of the window (it follows
+ * now); live is a property of the reading (the tail streams, the window is allowed to move).
+ * They came apart because tying them together made paused mean frozen, so a window that had
+ * never been picked still pinned itself the moment the reader pressed pause. Now only an
+ * actual pause freezes, and it freezes what was on screen. An initialRange is the one opening
+ * that is already a pick, so it opens paused on those two ends.
  *
  * A preset is a rolling window, not two dates recorded when it was clicked, so "Last 6 hours"
  * still means the last six hours ten minutes later — and every page can print that name, which
@@ -114,8 +118,8 @@ export function TimeRangeProvider({
    *  does not silently depend on what the default happens to be this month. */
   initialRange?: OpenRange
 }) {
-  // the reader turns the stream on themselves; an initialRange is a pick, so it never rolls
-  const [live, setLive] = useState(false)
+  // an initialRange is a pick, and a pick contradicts "now", so it opens paused
+  const [live, setLive] = useState(!initialRange)
   const [now, setNow] = useState(flooredNow)
   const [chosen, setChosen] = useState<ChosenWindow>(() =>
     initialRange ? { kind: 'fixed', ...initialRange } : DEFAULT_WINDOW,

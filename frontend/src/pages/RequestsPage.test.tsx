@@ -77,17 +77,16 @@ it('stacks status-class series with their totals in the legend', async () => {
   expect(screen.getByText('4')).toBeDefined()
 })
 
-// opens paused — the reader turns the stream on — on the rolling last hour rather than on a
-// window pinned to the moment of sign-in
-it('starts paused, and keeps the range picker alongside in both states', async () => {
+// opens live on the rolling last hour — pausing is the deliberate act, not starting the stream
+it('starts live, and keeps the range picker alongside in both states', async () => {
   renderPage()
   const toggle = await screen.findByRole('button', { name: /Live/ })
-  expect(toggle.getAttribute('aria-pressed')).toBe('false')
+  expect(toggle.getAttribute('aria-pressed')).toBe('true')
   // the pair is one control group: the picker never appears or vanishes under the cursor
   expect(screen.getByTitle('Time range')).toBeDefined()
 
   toggle.click()
-  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('true'))
+  await waitFor(() => expect(toggle.getAttribute('aria-pressed')).toBe('false'))
   expect(screen.getByTitle('Time range')).toBeDefined()
 })
 

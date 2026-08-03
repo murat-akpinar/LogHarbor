@@ -322,12 +322,12 @@ describe('DashboardPage', () => {
     expect(screen.getByText('2.5 s')).toBeDefined()
   })
 
-  // paused by default and still on the rolling hour: the window has to keep rolling without
-  // the stream being on, or a tab left open reads the hour before sign-in
-  it('opens paused, on an hour-wide window, with the range picker beside it', async () => {
+  // live by default on the rolling hour: a reload used to land on a dashboard with nothing
+  // moving on it, which reads as broken rather than as an idle server
+  it('opens live, on an hour-wide window, with the range picker beside it', async () => {
     renderPage()
     const toggle = await screen.findByRole('button', { name: 'Live' })
-    expect(toggle.getAttribute('aria-pressed')).toBe('false')
+    expect(toggle.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByTitle('Time range')).toBeDefined()
 
     const queried = vi.mocked(stats.getSummary).mock.calls.at(-1)?.[0]
@@ -345,7 +345,7 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/3 arrived late/)).toBeDefined()
   })
 
-  it('picking a range leaves live mode and narrows the queried window', async () => {
+  it('picking a preset narrows the queried window', async () => {
     renderPage()
 
     const picker = await screen.findByTitle('Time range')

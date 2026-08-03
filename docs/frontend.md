@@ -185,15 +185,16 @@ refetches because the key changed.
 
 The window is one of two shapes, and live is a separate flag:
   * rolling — a width that follows now, carrying the preset that named it. Every page opens
-    here, on the last hour, with live off: whoever has set nothing gets that, every sign-in.
+    here, on the last hour, live: whoever has set nothing gets that, every sign-in and every
+    reload — a log viewer that shows nothing moving until it is switched on reads as broken.
     The five presets set this shape, so "Last 6 hours" still means the last six hours ten
     minutes later, and every page's picker prints the same name rather than two dates.
     Picking a preset does not leave live — a rolling window *is* "now", only wider.
   * fixed — two ends that hold still: typed into the picker, brushed out of a chart, arrived
     in a ?from=&to= deep link, or frozen by pressing Live off. This shape does leave live.
-Live off does not mean frozen at sign-in, which is what it used to mean: a tab left open
-over lunch then showed the hour before it with nothing on the page to say so. Pressing Live
-again rolls at the width it was paused on, so a paused six-hour window resumes as six hours.
+Pressing Live off freezes the window that was on screen, not one pinned at sign-in; pressing
+Live again rolls at the width it was paused on, so a paused six-hour window resumes as six
+hours. A ?from=&to= deep link opens paused on those two ends — that window was picked.
 
 Events is the exception in kind, not in placement: its Live also subscribes to /hubs/tail.
 It has no h1, so the group sits at the right of the search-bar row — that row is the header.
@@ -288,7 +289,7 @@ The home page (route /): a Nightwatch-style monitoring overview composed entirel
 from the existing /api/stats/* endpoints (no dedicated endpoint), grouped into
 labelled sections, each with a "view all" link to its full page.
 Live toggle: a heartbeat control in the header, over the app's shared window (see
-LIVE + TIME RANGE above). It opens on a rolling last hour with Live off, and the
+LIVE + TIME RANGE above). It opens live on a rolling last hour, and the
 window still refreshes every 10 s as its end ticks (React Query refetch;
 keepPreviousData avoids skeleton flashes). Pressing Live pauses/resumes; pausing
 (or brushing a histogram) freezes on the current window, going live again rolls.
@@ -457,7 +458,7 @@ isolates that class — the chart drops the other series and the operations
 table, its sparklines and its Events deep links all inherit the class filter
 (StatusCode < 400 / >= 400 and < 500 / >= 500). Pressing it again restores all.
 Live toggle: the page shares the app's window and live flag — the rolling last
-hour, Live off until the reader presses it — same as Exceptions and Queries.
+hour, live until the reader pauses it — same as Exceptions and Queries.
 
 Operations RED table as its own lens (Nightwatch's "Requests" view):
 /api/stats/operations (limit 50), per-operation RED grouped by route where
