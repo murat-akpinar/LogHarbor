@@ -206,8 +206,11 @@ The window is one of two shapes, and live is a separate flag:
   * rolling — a width that follows now, carrying the preset that named it. Every page opens
     here, on the last hour, live: whoever has set nothing gets that, every sign-in and every
     reload — a log viewer that shows nothing moving until it is switched on reads as broken.
-    The five presets set this shape, so "Last 6 hours" still means the last six hours ten
+    The presets set this shape, so "Last 6 hours" still means the last six hours ten
     minutes later, and every page's picker prints the same name rather than two dates.
+    They are 5m, 15m, 1h, 3h, 6h, 12h and 24h (lib/timeRange.ts). A week is deliberately
+    not among them: this is a log reader's ladder, and it stops where a window nobody
+    scrolls through starts — a longer stretch is two dates, typed.
     Picking a preset does not leave live — a rolling window *is* "now", only wider.
   * fixed — two ends that hold still: typed into the picker, brushed out of a chart, arrived
     in a ?from=&to= deep link, or frozen by pressing Live off. This shape does leave live.

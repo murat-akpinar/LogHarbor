@@ -1,12 +1,21 @@
-/** The five windows a log reader actually reaches for, and the arithmetic to name one. */
-export type PresetKey = 'last15m' | 'lastHour' | 'last6h' | 'last24h' | 'last7d'
+/** The windows a log reader actually reaches for, and the arithmetic to name one. */
+export type PresetKey =
+  | 'last5m'
+  | 'last15m'
+  | 'lastHour'
+  | 'last3h'
+  | 'last6h'
+  | 'last12h'
+  | 'last24h'
 
 export const PRESETS: { key: PresetKey; minutes: number }[] = [
+  { key: 'last5m', minutes: 5 },
   { key: 'last15m', minutes: 15 },
   { key: 'lastHour', minutes: 60 },
+  { key: 'last3h', minutes: 180 },
   { key: 'last6h', minutes: 360 },
+  { key: 'last12h', minutes: 720 },
   { key: 'last24h', minutes: 1440 },
-  { key: 'last7d', minutes: 10080 },
 ]
 
 /** What anyone who has set nothing gets: the last hour, as the roadmap asked on 2026-08-01. */
