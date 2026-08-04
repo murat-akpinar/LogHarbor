@@ -372,19 +372,30 @@ textarea {
   }
 }
 
+@keyframes lh-tail-flash {
+  from {
+    background-color: color-mix(in oklab, var(--color-accent) 26%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
 /* An environment with animations turned off — a remote desktop session is the usual one, and
    Windows switches them off there by itself — used to get the page fully drawn and nothing
-   arriving, on the login page most visibly. The plates and the login stream now fade in on the
-   spot, keeping their stagger; only the things that actually move, or never stop, stay off. */
+   arriving, on the login page most visibly. The plates, the login stream and a live-tail row now
+   fade in on the spot, keeping their stagger; only what never stops stays off. */
 @media (prefers-reduced-motion: reduce) {
   .animate-rise,
   .animate-line-in {
     animation-name: lh-fade-in;
   }
 
-  .animate-tail-in,
-  .animate-pulse-dot,
-  .animate-tick {
+  .animate-tail-in {
+    animation-name: lh-tail-flash;
+  }
+
+  .animate-pulse-dot {
     animation: none;
     opacity: 1;
     transform: none;

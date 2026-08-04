@@ -612,8 +612,10 @@ over and over while somebody is reading it. Height changes are a CSS transition 
 Under prefers-reduced-motion the entrances (.animate-rise, .animate-line-in) keep their stagger
 but cross-fade in place instead of sliding: the request is about things moving, not about things
 arriving, and an environment with animations off — a remote desktop session, usually — otherwise
-got the page fully drawn with no entrance at all. Anything that actually travels or never stops
-(.animate-tail-in, .animate-pulse-dot, .animate-tick) is switched off there.
+got the page fully drawn with no entrance at all. A live-tail row (.animate-tail-in) keeps its
+accent flash and drops the 0.25rem slide, and .animate-tick was never movement to begin with, so
+the live pages read as live there too. Only .animate-pulse-dot, which never stops, is switched
+off.
 
 --- STATE RULES ---
 
