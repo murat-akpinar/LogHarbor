@@ -152,7 +152,7 @@ export function EventDetail({
   }
 
   return (
-    <aside className="glass flex h-full w-[28rem] shrink-0 flex-col overflow-hidden border-l border-border bg-surface text-sm shadow-pop">
+    <aside className="glass absolute inset-y-0 right-0 z-20 flex w-[28rem] flex-col overflow-hidden border-l border-border bg-surface-float text-sm shadow-pop">
       {/* the level's own hue along the top edge: what kind of event this is, before a word of
           it has been read. The same device the glance band uses to tell its tiles apart. */}
       <span

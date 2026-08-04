@@ -98,6 +98,7 @@ export function EventsPage() {
   }, [relativeTime])
 
   const listRef = useRef<EventListHandle>(null)
+  const pageRef = useRef<HTMLDivElement>(null)
   const { data: signals } = useSignals()
 
   const activeSignalFilters = useMemo(
@@ -233,7 +234,11 @@ export function EventsPage() {
   ]
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // one scrollbar for the page: the filter bar and the chart scroll away with the stream
+    // rather than holding their own bands while only the rows move. The drawer sits outside
+    // that scroller, so it stays put over the full height of the page.
+    <div className="relative h-full">
+    <div ref={pageRef} className="flex h-full flex-col overflow-y-auto">
       <div className="glass shrink-0 border-b border-border bg-surface shadow-card">
         <div className="flex items-start gap-3 p-3">
           <div className="min-w-0 flex-1">
@@ -308,7 +313,7 @@ export function EventsPage() {
         <button
           type="button"
           onClick={resume}
-          className="shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg shadow-[0_0_24px_-4px_var(--color-accent)] transition-colors duration-150 hover:bg-accent-hover"
+          className="sticky top-0 z-20 shrink-0 bg-accent py-1.5 text-sm font-medium text-accent-fg shadow-[0_0_24px_-4px_var(--color-accent)] transition-colors duration-150 hover:bg-accent-hover"
         >
           {t.events.newEvents(tail.pendingCount)}
         </button>
@@ -318,8 +323,8 @@ export function EventsPage() {
 
       {/* the stream's own bed: flat and opaque, so a row's colour is its level's and not the
           canvas wash showing through wherever it happens to be scrolled to */}
-      <div className="flex min-h-0 flex-1 bg-surface-read">
-        <div className="min-w-0 flex-1">
+      <div className={`flex flex-1 bg-surface-read ${selectedEvent ? 'pr-[28rem]' : ''}`}>
+        <div className="flex min-w-0 flex-1 flex-col">
           {search.isLoading ? (
             <div className="animate-pulse space-y-px p-3">
               {Array.from({ length: 8 }, (_, index) => (
@@ -343,20 +348,23 @@ export function EventsPage() {
               onLoadMore={() => search.fetchNextPage()}
               onAtTopChange={setIsAtTop}
               onClear={() => setSearchText('')}
+              scrollRef={pageRef}
             />
           )}
         </div>
-        {selectedEvent && (
-          <EventDetail
-            event={selectedEvent}
-            highlightTerms={highlightTerms}
-            onClose={() => setSelectedEvent(undefined)}
-            onViewTrace={(traceId) => applyFilter(`@TraceId = ${quote(traceId)}`)}
-            onFilter={applyFilter}
-            onLookAround={(from, to) => setRange({ from, to })}
-          />
-        )}
       </div>
+    </div>
+
+      {selectedEvent && (
+        <EventDetail
+          event={selectedEvent}
+          highlightTerms={highlightTerms}
+          onClose={() => setSelectedEvent(undefined)}
+          onViewTrace={(traceId) => applyFilter(`@TraceId = ${quote(traceId)}`)}
+          onFilter={applyFilter}
+          onLookAround={(from, to) => setRange({ from, to })}
+        />
+      )}
 
       {showHelp && (
         <div className="fixed inset-0 z-20 flex items-center justify-center">

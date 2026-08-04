@@ -108,6 +108,18 @@ Event list: virtualized, newest first, infinite scroll via afterId keyset paging
   Full-bleed, alone among the pages: a stream is read by scanning it and has to fill
   the window, so it takes no section plate. ROW_HEIGHT is 32px (was 40 until
   2026-07-31, which spent a quarter of every screen on air).
+  One scrollbar, and it is the page's (2026-08-04): the filter bar and the chart scroll
+  away with the rows instead of holding their own bands while a strip in the middle
+  moved. VirtualizedEventList is therefore not its own scroller — it is handed the
+  page's (scrollRef) and measures its window off that one: how far the rows have passed
+  the scroller's top edge, and how much of them the viewport holds. Both ends are
+  watched with a ResizeObserver, because the header above the rows grows and shrinks
+  (a chart appearing, a banner, chips wrapping) and that moves the window with no
+  scroll event to announce it. Two things stay put while the page moves under them: the
+  column header (sticky, once the filter bar is gone) and the "N new events" bar, which
+  is the way back to the live head and used to scroll out of reach.
+  "At the top" — what pauses the live tail — is the page's scroll position now, so
+  scrolling down to read pauses the stream whatever is on screen above the rows.
 Event row: timestamp, level badge (color-coded), rendered message
 Custom columns: "Columns" picker adds event properties as extra list columns
   (localStorage, rendered client-side from each event's properties JSON)
@@ -120,7 +132,14 @@ Search term highlight: quoted free-text terms and contains values from the activ
   terms extracted client-side from the filter string, no backend involvement
 Row click: expands EventDetail with a syntax-highlighted property tree (nested
   objects/arrays collapse via native details/summary; React text nodes only,
-  log content is untrusted) + raw JSON
+  log content is untrusted) + raw JSON. It is a 28rem drawer down the whole right
+  side of the page (2026-08-04), outside the page's scroller so it holds still while
+  the page moves: the filter bar and the chart pass behind it rather than pushing it
+  down to whatever height was left under them. The list is padded by the drawer's
+  width while it is open, so no row is read through it. It sits on surface-float, not
+  the 6%-alpha plate surface it used while it was part of the row: the moment it
+  floats over the histogram, a plate you can read the chart through is a plate you
+  cannot read.
 When the event carries a trace id, EventDetail shows it with a "View trace" button
   that replaces the search filter with @TraceId = '<id>' (all events of that request).
 Trace timeline: when the search text is exactly @TraceId = '...' (what "View trace"
@@ -575,7 +594,7 @@ Surfaces are white at low alpha, and depth is alpha rather than lightness:
     surface        a plate, lifted off the canvas          rgb(255 255 255 / 0.06)
     surface-inset  a well, cut into a plate                rgb(0 0 0 / 0.3)
     surface-raised a selected row or an active tab         rgb(255 255 255 / 0.12)
-    surface-float  a dropdown or popover, nearly opaque    rgb(17 22 24 / 0.92)
+    surface-float  a dropdown, a popover, the event drawer rgb(17 22 24 / 0.985)
     surface-read   the event stream's flat bed             #0a0e10, opaque
 
 The last two are where the glass deliberately stops. A menu you can read the page through is
