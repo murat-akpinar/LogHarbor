@@ -13,6 +13,8 @@ import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
 
 const ROW_LIMIT = 50
+// baseline window start: anything before this predates the server itself
+const BASELINE_START = '2000-01-01T00:00:00.000Z'
 
 const TH_CLASS = 'px-3 py-2 text-left text-xs font-medium text-fg-muted'
 const TD_CLASS = 'px-3 py-2 text-sm text-fg'
@@ -24,6 +26,16 @@ export function ExceptionsPage() {
 
   const exceptions = useTopExceptions({ ...range, limit: ROW_LIMIT })
   const rows = exceptions.data?.exceptions ?? []
+  // Which of these is new is the question this page gets asked every morning, and it is
+  // answerable out of the data already stored: a type that never occurred before the window
+  // is new in it. Same baseline query Analysis uses for error templates, capped the same way —
+  // a type rarer than the top hundred of all time flags as new.
+  const baseline = useTopExceptions({ from: BASELINE_START, to: range.from, limit: 100 })
+  const knownTypes = new Set((baseline.data?.exceptions ?? []).map((row) => row.type))
+
+  function isNew(type: string): boolean {
+    return baseline.data !== undefined && !knownTypes.has(type)
+  }
   const total = rows.reduce((sum, row) => sum + row.count, 0)
 
   return (
@@ -74,7 +86,14 @@ export function ExceptionsPage() {
                   onClick={() => setExpandedType(expandedType === row.type ? null : row.type)}
                   className="cursor-pointer border-b border-border last:border-b-0 hover:bg-surface-hover"
                 >
-                  <td className={`${TD_CLASS} font-mono`}>{row.type}</td>
+                  <td className={`${TD_CLASS} font-mono`}>
+                    {row.type}
+                    {isNew(row.type) && (
+                      <span className="ml-2 rounded border border-accent/30 bg-accent/15 px-1.5 py-0.5 text-xs font-medium text-accent">
+                        {t.analysis.newBadge}
+                      </span>
+                    )}
+                  </td>
                   <td className={`${TD_CLASS} max-w-48 truncate font-mono text-xs text-fg-muted`} title={row.location ?? undefined}>
                     {row.location ?? '—'}
                   </td>

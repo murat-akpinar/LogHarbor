@@ -43,24 +43,27 @@ vi.mock('../api/events', () => ({
   })),
 }))
 
+const NULL_REFERENCE = {
+  type: 'System.NullReferenceException',
+  count: 88,
+  firstSeen: '2026-07-25T08:00:00.000Z',
+  lastSeen: '2026-07-25T09:30:00.000Z',
+  location: 'src/Services/OrderService.cs:42',
+}
+
+const TIMEOUT = {
+  type: 'System.TimeoutException',
+  count: 64,
+  firstSeen: '2026-07-25T07:00:00.000Z',
+  lastSeen: '2026-07-25T09:00:00.000Z',
+  location: null,
+}
+
 vi.mock('../api/stats', () => ({
-  getTopExceptions: vi.fn(async () => ({
-    exceptions: [
-      {
-        type: 'System.NullReferenceException',
-        count: 88,
-        firstSeen: '2026-07-25T08:00:00.000Z',
-        lastSeen: '2026-07-25T09:30:00.000Z',
-        location: 'src/Services/OrderService.cs:42',
-      },
-      {
-        type: 'System.TimeoutException',
-        count: 64,
-        firstSeen: '2026-07-25T07:00:00.000Z',
-        lastSeen: '2026-07-25T09:00:00.000Z',
-        location: null,
-      },
-    ],
+  // the baseline call asks for everything before the window; this server had only ever seen
+  // the null reference before it, so the timeout is the one that is new
+  getTopExceptions: vi.fn(async ({ from }: { from: string }) => ({
+    exceptions: from.startsWith('2000-') ? [NULL_REFERENCE] : [NULL_REFERENCE, TIMEOUT],
   })),
   getHistogram: vi.fn(async () => ({ buckets: [] })),
 }))
@@ -93,6 +96,17 @@ it('lists exception groups under a narrative headline', async () => {
   expect(screen.getByText('152 exceptions in this range.')).toBeDefined()
   // source location from the latest occurrence, Nightwatch-style
   expect(screen.getByText('src/Services/OrderService.cs:42')).toBeDefined()
+})
+
+// what this page gets asked every morning is which of these is new, and the answer is in the
+// data already stored: a type with no occurrence before the window
+it('marks the exception types this range saw for the first time', async () => {
+  renderPage()
+  await screen.findByText('System.TimeoutException')
+
+  const rows = screen.getAllByRole('row').slice(1).map((row) => row.textContent ?? '')
+  expect(rows.find((row) => row.includes('System.TimeoutException'))).toContain('new')
+  expect(rows.find((row) => row.includes('System.NullReferenceException'))).not.toContain('new')
 })
 
 it('expands a row into the latest occurrence with its same-trace events', async () => {
