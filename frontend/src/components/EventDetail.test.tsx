@@ -80,12 +80,31 @@ it('offers a filter action per scalar property', () => {
   expect(onFilter).toHaveBeenCalledWith("Tag = 'beta'")
 })
 
-it('surfaces the exception source location', () => {
-  renderDetail({
-    ...base,
-    exception: 'System.NullReferenceException: boom\n   at Api.Ship() in /src/Api/OrderService.cs:line 88',
-  })
+const DOTNET_TRACE = `System.NullReferenceException: boom
+   at Api.Orders.OrderService.Ship() in /src/Api/OrderService.cs:line 88
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next()
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.Invoke()
+   at Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocol.ProcessRequests()`
+
+it('surfaces the frame of the exception that belongs to the application', () => {
+  renderDetail({ ...base, exception: DOTNET_TRACE })
+
+  expect(screen.getByText('4 frames, 1 in your code')).toBeDefined()
+  expect(screen.getByText('…/Api/OrderService.cs')).toBeDefined()
+  expect(screen.getByText(':88')).toBeDefined()
+  // the three Microsoft frames are one collapsed row, not three lines to scan past
+  expect(screen.getByText('3 frames elsewhere')).toBeDefined()
+  // and what actually arrived is still reachable
+  expect(screen.getByText('Raw trace')).toBeDefined()
+})
+
+// a trace no runtime reader recognises is shown exactly as it arrived, with the old path:line
+// pill above it — half-parsing it would be worse than not parsing it
+it('prints an unrecognised trace as it arrived', () => {
+  renderDetail({ ...base, exception: 'something broke at /src/Api/OrderService.cs:88 somehow' })
+
   expect(screen.getByText('/src/Api/OrderService.cs:88')).toBeDefined()
+  expect(screen.queryByText('Raw trace')).toBeNull()
 })
 
 it('asks for the surrounding minutes of this event', () => {

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Event } from '../types'
 import { formatRelative, formatTimestamp } from '../lib/dates'
 import { exceptionLocation } from '../lib/exceptionLocation'
+import { parseStackTrace } from '../lib/stackTrace'
 import { propertyEquals } from '../lib/filter'
 import { LEVEL_HEX } from '../lib/levels'
 import { useI18n } from '../i18n'
@@ -11,6 +12,7 @@ import { LevelBadge } from './LevelBadge'
 import { Highlighted } from './Highlighted'
 import { CopyButton } from './detail/CopyButton'
 import { PropertyRows } from './detail/PropertyRows'
+import { StackTrace } from './detail/StackTrace'
 import type { Json } from './JsonTree'
 
 interface EventDetailProps {
@@ -135,6 +137,8 @@ export function EventDetail({
   const { t, lang } = useI18n()
   const properties = parseProperties(event.properties)
   const location = event.exception ? exceptionLocation(event.exception) : null
+  // whether the trace parsed into frames at all decides which of the two shapes is drawn
+  const readable = event.exception !== null && parseStackTrace(event.exception).frames.length > 0
   const propertyCount = Object.keys(properties).length
 
   const chips = IDENTITY_KEYS.flatMap((key) => {
@@ -222,7 +226,10 @@ export function EventDetail({
 
         {event.exception && (
           <Section title={t.detail.exception} action={<CopyButton value={event.exception} />}>
-            {location && (
+            {/* the pill said "path:line" of the first frame carrying a file. The trace itself
+                marks that frame now, so keeping it would print the same fact twice — it stays
+                only for a trace no runtime reader recognised, which draws as plain text */}
+            {location && !readable && (
               <p
                 className="mb-1.5 truncate rounded-md bg-level-error/10 px-2 py-1 font-mono text-xs text-level-error"
                 title={location}
@@ -230,9 +237,7 @@ export function EventDetail({
                 {location}
               </p>
             )}
-            <pre className="rounded-well bg-level-error/[0.07] p-3 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-level-error ring-1 ring-level-error/15">
-              <Highlighted text={event.exception} terms={highlightTerms} />
-            </pre>
+            <StackTrace text={event.exception} highlightTerms={highlightTerms} />
           </Section>
         )}
 

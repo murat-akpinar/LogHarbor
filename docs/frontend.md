@@ -237,6 +237,33 @@ page's own h1 over its only table names nothing. Tables live in a well with
 `overflow-x-auto`, charts in a padded well, and figures inside a well go one surface lighter
 again (the query detail's tiles) rather than taking a border.
 
+--- STACK TRACES (lib/stackTrace.ts + detail/StackTrace.tsx) ---
+
+The exception panel reads the trace instead of printing it. What an operator wants
+from sixty lines is the first one that belongs to their own code; everything else
+is context they open only if that is not enough.
+
+lib/stackTrace.ts parses the raw text into frames. The runtime is decided by
+counting, not sniffing: each of the five readers (.NET, Node/V8, Python, PHP,
+Java) is run over every line and whichever recognises the most wrote it — a
+first-line guess misreads a .NET trace whose top frame carries no file. Each frame
+is classified app / vendor / internal from the file path alone (/vendor/,
+node_modules, site-packages, .nuget, .m2, gradle caches...), with package prefixes
+(System., Microsoft., org.springframework., Illuminate) as the fallback for frames
+that carry no path at all. There is no per-application namespace setting to fill
+in: the path markers answer it, and a form nobody fills in answers nothing.
+
+Parsing is lossless — every input line comes back as header, frame, frame detail
+or trailer, and a test asserts the count per runtime. A viewer that might be
+dropping lines is one nobody can trust, which is also why the raw text stays one
+click away under "Raw trace".
+
+The viewer marks the culprit (the topmost app frame) with an accent rule, keeps
+app frames open, and collapses runs of more than two non-app frames into one
+"N frames elsewhere" row. A trace no reader recognises is drawn exactly as before,
+as text under the old path:line pill (lib/exceptionLocation.ts, which the backend
+mirrors for the Exceptions page's Source column).
+
 --- SETTINGS: REDACTION CARD ---
 
 Settings -> Ingestion -> Redaction (components/settings/RedactionCard.tsx) edits

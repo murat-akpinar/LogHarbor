@@ -204,6 +204,10 @@ export const tr: Messages = {
     copied: 'Kopyalandı',
     filterBy: (name: string) => `${name} ile filtrele`,
     lookAround: 'Bu olayın çevresi',
+    stackSummary: (total: string, app: string) => `${total} çerçeve, ${app} tanesi senin kodunda`,
+    stackElsewhere: (count: string) => `${count} çerçeve başka yerde`,
+    stackNoFile: '(kaynak dosya yok)',
+    stackRaw: 'Ham iz',
   },
   notFound: {
     title: 'Sayfa bulunamadı',

@@ -205,6 +205,10 @@ export const en = {
     copied: 'Copied',
     filterBy: (name: string) => `Filter by ${name}`,
     lookAround: 'Events around this',
+    stackSummary: (total: string, app: string) => `${total} frames, ${app} in your code`,
+    stackElsewhere: (count: string) => `${count} frames elsewhere`,
+    stackNoFile: '(no source file)',
+    stackRaw: 'Raw trace',
   },
   notFound: {
     title: 'Page not found',
