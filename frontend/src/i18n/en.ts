@@ -373,6 +373,7 @@ export const en = {
     routeProperty: 'Route property',
     methodProperty: 'Method property',
     noStatus: 'No events carry a StatusCode property in the selected range.',
+    byCode: 'By code',
     onlyThis: (label: string) => `Show only ${label}`,
     showAll: 'Show all status classes',
   },

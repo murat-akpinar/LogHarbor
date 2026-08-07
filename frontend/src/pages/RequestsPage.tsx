@@ -7,8 +7,8 @@ import { useLiveRange } from '../hooks/useLiveRange'
 import { TrendBars } from '../components/Sparkline'
 import { OperationName } from '../components/OperationName'
 import { StatusChart } from '../components/requests/StatusChart'
-import { STATUS_FILTERS } from '../lib/status'
-import type { StatusClass } from '../lib/status'
+import { STATUS_FILTERS, statusFilter } from '../lib/status'
+import type { StatusClass, StatusSelection } from '../lib/status'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { Input } from '../components/ui/Input'
@@ -36,6 +36,14 @@ function errorFraction(op: OperationOverview): number {
   return op.total > 0 ? op.errorCount / op.total : 0
 }
 
+/** ?status=server from the dashboard's chart, ?status=502 from a link someone kept. */
+function parseStatusParam(raw: string | null): StatusSelection | null {
+  if (raw === null) return null
+  if (raw in STATUS_FILTERS) return { kind: 'class', value: raw as StatusClass }
+  const code = Number(raw)
+  return Number.isInteger(code) && code >= 100 && code <= 599 ? { kind: 'code', value: code } : null
+}
+
 export function RequestsPage() {
   const { t, lang } = useI18n()
   const navigate = useNavigate()
@@ -44,19 +52,16 @@ export function RequestsPage() {
   // ?status=server arrives from the dashboard's request chart: clicking 5xx there opens this
   // page already narrowed to it, rather than dropping the reader on the unfiltered table
   const [searchParams] = useSearchParams()
-  const requestedStatus = searchParams.get('status')
-  const [statusClass, setStatusClass] = useState<StatusClass | null>(
-    requestedStatus !== null && requestedStatus in STATUS_FILTERS ? (requestedStatus as StatusClass) : null,
-  )
+  const [status, setStatus] = useState<StatusSelection | null>(() => parseStatusParam(searchParams.get('status')))
   // the sink decides the spelling: Path/Method here, RequestPath/RequestMethod under Serilog's
   // ASP.NET middleware, http.route under OTel. Blank falls back to grouping by message template
   const [routeProperty, setRouteProperty] = useState(ROUTE_PROPERTY)
   const [methodProperty, setMethodProperty] = useState(METHOD_PROPERTY)
-  const statusFilter = statusClass ? STATUS_FILTERS[statusClass] : undefined
+  const filter = statusFilter(status)
 
   const operations = useOperations({
     ...range,
-    filter: statusFilter,
+    filter,
     routeProperty: routeProperty || ROUTE_PROPERTY,
     methodProperty: methodProperty || METHOD_PROPERTY,
     limit: ROW_LIMIT,
@@ -71,10 +76,10 @@ export function RequestsPage() {
     return b.total - a.total
   })
 
-  // the status class, when one is isolated, travels with every deep link and sparkline
+  // the isolated class or code, when there is one, travels with every deep link and sparkline
   function rowFilter(op: OperationOverview): string {
     const clause = operationFilter(op, routeProperty, methodProperty)
-    return statusFilter ? `${clause} and ${statusFilter}` : clause
+    return filter ? `${clause} and ${filter}` : clause
   }
 
   function openEvents(op: OperationOverview) {
@@ -138,7 +143,7 @@ export function RequestsPage() {
 
       <SectionBlock icon="requests" title={t.requests.statusCodes} className="shrink-0">
         <Panel className="p-4">
-          <StatusChart from={range.from} to={range.to} selected={statusClass} onSelect={setStatusClass} title={null} />
+          <StatusChart from={range.from} to={range.to} selected={status} onSelect={setStatus} title={null} />
         </Panel>
       </SectionBlock>
 

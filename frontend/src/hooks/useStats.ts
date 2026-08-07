@@ -1,14 +1,24 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { getHeatmap, getHistogram, getIngestRejections, getIngestionLag, getLatency, getOperations, getQueries, getServices, getServiceStatus, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
+import { getHeatmap, getHistogram, getIngestRejections, getIngestionLag, getLatency, getOperations, getPropertyValues, getQueries, getServices, getServiceStatus, getSlowOperations, getSummary, getTopErrors, getTopExceptions, getUserActivity } from '../api/stats'
 import type { StatsRangeParams } from '../api/stats'
 
 // refetch keeps the previous render instead of flashing a skeleton (dataviz interaction rules)
 const KEEP_PREVIOUS = { placeholderData: keepPreviousData }
 
-export function useHistogram(params: StatsRangeParams & { buckets: number }) {
+/** `enabled` is for the series a chart only draws sometimes: a disabled query costs no request. */
+export function useHistogram(params: StatsRangeParams & { buckets: number }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['stats', 'histogram', params],
     queryFn: () => getHistogram(params),
+    enabled: options?.enabled,
+    ...KEEP_PREVIOUS,
+  })
+}
+
+export function usePropertyValues(params: StatsRangeParams & { property: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['stats', 'property-values', params],
+    queryFn: () => getPropertyValues(params),
     ...KEEP_PREVIOUS,
   })
 }

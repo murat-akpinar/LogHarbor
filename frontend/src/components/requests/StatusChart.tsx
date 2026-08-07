@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
-import { useHistogram } from '../../hooks/useStats'
+import { useHistogram, usePropertyValues } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
 import { SeriesChip } from '../ui/SeriesChip'
 import { LEVELS } from '../../lib/levels'
-import { STATUS_FILTERS, STATUS_SERIES } from '../../lib/status'
-import type { StatusClass } from '../../lib/status'
+import { STATUS_COLOR, STATUS_FILTERS, STATUS_PROPERTY, STATUS_SERIES, statusClassOf, statusFilter } from '../../lib/status'
+import type { StatusSelection } from '../../lib/status'
 import { formatTimestamp } from '../../lib/dates'
 import { plotMax } from '../../lib/plotScale'
 import { barFill, barGlow } from '../../lib/series'
@@ -16,13 +16,17 @@ import { TimeAxis } from '../TimeAxis'
 // read as a tick rather than a slab
 const BUCKET_COUNT = 60
 const PLOT_HEIGHT_PX = 128
+// distinct codes to break the range down into. An HTTP application uses a dozen; the ceiling is
+// only there so a property holding something other than a status code cannot fill the row.
+const CODE_LIMIT = 24
 
 interface StatusChartProps {
   from: string
   to: string
-  /** null shows every class stacked; a class isolates it here and in the caller's table. */
-  selected: StatusClass | null
-  onSelect: (next: StatusClass | null) => void
+  /** null shows every class stacked; a class or one exact code isolates it here and in the
+   *  caller's table. */
+  selected: StatusSelection | null
+  onSelect: (next: StatusSelection | null) => void
   /** Defaults to "Status codes". null drops the heading for a caller whose section header
    *  already carries it, leaving the chips as the chart's own row. */
   title?: string | null
@@ -46,12 +50,33 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
     client: useHistogram({ ...shared, filter: STATUS_FILTERS.client }),
     server: useHistogram({ ...shared, filter: STATUS_FILTERS.server }),
   }
+  // an isolated code gets its own shape over the window rather than its class's: when the
+  // upstream went away is the question a chosen 502 is asking
+  const code = selected?.kind === 'code' ? selected.value : null
+  const codeHistogram = useHistogram(
+    { ...shared, filter: statusFilter(selected) },
+    { enabled: code !== null },
+  )
+  const codes = usePropertyValues({ from, to, property: STATUS_PROPERTY, limit: CODE_LIMIT })
 
-  const series = STATUS_SERIES.map((entry) => ({
+  const classSeries = STATUS_SERIES.map((entry) => ({
     ...entry,
     data: bucketTotals(queries[entry.key].data?.buckets),
-    dimmed: selected !== null && selected !== entry.key,
+    dimmed: selected !== null && !(selected.kind === 'class' && selected.value === entry.key),
   }))
+  const series =
+    code === null
+      ? classSeries
+      : [
+          {
+            key: String(code),
+            label: String(code),
+            color: STATUS_COLOR[statusClassOf(code)],
+            lit: statusClassOf(code) !== 'ok',
+            data: bucketTotals(codeHistogram.data?.buckets),
+            dimmed: false,
+          },
+        ]
   const starts = queries.ok.data?.buckets.map((bucket) => bucket.start) ?? []
   const bucketCount = Math.max(...series.map((s) => s.data.length), 0)
   const visible = series.filter((s) => !s.dimmed)
@@ -63,22 +88,35 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
   const compact = (value: number) =>
     new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 
+  // always the three classes, even while a code is isolated: they are the chart's legend when
+  // nothing is chosen and the way back up to a whole class when something is
   const chips = (
     <div className="flex flex-wrap items-center gap-1.5">
-      {series.map(({ key, label, color, data, dimmed }) => (
-        <SeriesChip
-          key={key}
-          color={color}
-          label={label}
-          value={compact(data.reduce((a, b) => a + b, 0))}
-          pressed={selected === key}
-          dimmed={dimmed}
-          onClick={() => onSelect(selected === key ? null : key)}
-          title={selected === key ? t.requests.showAll : t.requests.onlyThis(label)}
-        />
-      ))}
+      {classSeries.map(({ key, label, color, data, dimmed }) => {
+        const pressed = selected?.kind === 'class' && selected.value === key
+        return (
+          <SeriesChip
+            key={key}
+            color={color}
+            label={label}
+            value={compact(data.reduce((a, b) => a + b, 0))}
+            pressed={pressed}
+            dimmed={dimmed}
+            onClick={() => onSelect(pressed ? null : { kind: 'class', value: key })}
+            title={pressed ? t.requests.showAll : t.requests.onlyThis(label)}
+          />
+        )
+      })}
     </div>
   )
+
+  // The breakdown the classes cannot give: 500, 502 and 503 are the application throwing, the
+  // upstream being gone and the service shedding load, and a class chip paints all three one red.
+  // Ascending, so the row reads as a ladder from the healthy codes to the ones worth opening.
+  const codeChips = (codes.data?.values ?? [])
+    .map((value) => ({ code: Number(value.value), count: value.count }))
+    .filter((entry) => Number.isFinite(entry.code))
+    .sort((left, right) => left.code - right.code)
 
   return (
     <div>
@@ -161,6 +199,24 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
         </>
       ) : (
         <p className="mt-3 text-sm text-fg-muted">{t.requests.noStatus}</p>
+      )}
+
+      {codeChips.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-3">
+          <span className="mr-0.5 text-xs text-fg-subtle">{t.requests.byCode}</span>
+          {codeChips.map(({ code: value, count }) => (
+            <SeriesChip
+              key={value}
+              color={STATUS_COLOR[statusClassOf(value)]}
+              label={String(value)}
+              value={compact(count)}
+              pressed={code === value}
+              dimmed={code !== null && code !== value}
+              onClick={() => onSelect(code === value ? null : { kind: 'code', value })}
+              title={code === value ? t.requests.showAll : t.requests.onlyThis(String(value))}
+            />
+          ))}
+        </div>
       )}
     </div>
   )

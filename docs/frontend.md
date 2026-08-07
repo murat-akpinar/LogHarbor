@@ -479,6 +479,16 @@ when no event carries StatusCode. The legend chips are toggles: pressing one
 isolates that class — the chart drops the other series and the operations
 table, its sparklines and its Events deep links all inherit the class filter
 (StatusCode < 400 / >= 400 and < 500 / >= 500). Pressing it again restores all.
+Under the chart, the same window broken down by exact code: one chip per
+distinct StatusCode value with its count, ascending, from
+/api/stats/property-values (limit 24), each coloured by the class it falls in.
+A class cannot answer "which 5xx" — 500, 502 and 503 are the application
+throwing, the upstream being gone and the service shedding load — so picking a
+code isolates it exactly as a class does, and the chart redraws as that one
+code's shape over the window (one extra /api/stats/histogram, filtered
+StatusCode = N). The row is absent when nothing in the range carries the
+property. Selection is one thing (lib/status.ts StatusSelection): a class or a
+code, never both, and ?status= accepts either spelling (server, 502).
 Live toggle: the page shares the app's window and live flag — the rolling last
 hour, live until the reader pauses it — same as Exceptions and Queries.
 
@@ -486,10 +496,12 @@ Operations RED table as its own lens (Nightwatch's "Requests" view):
 /api/stats/operations (limit 50), per-operation RED grouped by route where
 the events carry one and by message template otherwise — events/min, error %
 (tinted red when non-zero), p95 Elapsed (em dash when the operation carries
-no Elapsed) and a filtered sparkline. The route and method property names are
-inputs on the page (Path/Method by default, RequestPath/RequestMethod under
-Serilog's ASP.NET middleware, http.route under OTel); blank falls back to
-template grouping. The numeric column headers re-sort the table client-side
+no Elapsed) and a filtered sparkline. A row that carries a route but no method
+is a request the application logged from an exception handler — the path and
+the status, no verb — and it draws as the bare path, with no verb invented for
+it. The route and method property names are inputs on the page (Path/Method by
+default, RequestPath/RequestMethod under Serilog's ASP.NET middleware,
+http.route under OTel); blank falls back to template grouping. The numeric column headers re-sort the table client-side
 (descending). Row click: navigates to Events with the range as from/to and
 the filter the row was grouped on — the route and method properties, `like`
 with % where the server folded ids out of the path, or @MessageTemplate for

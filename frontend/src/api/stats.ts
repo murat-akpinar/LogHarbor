@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { HeatmapCell, Histogram, IngestRejectionsResult, IngestionLagResult, LatencyOverview, OperationOverview, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
+import type { HeatmapCell, Histogram, IngestRejectionsResult, IngestionLagResult, LatencyOverview, OperationOverview, PropertyValueCount, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
 
 export interface StatsRangeParams {
   from: string
@@ -69,6 +69,12 @@ export function getOperations(
   },
 ): Promise<{ operations: OperationOverview[] }> {
   return api.get<{ operations: OperationOverview[] }>(`/api/stats/operations${buildQuery(params)}`)
+}
+
+export function getPropertyValues(
+  params: StatsRangeParams & { property: string; limit?: number },
+): Promise<{ values: PropertyValueCount[] }> {
+  return api.get<{ values: PropertyValueCount[] }>(`/api/stats/property-values${buildQuery(params)}`)
 }
 
 export function getUserActivity(

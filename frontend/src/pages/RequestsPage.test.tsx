@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../i18n'
 import { TimeRangeProvider } from '../hooks/useLiveRange'
-import { getHistogram, getOperations } from '../api/stats'
+import { getHistogram, getOperations, getPropertyValues } from '../api/stats'
 import { RequestsPage } from './RequestsPage'
 
 const EMPTY_COUNTS = { Verbose: 0, Debug: 0, Information: 0, Warning: 0, Error: 0, Fatal: 0 }
@@ -19,14 +19,28 @@ vi.mock('../api/stats', () => ({
     operations: [
       { template: 'GET /api/orders/{id}', method: 'GET', route: '/api/orders/{id}', total: 90, errorCount: 0, p95ElapsedMs: 120, trend: [1, 4, 2] },
       { template: 'POST /api/orders', method: 'POST', route: '/api/orders', total: 10, errorCount: 5, p95ElapsedMs: 300, trend: [0, 1, 0] },
+      // a failure logged with the path and the status and no verb: a route row with no method
+      { template: '/api/checkout', method: null, route: '/api/checkout', total: 4, errorCount: 4, p95ElapsedMs: null, trend: [0, 2, 2] },
     ],
   })),
   getHistogram: vi.fn(async ({ filter }: { filter?: string }) => {
+    if (filter === 'StatusCode = 502') return { buckets: [bucketOf(3)] }
     if (filter?.includes('StatusCode >= 500')) return { buckets: [bucketOf(4)] }
     if (filter?.includes('StatusCode >= 400')) return { buckets: [bucketOf(6)] }
-    if (filter?.includes('StatusCode <')) return { buckets: [bucketOf(90)] }
+    if (filter?.includes('StatusCode <')) return { buckets: [bucketOf(88)] }
     return { buckets: [] } // row sparklines
   }),
+  // deliberately unsorted, and summing to the class totals above: 88 / 6 / 4
+  getPropertyValues: vi.fn(async () => ({
+    values: [
+      { value: '502', count: 3 },
+      { value: '200', count: 80 },
+      { value: '404', count: 5 },
+      { value: '204', count: 8 },
+      { value: '429', count: 1 },
+      { value: '500', count: 1 },
+    ],
+  })),
 }))
 
 afterEach(() => {
@@ -72,9 +86,50 @@ it('stacks status-class series with their totals in the legend', async () => {
   expect(screen.getByText('4xx')).toBeDefined()
   expect(screen.getByText('5xx')).toBeDefined()
   // legend totals per class
-  expect(await screen.findByText('90')).toBeDefined()
+  expect(await screen.findByText('88')).toBeDefined()
   expect(screen.getByText('6')).toBeDefined()
   expect(screen.getByText('4')).toBeDefined()
+})
+
+// the classes cannot answer "which 5xx": 500, 502 and 503 are three different mornings and a
+// class chip paints them one red. The breakdown is the whole point of the section's own title.
+it('breaks the range down by exact status code, lowest first', async () => {
+  renderPage()
+  await screen.findByText('502')
+
+  expect(vi.mocked(getPropertyValues).mock.calls.some(([params]) => params.property === 'StatusCode')).toBe(true)
+
+  const codes = screen
+    .getAllByRole('button')
+    .map((button) => button.textContent ?? '')
+    .filter((text) => /^\d{3}/.test(text))
+  expect(codes).toEqual(['20080', '2048', '4045', '4291', '5001', '5023'])
+})
+
+it('narrows the table and the chart to one status code', async () => {
+  renderPage()
+  const only502 = await screen.findByRole('button', { name: /502/ })
+  only502.click()
+
+  await waitFor(() => {
+    expect(vi.mocked(getOperations).mock.calls.some(([params]) => params.filter === 'StatusCode = 502')).toBe(true)
+  })
+  // and the chart draws that code's own shape, not its class's
+  expect(vi.mocked(getHistogram).mock.calls.some(([params]) => params.filter === 'StatusCode = 502')).toBe(true)
+  await waitFor(() => expect(only502.getAttribute('aria-pressed')).toBe('true'))
+
+  // the class chip stays a way back up to every 5xx
+  expect(screen.getByRole('button', { name: /5xx/ }).getAttribute('aria-pressed')).toBe('false')
+})
+
+// the requests that fail are logged by an exception handler that has a path and no verb. They
+// reach their route now, and the row has to say so without inventing a method.
+it('shows a route row that carries no verb', async () => {
+  renderPage()
+  expect(await screen.findByText('/api/checkout')).toBeDefined()
+  const row = bodyRowTexts().find((text) => text.includes('/api/checkout')) ?? ''
+  expect(row).toContain('100.0%')
+  expect(row).not.toMatch(/GET|POST|PUT|DELETE/)
 })
 
 // opens live on the rolling last hour — pausing is the deliberate act, not starting the stream
@@ -129,9 +184,11 @@ it('re-sorts by error % when that header is clicked', async () => {
   await screen.findByText('/api/orders/{id}')
   screen.getByRole('button', { name: 'Error %' }).click()
   await waitFor(() => {
-    // the verb and the path are separate elements now, so the row text has no space between them
-    expect(bodyRowTexts()[0]).toContain('POST')
-    expect(bodyRowTexts()[1]).toContain('GET')
+    // 100% (the verbless failure row), then 50%, then the healthy one. The verb and the path are
+    // separate elements now, so the row text has no space between them.
+    expect(bodyRowTexts()[0]).toContain('/api/checkout')
+    expect(bodyRowTexts()[1]).toContain('POST')
+    expect(bodyRowTexts()[2]).toContain('GET')
   })
 })
 
@@ -154,6 +211,6 @@ it('draws each row its trend without asking for one', async () => {
 
   // and the strip is actually drawn, one bar per bucket the row carried
   const strips = document.querySelectorAll('tbody [data-trend]')
-  expect(strips).toHaveLength(2)
+  expect(strips).toHaveLength(3)
   expect(strips[0].children).toHaveLength(3)
 })
