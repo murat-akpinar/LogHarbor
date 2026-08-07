@@ -318,7 +318,7 @@ public sealed class SqliteEventStoreTests : IDisposable
         ]);
 
         var rows = await _store.GetOperationOverviewAsync(
-            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", "StatusCode", 50);
 
         Assert.Equal(4, rows.Count);
         Assert.Equal("Slow request {Path} took {Elapsed} ms", rows.Single(row => row.Route is null && row.Total == 1 && row.P95ElapsedMs == 3000).Template);
@@ -337,6 +337,76 @@ public sealed class SqliteEventStoreTests : IDisposable
         var job = rows.Single(row => row.Template == "Processed job {JobId}");
         Assert.Null(job.Route);
         Assert.Null(job.Method);
+    }
+
+    /// <summary>The requests that failed were the ones the Requests page could not show: an
+    /// exception handler logs the path and the status and no verb, so every 5xx in the product
+    /// collapsed into one "Request failed {Path}" row while the successes kept their routes.
+    /// Three facts at once, because they are one rule: an outcome reaches its route, a remark
+    /// about a path still does not, and neither moves the p95 of the route that has one.</summary>
+    [Fact]
+    public async Task OperationOverview_GroupsAnOutcomeWithoutAVerbAsItsRoute()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"Method":"GET","Path":"/orders/{id}","Elapsed":10,"StatusCode":200}""")
+                with { MessageTemplate = "Handled {Method} {Path} in {Elapsed} ms" },
+            MakeEvent("b", """{"Method":"GET","Path":"/orders/{id}","Elapsed":90,"StatusCode":200}""")
+                with { MessageTemplate = "Handled {Method} {Path} in {Elapsed} ms" },
+            // the failures: a path, a status, no verb and no duration
+            MakeEvent("c", """{"Path":"/orders/{id}","StatusCode":502}""")
+                with { MessageTemplate = "Request failed {Path}", Level = "Error" },
+            MakeEvent("d", """{"Path":"/orders/{id}","StatusCode":503}""")
+                with { MessageTemplate = "Request failed {Path}", Level = "Error" },
+            // 404 is an outcome too, and it is not an error level: the rule reads the status, not
+            // the severity, or an app that logs its 4xx at Information keeps losing them
+            MakeEvent("e", """{"Path":"/orders/{id}","StatusCode":404}"""),
+            // a remark about the path: a 200 and a duration, no outcome. Still its own template.
+            MakeEvent("f", """{"Path":"/orders/{id}","Elapsed":3000,"StatusCode":200}""")
+                with { MessageTemplate = "Slow request {Path} took {Elapsed} ms", Level = "Warning" },
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", "StatusCode", 50);
+
+        Assert.Equal(3, rows.Count);
+        // the row that used to swallow every failure in the application is gone
+        Assert.DoesNotContain(rows, row => row.Template == "Request failed {Path}");
+
+        var failed = rows.Single(row => row.Template == "/orders/{id}");
+        Assert.Equal("/orders/{id}", failed.Route);
+        // no verb was logged, so none is claimed: the deep link filters on the path alone
+        Assert.Null(failed.Method);
+        Assert.Equal(3, failed.Total);
+        Assert.Equal(2, failed.ErrorCount);
+        Assert.Null(failed.P95ElapsedMs);
+
+        // untouched: the verb row keeps its own two samples, so its p95 is what it always was
+        var handled = rows.Single(row => row.Template == "GET /orders/{id}");
+        Assert.Equal(2, handled.Total);
+        Assert.Equal(90, handled.P95ElapsedMs);
+
+        var slow = rows.Single(row => row.Template == "Slow request {Path} took {Elapsed} ms");
+        Assert.Null(slow.Route);
+        Assert.Equal(3000, slow.P95ElapsedMs);
+    }
+
+    /// <summary>Serilog writes StatusCode, OTel writes http.response.status_code: like the route
+    /// and the verb, the outcome's spelling is the caller's to say.</summary>
+    [Fact]
+    public async Task OperationOverview_TakesTheStatusPropertyNameFromTheCaller()
+    {
+        await _store.WriteBatchAsync(
+        [
+            MakeEvent("a", """{"http.route":"/cart","http.response.status_code":500}""")
+                with { MessageTemplate = "Unhandled exception", Level = "Error" },
+        ]);
+
+        var rows = await _store.GetOperationOverviewAsync(
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z",
+            "http.route", "http.request.method", "http.response.status_code", 50);
+
+        Assert.Equal("/cart", Assert.Single(rows).Route);
     }
 
     /// <summary>An app that logs the raw path instead of the route template gave every request
@@ -359,7 +429,7 @@ public sealed class SqliteEventStoreTests : IDisposable
         ]);
 
         var rows = await _store.GetOperationOverviewAsync(
-            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", "StatusCode", 50);
 
         Assert.Equal(2, rows.Count);
 
@@ -389,7 +459,7 @@ public sealed class SqliteEventStoreTests : IDisposable
         ]);
 
         var rows = await _store.GetOperationOverviewAsync(
-            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", "StatusCode", 50);
 
         Assert.Equal("/api/orders/{id}", rows.Single(row => row.Method == "GET").Route);
         Assert.Equal("/api/carts/{cartId}/items/{itemId}", rows.Single(row => row.Method == "DELETE").Route);
@@ -408,7 +478,7 @@ public sealed class SqliteEventStoreTests : IDisposable
 
         var rows = await _store.GetOperationOverviewAsync(
             null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z",
-            "RequestPath", "RequestMethod", 50);
+            "RequestPath", "RequestMethod", "StatusCode", 50);
 
         Assert.Equal("PUT /cart", rows.Single().Template);
     }
@@ -427,7 +497,7 @@ public sealed class SqliteEventStoreTests : IDisposable
         ]);
 
         var rows = await _store.GetOperationOverviewAsync(
-            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", 50);
+            null, "2026-07-13T00:00:00.0000000Z", "2026-07-14T00:00:00.0000000Z", "Path", "Method", "StatusCode", 50);
 
         Assert.Equal(2, rows.Count);
         Assert.Equal("GET /orders", rows[0].Template);

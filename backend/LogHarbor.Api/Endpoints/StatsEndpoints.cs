@@ -189,6 +189,7 @@ public static class StatsEndpoints
         string? filter = null,
         string routeProperty = "Path",
         string methodProperty = "Method",
+        string statusProperty = "StatusCode",
         int limit = 50,
         int trendBuckets = 0)
     {
@@ -196,8 +197,8 @@ public static class StatsEndpoints
         {
             return error!;
         }
-        // sinks disagree on the spelling (Path, RequestPath, http.route), so both are settings
-        foreach (var name in new[] { routeProperty, methodProperty })
+        // sinks disagree on the spelling (Path, RequestPath, http.route), so all three are settings
+        foreach (var name in new[] { routeProperty, methodProperty, statusProperty })
         {
             if (name.Length == 0 || !name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
             {
@@ -215,7 +216,7 @@ public static class StatsEndpoints
 
         var operations = await eventStore.GetOperationOverviewAsync(
             filterSql, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
-            routeProperty, methodProperty, limit, trendBuckets, cancellationToken);
+            routeProperty, methodProperty, statusProperty, limit, trendBuckets, cancellationToken);
         return Results.Ok(new { operations });
     }
 

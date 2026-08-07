@@ -252,12 +252,12 @@ GET /api/stats/top-exceptions
   200: { "exceptions": [ { type, count, firstSeen, lastSeen } ] }
 
 GET /api/stats/property-values
-  Query: also property (required, [A-Za-z0-9_] only -> else 400)
+  Query: also property (required, [A-Za-z0-9_.] only -> else 400), limit? default 20
   Top values of one structured property among matching events.
   200: { "values": [ { value, count } ] }
 
 GET /api/stats/slow-operations
-  Query: also property? (default Elapsed, [A-Za-z0-9_] only), minSamples? (default 20),
+  Query: also property? (default Elapsed, [A-Za-z0-9_.] only), minSamples? (default 20),
          floorMs? (default 50), factor? (default 2.0)
   Operation groups (by message_template) whose p95 of the numeric `property` in [from, to)
   is >= factor x the group's own baseline p95 (its history before `from`), most-regressed
@@ -324,18 +324,28 @@ POST /api/settings/ldap/test
   this endpoint is admin-only. The login path answers 401 with none of it.
 
 GET /api/stats/operations
-  Query: routeProperty? default Path, methodProperty? default Method
-         (both [A-Za-z0-9_.] only), limit? default 50, trendBuckets? default 0 (max 120)
-  Per-operation RED numbers. An event carrying BOTH properties is grouped as a route and
-  comes back with method + route filled and template set to "GET /orders/{id}"; anything
-  else falls back to its CLEF message_template (method and route null), so jobs and probes
-  stay on the list. Both are required on purpose: a line that names a path without a verb
-  ("Slow request {Path} took {Elapsed} ms") is about that path, not about its traffic, and
-  grouping it as a route would add a second row under the same name whose p95 was measured
-  over a different set of events. A request log writes one template for every route it serves,
-  which is why the route properties decide the grouping and not the template.
-  Property names differ per sink: Path/Method here, RequestPath/RequestMethod under
-  Serilog's ASP.NET middleware, http.route/http.request.method under OTel.
+  Query: routeProperty? default Path, methodProperty? default Method,
+         statusProperty? default StatusCode (all [A-Za-z0-9_.] only),
+         limit? default 50, trendBuckets? default 0 (max 120)
+  Per-operation RED numbers. An event is grouped as a route when it carries routeProperty
+  AND says what happened to the request — either a verb in methodProperty, or a 4xx/5xx code
+  in statusProperty. It comes back with route filled and template set to "GET /orders/{id}",
+  or to the bare "/orders/{id}" where no verb was logged (method null); anything else falls
+  back to its CLEF message_template (method and route null), so jobs and probes stay on the
+  list. A request log writes one template for every route it serves, which is why the route
+  properties decide the grouping and not the template.
+  The outcome is what separates a request from a remark about a path. "Slow request {Path}
+  took {Elapsed} ms" carries a 200 and a duration: it is about that path, not about its
+  traffic, and grouping it as a route would add a second row under the same name whose p95
+  was measured over a different set of events. A line carrying 502 and no verb is the
+  opposite — that request ended, and badly — and requiring the verb dropped exactly the
+  traffic an operator comes here for: an application logging its failures from an exception
+  handler (ordinary in Laravel, Django and Express) put every 5xx in the product into one
+  "Request failed {Path}" row while the successes kept their routes. Such rows carry no
+  Elapsed, so folding them in cannot move any route's p95.
+  Property names differ per sink: Path/Method/StatusCode here, RequestPath/RequestMethod
+  under Serilog's ASP.NET middleware, http.route/http.request.method/
+  http.response.status_code under OTel.
   Ids are folded out of the path before grouping, so an app that logs the raw path
   ("/api/orders/41973") groups as "/api/orders/{id}" instead of producing one group per
   request. A segment is an id when it is all digits, or a hex/uuid run of 16 characters or

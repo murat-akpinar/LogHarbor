@@ -199,16 +199,18 @@ public interface IEventStore
 
     /// <summary>
     /// Per-operation totals, Error+Fatal counts and p95 of Elapsed, largest first. An event that
-    /// carries <paramref name="routeProperty"/> is grouped as a route (with
-    /// <paramref name="methodProperty"/> in front of it when present); everything else falls back
-    /// to its CLEF message_template, so jobs and other non-HTTP operations stay visible. Both
-    /// property names must be bare identifiers ([A-Za-z0-9_.]); the API boundary validates them.
+    /// carries <paramref name="routeProperty"/> is grouped as a route when it also says what
+    /// happened to the request — either a verb in <paramref name="methodProperty"/> or a 4xx/5xx
+    /// code in <paramref name="statusProperty"/>, which is how an exception handler logs a failure
+    /// it has no verb for. Everything else falls back to its CLEF message_template, so jobs, probes
+    /// and remarks about a path ("Slow request {Path}") stay on their own rows. All three property
+    /// names must be bare identifiers ([A-Za-z0-9_.]); the API boundary validates them.
     /// Searches hot + hydrated data.
     /// </summary>
     /// <param name="trendBuckets">Columns in each row's trend strip. 0 skips the aggregation.</param>
     Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, string routeProperty, string methodProperty,
-        int limit, int trendBuckets = 0, CancellationToken cancellationToken = default);
+        string statusProperty, int limit, int trendBuckets = 0, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Per-value activity for one user-identifying <paramref name="property"/> (totals, Error+Fatal

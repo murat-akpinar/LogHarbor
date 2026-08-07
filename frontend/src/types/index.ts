@@ -202,7 +202,9 @@ export interface OperationOverview {
   total: number
   errorCount: number
   p95ElapsedMs: number | null
-  /** Set when the events carried the route property; null for template groups (jobs, probes). */
+  /** The verb, when the events named one. A failure logged by an exception handler carries the
+   *  path and the status and no verb, and still gets its route — so a row can have a route with
+   *  no method. Both are null for template groups (jobs, probes). */
   method: string | null
   route: string | null
   /** The route holds {id} placeholders the server put there, so no event carries it literally. */
@@ -210,6 +212,12 @@ export interface OperationOverview {
   /** Counts per bucket over the requested window, present only when trendBuckets was asked for.
    *  It comes down with the row so a table of them costs no requests of its own. */
   trend?: number[] | null
+}
+
+/** How often one value of a structured property appears in the range. */
+export interface PropertyValueCount {
+  value: string
+  count: number
 }
 
 /** Activity for one value of a user-identifying property: totals, Error+Fatal count and last-seen. */

@@ -553,7 +553,7 @@ public sealed class SqliteEventStore : IEventStore
 
     public async Task<IReadOnlyList<OperationOverview>> GetOperationOverviewAsync(
         QuerySql? filter, string fromUtc, string toUtc, string routeProperty, string methodProperty,
-        int limit, int trendBuckets = 0, CancellationToken cancellationToken = default)
+        string statusProperty, int limit, int trendBuckets = 0, CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
@@ -564,10 +564,25 @@ public sealed class SqliteEventStore : IEventStore
             wantsTrend ? "message_template, level, properties, timestamp" : "message_template, level, properties",
             fromUtc, toUtc, cancellationToken);
 
-        // safe to embed: both names are restricted to [A-Za-z0-9_.] at the API boundary, and the
-        // quoted step keeps dots literal (http.route is one key, not a path into an object)
+        // safe to embed: all three names are restricted to [A-Za-z0-9_.] at the API boundary, and
+        // the quoted step keeps dots literal (http.route is one key, not a path into an object)
         var route = $"json_extract(properties, '$.\"{routeProperty}\"')";
         var method = $"json_extract(properties, '$.\"{methodProperty}\"')";
+        var status = $"json_extract(properties, '$.\"{statusProperty}\"')";
+
+        // What makes a group a route rather than a message template. The verb used to be required
+        // on both counts, and that dropped exactly the traffic an operator comes here for: an
+        // application that logs its failures from an exception handler writes the path and the
+        // status and no verb (ordinary in Laravel, Django and Express, and what this repo's own
+        // traffic-sim does), so every 5xx in the product collapsed into one "Request failed {Path}"
+        // row while the successes kept their routes.
+        // The discriminator is not whether the line names a verb; it is whether the line carries an
+        // outcome. A 4xx/5xx status code says "this request ended, and badly" — it is that request's
+        // traffic. A line with a path and no outcome ("Slow request {Path} took {Elapsed} ms", which
+        // carries a 200 and a duration) is a remark *about* a path, and grouping it as a route would
+        // add a second row under the same name whose p95 was measured over a different set of
+        // events. Those still keep their template.
+        const string isRoute = "route IS NOT NULL AND (method IS NOT NULL OR status >= 400)";
 
         // A request log uses one message template for every route it serves, so grouping by the
         // template alone collapses the whole application into a single row. Where the route
@@ -589,27 +604,26 @@ public sealed class SqliteEventStore : IEventStore
         command.CommandText =
             "WITH v AS MATERIALIZED (" +
             $"SELECT message_template AS tmpl, CAST({route} AS TEXT) AS raw, " +
-            $"CAST({method} AS TEXT) AS method, level, " +
+            $"CAST({method} AS TEXT) AS method, CAST({status} AS INTEGER) AS status, level, " +
             "CAST(json_extract(properties, '$.\"Elapsed\"') AS REAL) AS ms" +
             $"{trendTs} " +
             $"FROM {source}), " +
             // ids folded out of the path, so /api/orders/41973 counts as /api/orders/{id} rather
             // than as an operation of its own (RoutePath explains what that was doing to the panel)
-            $"w AS (SELECT tmpl, raw, fold_route(raw) AS route, method, level, ms{carryTs} FROM v), " +
-            // a route is a verb and a path: a log line that mentions the path without one (a
-            // "slow request" warning, say) is about that path, not about all its traffic, and
-            // grouping it as a route would put a second row under the same name whose p95 is
-            // measured over a different set of events. Those keep their template instead.
+            $"w AS (SELECT tmpl, raw, fold_route(raw) AS route, method, status, level, ms{carryTs} FROM v), " +
             "k AS (SELECT " +
-            "CASE WHEN route IS NOT NULL AND method IS NOT NULL THEN method || ' ' || route ELSE tmpl END AS label, " +
-            "CASE WHEN route IS NOT NULL AND method IS NOT NULL THEN method END AS method, " +
-            "CASE WHEN route IS NOT NULL AND method IS NOT NULL THEN route END AS route, " +
+            // COALESCE, not method || ' ' || route: concatenating a NULL verb answers NULL, and an
+            // outcome line has no verb to name. It gets the bare path, which is honestly all the
+            // event said — and is what OperationName draws when a row comes back without a method.
+            $"CASE WHEN {isRoute} THEN COALESCE(method || ' ' || route, route) ELSE tmpl END AS label, " +
+            $"CASE WHEN {isRoute} THEN method END AS method, " +
+            $"CASE WHEN {isRoute} THEN route END AS route, " +
             // whether this group had to be folded, so a deep link back to the events knows to
             // match the pattern instead of the literal path it no longer carries
-            "CASE WHEN route IS NOT NULL AND method IS NOT NULL AND route <> raw THEN 1 ELSE 0 END AS folded, " +
+            $"CASE WHEN {isRoute} AND route <> raw THEN 1 ELSE 0 END AS folded, " +
             "level, ms" +
             $"{carryTs} " +
-            "FROM w WHERE (route IS NOT NULL AND method IS NOT NULL) OR tmpl IS NOT NULL), " +
+            $"FROM w WHERE ({isRoute}) OR tmpl IS NOT NULL), " +
             "s AS (SELECT label, MAX(method) AS method, MAX(route) AS route, MAX(folded) AS folded, " +
             "COUNT(*) AS total, " +
             "SUM(CASE WHEN level IN ('Error', 'Fatal') THEN 1 ELSE 0 END) AS errors " +

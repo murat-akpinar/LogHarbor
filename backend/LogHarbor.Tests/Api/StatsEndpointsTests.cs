@@ -280,6 +280,17 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // the status property is embedded in the JSON path like the other two, so it is validated
+    // like the other two
+    [Fact]
+    public async Task Operations_RejectsAStatusPropertyThatIsNotAnIdentifier()
+    {
+        var response = await _client.GetAsync(
+            "/api/stats/operations?from=2026-07-17T10:00:00Z&to=2026-07-17T11:00:00Z&statusProperty=bad%27name");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task Queries_GroupsBySqlText_WithDurations()
     {
