@@ -138,10 +138,6 @@ export function RequestsPage() {
         </div>
       </div>
 
-      {operations.error && (
-        <ErrorState message={operations.error.message} onRetry={() => operations.refetch()} />
-      )}
-
       <SectionBlock icon="requests" title={t.requests.statusCodes} className="shrink-0">
         <Panel className="p-4">
           <StatusChart from={range.from} to={range.to} selected={status} onSelect={setStatus} title={null} />
@@ -150,6 +146,11 @@ export function RequestsPage() {
 
       <SectionBlock icon="analysis" title={t.dashboard.routes} meta={rows.length.toLocaleString(lang)}>
         <Panel className="overflow-x-auto">
+        {/* the failure belongs where the rows would have been: a red band above a table that
+            still draws its header reads as a page-level problem beside an empty table */}
+        {operations.error ? (
+          <ErrorState className="m-3" message={operations.error.message} onRetry={() => operations.refetch()} />
+        ) : (
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -203,6 +204,7 @@ export function RequestsPage() {
           </tbody>
           )}
         </table>
+        )}
           {operations.data?.operations.length === 0 && (
             <EmptyState icon="requests" title={t.analysis.noOperations} />
           )}

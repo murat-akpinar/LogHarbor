@@ -135,13 +135,14 @@ export function QueriesPage() {
         </div>
       </div>
 
-      {queries.error && <ErrorState message={queries.error.message} onRetry={() => queries.refetch()} />}
-
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
         {/* master and detail are one object read left to right, so neither half takes a
             header of its own — the h1 names them both */}
         <SectionBlock className="flex min-h-0 flex-col lg:w-1/2">
           <Panel className="min-h-0 flex-1 overflow-auto">
+          {queries.error ? (
+            <ErrorState className="m-3" message={queries.error.message} onRetry={() => queries.refetch()} />
+          ) : (
           <table className="w-full">
             <thead className="sticky top-0 border-b border-border bg-surface-inset">
               <tr>
@@ -189,6 +190,7 @@ export function QueriesPage() {
             </tbody>
             )}
           </table>
+          )}
             {queries.data && rows.length === 0 && (
               <EmptyState icon="queries" title={t.queries.noQueries} description={t.queries.noQueriesHint} />
             )}

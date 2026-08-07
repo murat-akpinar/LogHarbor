@@ -14,6 +14,17 @@ function bucketOf(count: number) {
   return { start: '2026-07-25T10:00:00.000Z', counts: { ...EMPTY_COUNTS, Information: count } }
 }
 
+// a declaration, not a const: the mock factory is hoisted above the file body and can only
+// reach a binding that already exists when it runs. afterEach puts it back, so a test that
+// makes the chart fail cannot leave it failing for the next one.
+async function histogram({ filter }: { filter?: string }) {
+  if (filter === 'StatusCode = 502') return { buckets: [bucketOf(3)] }
+  if (filter?.includes('StatusCode >= 500')) return { buckets: [bucketOf(4)] }
+  if (filter?.includes('StatusCode >= 400')) return { buckets: [bucketOf(6)] }
+  if (filter?.includes('StatusCode <')) return { buckets: [bucketOf(88)] }
+  return { buckets: [] } // row sparklines
+}
+
 vi.mock('../api/stats', () => ({
   getOperations: vi.fn(async () => ({
     operations: [
@@ -23,13 +34,7 @@ vi.mock('../api/stats', () => ({
       { template: '/api/checkout', method: null, route: '/api/checkout', total: 4, errorCount: 4, p95ElapsedMs: null, trend: [0, 2, 2] },
     ],
   })),
-  getHistogram: vi.fn(async ({ filter }: { filter?: string }) => {
-    if (filter === 'StatusCode = 502') return { buckets: [bucketOf(3)] }
-    if (filter?.includes('StatusCode >= 500')) return { buckets: [bucketOf(4)] }
-    if (filter?.includes('StatusCode >= 400')) return { buckets: [bucketOf(6)] }
-    if (filter?.includes('StatusCode <')) return { buckets: [bucketOf(88)] }
-    return { buckets: [] } // row sparklines
-  }),
+  getHistogram: vi.fn(histogram),
   // deliberately unsorted, and summing to the class totals above: 88 / 6 / 4
   getPropertyValues: vi.fn(async () => ({
     values: [
@@ -46,6 +51,7 @@ vi.mock('../api/stats', () => ({
 afterEach(() => {
   cleanup()
   localStorage.clear()
+  vi.mocked(getHistogram).mockImplementation(histogram)
 })
 
 function renderPage(url = '/requests') {
@@ -193,6 +199,16 @@ it('draws a skeleton while the table is still loading, and the empty line only w
   land({ operations: [] })
   expect(await screen.findByText(emptyLine)).toBeDefined()
   expect(document.querySelector('tbody[data-skeleton]')).toBeNull()
+})
+
+// the chart's hint says no event carries a StatusCode, which is a different fact from "the
+// request for them failed" and was being printed for both
+it('tells a failed status chart apart from an empty one', async () => {
+  vi.mocked(getHistogram).mockRejectedValue(new Error('Database is locked'))
+  renderPage()
+
+  expect(await screen.findByText('Database is locked')).toBeDefined()
+  expect(screen.queryByText(/No events carry a StatusCode/)).toBeNull()
 })
 
 it('offers a retry when the table request fails, and asks again on click', async () => {

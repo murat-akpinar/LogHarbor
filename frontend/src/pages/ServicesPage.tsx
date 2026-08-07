@@ -59,10 +59,6 @@ export function ServicesPage() {
         />
       </div>
 
-      {services.error && (
-        <ErrorState message={services.error.message} onRetry={() => services.refetch()} />
-      )}
-
       <ServiceStatusBoard
         services={status.data?.services ?? []}
         onOpen={(row) => openFilter(probeFilter(row))}
@@ -74,6 +70,9 @@ export function ServicesPage() {
         meta={(services.data?.services.length ?? 0).toLocaleString(lang)}
       >
         <Panel className="overflow-x-auto">
+        {services.error ? (
+          <ErrorState className="m-3" message={services.error.message} onRetry={() => services.refetch()} />
+        ) : (
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -119,6 +118,7 @@ export function ServicesPage() {
           </tbody>
           )}
         </table>
+        )}
           {services.data?.services.length === 0 && <EmptyState icon="services" title={t.services.empty} />}
         </Panel>
       </SectionBlock>

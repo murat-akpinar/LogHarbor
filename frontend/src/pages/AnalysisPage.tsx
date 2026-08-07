@@ -54,7 +54,6 @@ export function AnalysisPage() {
     navigate(`/events?${params.toString()}`)
   }
 
-  const queryError = errors.error ?? exceptions.error ?? slow.error
 
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto p-4">
@@ -71,22 +70,11 @@ export function AnalysisPage() {
         />
       </div>
 
-      {queryError && (
-        <ErrorState
-          message={queryError.message}
-          onRetry={() => {
-            // one line for three queries, so the button has to reach all three: whichever
-            // failed is the one with something to retry, and a healthy query refetching costs
-            // one request
-            void errors.refetch()
-            void exceptions.refetch()
-            void slow.refetch()
-          }}
-        />
-      )}
-
       <SectionBlock icon="exceptions" title={t.analysis.topErrors} meta={(errors.data?.errors.length ?? 0).toLocaleString(lang)}>
         <Panel className="overflow-x-auto">
+          {errors.error ? (
+            <ErrorState className="m-3" message={errors.error.message} onRetry={() => errors.refetch()} />
+          ) : (
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
@@ -135,6 +123,7 @@ export function AnalysisPage() {
             </tbody>
             )}
           </table>
+          )}
           {errors.data?.errors.length === 0 && <EmptyState icon="exceptions" title={t.analysis.noErrors} />}
         </Panel>
       </SectionBlock>
@@ -147,6 +136,9 @@ export function AnalysisPage() {
         linkLabel={t.dashboard.viewAll}
       >
         <Panel className="overflow-x-auto">
+          {exceptions.error ? (
+            <ErrorState className="m-3" message={exceptions.error.message} onRetry={() => exceptions.refetch()} />
+          ) : (
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
@@ -171,6 +163,7 @@ export function AnalysisPage() {
             </tbody>
             )}
           </table>
+          )}
           {exceptions.data?.exceptions.length === 0 && (
             <EmptyState icon="exceptions" title={t.analysis.noExceptions} />
           )}
@@ -185,6 +178,9 @@ export function AnalysisPage() {
         linkLabel={t.dashboard.viewAll}
       >
         <Panel className="overflow-x-auto">
+          {slow.error ? (
+            <ErrorState className="m-3" message={slow.error.message} onRetry={() => slow.refetch()} />
+          ) : (
           <table className="w-full">
             <thead className="border-b border-border">
               <tr>
@@ -230,6 +226,7 @@ export function AnalysisPage() {
             </tbody>
             )}
           </table>
+          )}
           {slow.data && slow.data.operations.length === 0 && (
             <p className="px-4 py-10 text-center text-sm text-fg-muted">
               {slow.data.timedOperationCount === 0 ? (

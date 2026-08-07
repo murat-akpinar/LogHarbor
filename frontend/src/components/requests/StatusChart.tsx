@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useHistogram, usePropertyValues } from '../../hooks/useStats'
 import { Card } from '../ui/Card'
 import { SeriesChip } from '../ui/SeriesChip'
+import { ErrorState } from '../ui/States'
 import { LEVELS } from '../../lib/levels'
 import { STATUS_COLOR, STATUS_FILTERS, STATUS_PROPERTY, STATUS_SERIES, statusClassOf, statusFilter } from '../../lib/status'
 import type { StatusSelection } from '../../lib/status'
@@ -58,6 +59,9 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
     { enabled: code !== null },
   )
   const codes = usePropertyValues({ from, to, property: STATUS_PROPERTY, limit: CODE_LIMIT })
+  // a request that failed is not a window with no status codes in it, and the hint below says
+  // exactly that — so the failure has to be told apart from the emptiness it looks like
+  const failure = queries.ok.error ?? queries.client.error ?? queries.server.error
 
   const classSeries = STATUS_SERIES.map((entry) => ({
     ...entry,
@@ -142,7 +146,18 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
         )}
       </div>
 
-      {grandTotal > 0 ? (
+      {failure ? (
+        <ErrorState
+          className="mt-3"
+          message={failure.message}
+          onRetry={() => {
+            void queries.ok.refetch()
+            void queries.client.refetch()
+            void queries.server.refetch()
+            void codes.refetch()
+          }}
+        />
+      ) : grandTotal > 0 ? (
         <>
           <div className="mt-3">
             <div

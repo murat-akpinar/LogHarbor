@@ -43,10 +43,6 @@ export function ExceptionsPage() {
         </div>
       </div>
 
-      {exceptions.error && (
-        <ErrorState message={exceptions.error.message} onRetry={() => exceptions.refetch()} />
-      )}
-
       {/* the sentence belongs to the table, so it lives on the same plate: a count of
           exceptions is not a heading, it is what this page has to say */}
       <SectionBlock>
@@ -54,6 +50,9 @@ export function ExceptionsPage() {
           <p className="mb-3 px-2 pt-1 text-xl font-semibold text-fg">{t.exceptions.headline(total)}</p>
         )}
         <Panel className="overflow-x-auto">
+        {exceptions.error ? (
+          <ErrorState className="m-3" message={exceptions.error.message} onRetry={() => exceptions.refetch()} />
+        ) : (
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -103,6 +102,7 @@ export function ExceptionsPage() {
           </tbody>
           )}
         </table>
+        )}
           {exceptions.data && rows.length === 0 && (
             <EmptyState icon="exceptions" title={t.analysis.noExceptions} />
           )}

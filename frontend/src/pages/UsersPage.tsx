@@ -69,11 +69,12 @@ export function UsersPage() {
         </div>
       </div>
 
-      {users.error && <ErrorState message={users.error.message} onRetry={() => users.refetch()} />}
-
       {/* headerless: the h1 above already names the one table on this page */}
       <SectionBlock>
         <Panel className="overflow-x-auto">
+        {users.error ? (
+          <ErrorState className="m-3" message={users.error.message} onRetry={() => users.refetch()} />
+        ) : (
         <table className="w-full">
           <thead className="border-b border-border">
             <tr>
@@ -111,6 +112,7 @@ export function UsersPage() {
           </tbody>
           )}
         </table>
+        )}
           {users.data?.users.length === 0 && <EmptyState icon="users" title={t.users.empty(property)} />}
         </Panel>
       </SectionBlock>
