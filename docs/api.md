@@ -157,12 +157,25 @@ a once-alive heartbeat that stopped.
 
 GET    /api/alerts        200: [ { id, title, signalId, thresholdCount, windowMinutes, webhookUrl,
                                     isEnabled, createdAt, lastTriggeredAt, lastError, payloadFormat,
-                                    condition } ]
+                                    condition, acknowledgedUntil, acknowledgedBy } ]
 POST   /api/alerts        body { title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled,
                                  payloadFormat?, condition? }
                           201: AlertRule | 400 validation | 400 duplicate title | 400 unknown signal
 PUT    /api/alerts/{id}   same body  200: AlertRule | 404 | 400 (as above)
 DELETE /api/alerts/{id}   204 | 404
+
+POST   /api/alerts/{id}/acknowledge   body { minutes }   200: AlertRule | 400 | 404
+DELETE /api/alerts/{id}/acknowledge                      200: AlertRule | 404
+
+Acknowledging silences a rule until now + minutes (1 .. 10080, the same ceiling as a
+window): the evaluator skips it entirely — before the count query — so no webhook is
+sent and lastTriggeredAt is not touched. It is not disabling: the rule stays enabled,
+nothing about its schedule changes, and the moment the acknowledgement expires it fires
+again if the condition still holds. That is the whole point — the lever an operator
+reaches for at 3am must not be able to leave a rule off forever. DELETE lifts it early.
+acknowledgedBy records the session's username where the install has sign-in, and null
+where it does not; an acknowledgedUntil in the past is an expired one and is honoured
+by nobody. Both are mutations, so both need the admin role.
 
 condition is 'at-least' (default; thresholdCount must be >= 1) or 'silence' (thresholdCount
 is ignored and may be 0). webhookUrl must be an absolute http(s) URL (never a file path or

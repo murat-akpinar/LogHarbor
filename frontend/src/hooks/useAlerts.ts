@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createAlert, deleteAlert, getAlerts, updateAlert } from '../api/alerts'
+import { acknowledgeAlert, createAlert, deleteAlert, getAlerts, resumeAlert, updateAlert } from '../api/alerts'
 import type { AlertRequest } from '../api/alerts'
 
 const ALERTS_KEY = ['alerts']
@@ -28,6 +28,16 @@ export function useDeleteAlert() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => deleteAlert(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ALERTS_KEY }),
+  })
+}
+
+/** Silences a firing rule for a while, or lifts the silence (minutes null). */
+export function useAcknowledgeAlert() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, minutes }: { id: number; minutes: number | null }) =>
+      minutes === null ? resumeAlert(id) : acknowledgeAlert(id, minutes),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ALERTS_KEY }),
   })
 }

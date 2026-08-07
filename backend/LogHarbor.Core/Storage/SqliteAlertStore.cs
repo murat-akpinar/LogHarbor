@@ -5,10 +5,11 @@ namespace LogHarbor.Core.Storage;
 
 public sealed class SqliteAlertStore : IAlertStore
 {
-    // payload_format stays last so reader ordinals never shift for older columns
+    // new columns are appended so reader ordinals never shift for older ones
     private const string Columns =
         "id, title, signal_id, threshold_count, window_minutes, webhook_url, is_enabled, " +
-        "created_at, last_triggered_at, last_error, payload_format, condition";
+        "created_at, last_triggered_at, last_error, payload_format, condition, " +
+        "acknowledged_until, acknowledged_by";
 
     private const int UniqueConstraintCode = 2067;     // SQLITE_CONSTRAINT_UNIQUE
     private const int ForeignKeyConstraintCode = 787;  // SQLITE_CONSTRAINT_FOREIGNKEY
@@ -111,7 +112,7 @@ public sealed class SqliteAlertStore : IAlertStore
         command.CommandText =
             "SELECT r.id, r.title, r.signal_id, r.threshold_count, r.window_minutes, r.webhook_url, " +
             "r.is_enabled, r.created_at, r.last_triggered_at, r.last_error, r.payload_format, r.condition, " +
-            "s.title, s.filter " +
+            "r.acknowledged_until, r.acknowledged_by, s.title, s.filter " +
             "FROM alert_rules r JOIN signals s ON s.id = r.signal_id " +
             "WHERE r.is_enabled = 1 ORDER BY r.id;";
 
@@ -119,7 +120,7 @@ public sealed class SqliteAlertStore : IAlertStore
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            alerts.Add(new EnabledAlert(ReadRule(reader), reader.GetString(12), reader.GetString(13)));
+            alerts.Add(new EnabledAlert(ReadRule(reader), reader.GetString(14), reader.GetString(15)));
         }
         return alerts;
     }
@@ -145,6 +146,22 @@ public sealed class SqliteAlertStore : IAlertStore
         command.Parameters.AddWithValue("@error", error);
         command.Parameters.AddWithValue("@id", id);
         await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task<AlertRule?> AcknowledgeAsync(
+        long id, string? untilUtc, string? by, CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            "UPDATE alert_rules SET acknowledged_until = @until, acknowledged_by = @by " +
+            $"WHERE id = @id RETURNING {Columns};";
+        command.Parameters.AddWithValue("@until", (object?)untilUtc ?? DBNull.Value);
+        command.Parameters.AddWithValue("@by", (object?)by ?? DBNull.Value);
+        command.Parameters.AddWithValue("@id", id);
+
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        return await reader.ReadAsync(cancellationToken) ? ReadRule(reader) : null;
     }
 
     private static void AddRuleParameters(
@@ -173,5 +190,7 @@ public sealed class SqliteAlertStore : IAlertStore
         reader.IsDBNull(8) ? null : reader.GetString(8),
         reader.IsDBNull(9) ? null : reader.GetString(9),
         reader.GetString(10),
-        reader.GetString(11));
+        reader.GetString(11),
+        reader.IsDBNull(12) ? null : reader.GetString(12),
+        reader.IsDBNull(13) ? null : reader.GetString(13));
 }

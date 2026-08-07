@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { AlertRule } from '../types'
-import { useAlerts, useCreateAlert, useDeleteAlert, useUpdateAlert } from '../hooks/useAlerts'
+import { useAcknowledgeAlert, useAlerts, useCreateAlert, useDeleteAlert, useUpdateAlert } from '../hooks/useAlerts'
 import { useSignals } from '../hooks/useSignals'
 import { useIsAdmin } from '../hooks/useAuth'
 import { formatTimestamp } from '../lib/dates'
@@ -11,11 +11,26 @@ import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
 
+/** How long an operator silences an alarm for. Three, because a list of durations is a
+ *  decision and the useful ones are "until I have looked", "until after lunch" and "tomorrow". */
+const ACKNOWLEDGE_DURATIONS: { minutes: number; label: string }[] = [
+  { minutes: 60, label: '1h' },
+  { minutes: 4 * 60, label: '4h' },
+  { minutes: 24 * 60, label: '24h' },
+]
+
 function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTitle: string; isAdmin: boolean }) {
   const { t, lang } = useI18n()
   const [isEditing, setIsEditing] = useState(false)
   const updateAlert = useUpdateAlert()
   const deleteAlert = useDeleteAlert()
+  const acknowledge = useAcknowledgeAlert()
+  // an acknowledgement in the past is none: the server stops honouring it at that instant and
+  // the row must not go on claiming a silence that has run out
+  const silencedUntil =
+    alert.acknowledgedUntil !== null && Date.parse(alert.acknowledgedUntil) > Date.now()
+      ? alert.acknowledgedUntil
+      : null
 
   if (isEditing) {
     return (
@@ -59,10 +74,47 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
           {alert.lastTriggeredAt && (
             <div className="mt-0.5 text-xs text-fg-muted">{t.alerts.lastFired(formatTimestamp(alert.lastTriggeredAt, lang))}</div>
           )}
+          {silencedUntil && (
+            <div className="mt-1 inline-flex items-center gap-1 rounded bg-level-warning/12 px-1.5 py-0.5 text-xs text-level-warning">
+              {t.alerts.acknowledgedUntil(formatTimestamp(silencedUntil, lang))}
+              {alert.acknowledgedBy && <span>{t.alerts.acknowledgedBy(alert.acknowledgedBy)}</span>}
+            </div>
+          )}
           {alert.lastError && <div className="mt-0.5 text-xs text-level-error">{alert.lastError}</div>}
         </div>
         {isAdmin && (
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            {/* silencing is not disabling: the rule keeps its schedule and starts paging again
+                by itself, which is what makes it safe to reach for at 3am */}
+            {silencedUntil ? (
+              <Button
+                variant="secondary"
+                title={t.alerts.resumeHint}
+                disabled={acknowledge.isPending}
+                onClick={() => acknowledge.mutate({ id: alert.id, minutes: null })}
+              >
+                {t.alerts.resume}
+              </Button>
+            ) : (
+              <span className="flex items-center gap-1 rounded-lg border border-border px-1.5 py-0.5">
+                <span className="text-xs text-fg-subtle">{t.alerts.acknowledge}</span>
+                {ACKNOWLEDGE_DURATIONS.map(({ minutes, label }) => (
+                  <button
+                    key={minutes}
+                    type="button"
+                    // the visible label is a duration; the name a screen reader reads has to be
+                    // the whole action, and it is what a test can hold the button by
+                    aria-label={t.alerts.acknowledgeFor(label)}
+                    title={t.alerts.acknowledgeFor(label)}
+                    disabled={acknowledge.isPending}
+                    onClick={() => acknowledge.mutate({ id: alert.id, minutes })}
+                    className="rounded px-1.5 py-0.5 font-mono text-xs text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg disabled:opacity-50"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </span>
+            )}
             <Button variant="ghost" onClick={() => setIsEditing(true)}>
               {t.common.edit}
             </Button>
@@ -73,6 +125,7 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
         )}
       </div>
       {deleteAlert.error && <p className="mt-1 text-xs text-level-error">{deleteAlert.error.message}</p>}
+      {acknowledge.error && <p className="mt-1 text-xs text-level-error">{acknowledge.error.message}</p>}
     </div>
   )
 }

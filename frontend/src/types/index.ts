@@ -338,6 +338,11 @@ export interface AlertRule {
   lastError: string | null
   payloadFormat: AlertPayloadFormat
   condition: AlertCondition
+  /** UTC instant this rule stops being silenced; null when it is not acknowledged. A value in
+   *  the past is an expired acknowledgement, which the server treats as none. */
+  acknowledgedUntil: string | null
+  /** Who took it, when the install has sign-in; null otherwise. */
+  acknowledgedBy: string | null
 }
 
 export interface Health {

@@ -613,6 +613,21 @@ man's switch). Choosing silence hides the threshold field (sent as 0) and relabe
 window as the silence period; the rule row summary reads "fires when silent for Nmin".
 Read-only for viewers (list only; the create form and edit/delete buttons are admin-only).
 
+--- ALERTS PAGE: ACKNOWLEDGING ---
+
+A firing rule re-fires every window for as long as the condition holds, and the
+only lever used to be "disable the rule" — which is a switch somebody has to
+remember to put back. Each row now carries three durations (1h / 4h / 24h): one
+click silences the rule for that long (POST /api/alerts/{id}/acknowledge).
+
+While it is silenced the row says so in the warning colour, with the instant it
+comes back and who took it, and the durations are replaced by one Resume button —
+one lever at a time. The rule stays *enabled* throughout; the server skips it
+until the acknowledgement expires and then evaluates it again as if nothing had
+happened. An acknowledgedUntil in the past is treated as none, by the page as well
+as by the server, so a row cannot go on claiming a silence that has run out.
+Viewers see the state and none of the controls, like every other mutation.
+
 --- NOT FOUND ---
 
 Unknown client routes render a "Page not found" view with a link back to Events

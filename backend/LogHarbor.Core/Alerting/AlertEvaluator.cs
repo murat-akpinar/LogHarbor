@@ -15,7 +15,8 @@ public interface IWebhookSender
 /// Checks every enabled alert rule against the last WindowMinutes of events and fires
 /// its webhook when the signal's match count reaches the threshold. After a firing the
 /// rule stays quiet for one full window (cooldown), successful or not, so a dead
-/// webhook is not hammered every evaluation.
+/// webhook is not hammered every evaluation. An acknowledged rule is skipped entirely
+/// until its acknowledgement expires.
 /// </summary>
 public sealed class AlertEvaluator
 {
@@ -46,6 +47,14 @@ public sealed class AlertEvaluator
         {
             var toUtc = ClefParser.FormatTimestamp(now);
             var fromUtc = ClefParser.FormatTimestamp(now.AddMinutes(-rule.WindowMinutes));
+            // acknowledged first, and before the count query: somebody has said they know, so
+            // the cheapest correct thing is to do nothing at all. The rule is not touched, so
+            // when the acknowledgement expires it fires again if the condition still holds —
+            // which is the difference between acknowledging an alarm and disabling a rule.
+            if (rule.IsAcknowledgedAt(toUtc))
+            {
+                continue;
+            }
             if (rule.LastTriggeredAt is not null && string.CompareOrdinal(rule.LastTriggeredAt, fromUtc) > 0)
             {
                 continue; // still cooling down

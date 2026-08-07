@@ -27,3 +27,11 @@ export function updateAlert(id: number, request: AlertRequest): Promise<AlertRul
 export function deleteAlert(id: number): Promise<void> {
   return api.delete<void>(`/api/alerts/${id}`)
 }
+
+export function acknowledgeAlert(id: number, minutes: number): Promise<AlertRule> {
+  return api.post<AlertRule>(`/api/alerts/${id}/acknowledge`, { minutes })
+}
+
+export function resumeAlert(id: number): Promise<AlertRule> {
+  return api.delete<AlertRule>(`/api/alerts/${id}/acknowledge`)
+}

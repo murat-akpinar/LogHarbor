@@ -1,7 +1,8 @@
 namespace LogHarbor.Core.Storage;
 
 /// <summary>Fires a webhook when a signal matches at least ThresholdCount events within WindowMinutes.
-/// PayloadFormat picks the webhook body shape: generic (raw JSON), slack, discord.</summary>
+/// PayloadFormat picks the webhook body shape: generic (raw JSON), slack, discord.
+/// AcknowledgedUntil suppresses the firing until that instant and then expires by itself.</summary>
 public sealed record AlertRule(
     long Id,
     string Title,
@@ -14,7 +15,15 @@ public sealed record AlertRule(
     string? LastTriggeredAt,
     string? LastError,
     string PayloadFormat,
-    string Condition);
+    string Condition,
+    string? AcknowledgedUntil = null,
+    string? AcknowledgedBy = null)
+{
+    /// <summary>Whether the rule is silenced at <paramref name="nowUtc"/>. Ordinal comparison is
+    /// exact here: both are fixed-width UTC ISO-8601, so string order is chronological order.</summary>
+    public bool IsAcknowledgedAt(string nowUtc) =>
+        AcknowledgedUntil is not null && string.CompareOrdinal(AcknowledgedUntil, nowUtc) > 0;
+}
 
 /// <summary>An enabled rule joined with its signal, ready for evaluation.</summary>
 public sealed record EnabledAlert(AlertRule Rule, string SignalTitle, string SignalFilter);
@@ -45,6 +54,13 @@ public interface IAlertStore
 
     /// <summary>Records an evaluation problem (e.g. unparseable signal filter) without a firing.</summary>
     Task SetErrorAsync(long id, string error, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Silences a rule until <paramref name="untilUtc"/>, or lifts the silence when it is null.
+    /// Returns the updated rule, or null when the id does not exist.
+    /// </summary>
+    Task<AlertRule?> AcknowledgeAsync(
+        long id, string? untilUtc, string? by, CancellationToken cancellationToken = default);
 }
 
 public sealed class DuplicateAlertTitleException(string title)
