@@ -103,7 +103,9 @@ export function StatusChart({ from, to, selected, onSelect, title, action }: Sta
             key={key}
             color={color}
             label={label}
-            value={compact(data.reduce((a, b) => a + b, 0))}
+            // no count while the request for it is failing: a chip reading 0 is a claim about
+            // the data, and there is no data
+            value={failure ? undefined : compact(data.reduce((a, b) => a + b, 0))}
             pressed={pressed}
             dimmed={dimmed}
             onClick={() => onSelect(pressed ? null : { kind: 'class', value: key })}
