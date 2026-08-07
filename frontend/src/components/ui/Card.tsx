@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 
 /**
  * plate  — a free-standing object on the canvas: translucent, blurred, edged with a hairline.
@@ -20,12 +20,17 @@ export function Card({
   children,
   className = '',
   variant = 'plate',
+  style,
 }: {
   children: ReactNode
   className?: string
   variant?: Variant
+  /** Carries the entrance delay a caller staggers a row of plates with, as Panel does. */
+  style?: CSSProperties
 }) {
   return (
-    <div className={`glass rounded-card border border-border ${VARIANTS[variant]} ${className}`}>{children}</div>
+    <div style={style} className={`glass rounded-card border border-border ${VARIANTS[variant]} ${className}`}>
+      {children}
+    </div>
   )
 }

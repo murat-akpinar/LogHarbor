@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react'
 import { PageIcon } from './icons'
 import type { PageIconName } from './icons'
 import { TrendLine } from './Sparkline'
-import { Panel } from './ui/Panel'
+import { Card } from './ui/Card'
 import { Delta } from './ui/Delta'
 
 const PLATE_CLASS = {
@@ -49,6 +49,13 @@ interface StatTileProps {
  *
  * The hairline along the top edge carries the same colour, which is what makes five tiles in a
  * row read as five different measurements instead of five copies of one card.
+ *
+ * A plate, not a well (2026-08-07). These five stand directly on the canvas — nothing encloses
+ * them — and Panel is defined as what a card *becomes inside a SectionBlock*: black at 30%, cut
+ * into a plate that is holding it. There was no plate here to cut into, so the tiles were black
+ * on the canvas. It went unnoticed while the canvas carried a green and an indigo wash, which
+ * showed through the 30% and passed for tinted glass; the moment that wash went neutral the
+ * tiles read as five black boxes. Free-standing object -> Card. See [[ui-dark-glass-language]].
  */
 export function StatTile({
   label,
@@ -65,7 +72,7 @@ export function StatTile({
   const hasTrend = trend !== undefined && trend.length > 0
 
   return (
-    <Panel
+    <Card
       className={`animate-rise relative overflow-hidden px-4 pt-3 ${hasTrend ? TREND_CLEARANCE : 'pb-4'}`}
       style={{ '--delay': `${index * 26}ms` } as CSSProperties}
     >
@@ -102,6 +109,6 @@ export function StatTile({
           fill
         />
       )}
-    </Panel>
+    </Card>
   )
 }
