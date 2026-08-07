@@ -7,6 +7,7 @@ import type {
   LdapSettings,
   LdapTestResult,
   LoginMethod,
+  RedactionSettings,
   UserRole,
 } from '../types'
 
@@ -20,6 +21,14 @@ export function createApiKey(title: string): Promise<CreatedApiKey> {
 
 export function revokeApiKey(id: number): Promise<void> {
   return api.delete<void>(`/api/apikeys/${id}`)
+}
+
+export function getRedactionSettings(): Promise<RedactionSettings> {
+  return api.get<RedactionSettings>('/api/settings/redaction')
+}
+
+export function saveRedactionSettings(properties: string[]): Promise<RedactionSettings> {
+  return api.put<RedactionSettings>('/api/settings/redaction', { properties })
 }
 
 export function getHealth(): Promise<Health> {

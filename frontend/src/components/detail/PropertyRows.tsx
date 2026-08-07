@@ -1,5 +1,5 @@
 import type { Json } from '../JsonTree'
-import { JsonTree } from '../JsonTree'
+import { JsonTree, REDACTED } from '../JsonTree'
 import { propertyEquals } from '../../lib/filter'
 import { useI18n } from '../../i18n'
 import { CopyButton } from './CopyButton'
@@ -34,9 +34,19 @@ export function PropertyRows({ properties, onFilter }: PropertyRowsProps) {
             <span className="w-28 shrink-0 truncate font-mono text-xs text-fg-subtle" title={key}>
               {key}
             </span>
-            <span className="min-w-0 flex-1 font-mono text-xs break-words text-fg">{text}</span>
+            {/* the server wrote this one, not the application: a reader has to be able to tell
+                "the field was empty" from "this server refused to keep it" */}
+            <span
+              className={`min-w-0 flex-1 font-mono text-xs break-words ${
+                text === REDACTED ? 'text-level-warning' : 'text-fg'
+              }`}
+            >
+              {text}
+            </span>
             <span className="flex shrink-0 items-center opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-              {onFilter && value !== null && (
+              {/* nothing to filter by: every redacted row holds the same placeholder, so the
+                  filter would select the redactions rather than anything about this event */}
+              {onFilter && value !== null && text !== REDACTED && (
                 <button
                   type="button"
                   onClick={() => onFilter(propertyEquals(key, text))}

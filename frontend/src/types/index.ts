@@ -214,6 +214,12 @@ export interface OperationOverview {
   trend?: number[] | null
 }
 
+/** Property names whose values ingestion refuses to keep; empty means the feature is off. */
+export interface RedactionSettings {
+  properties: string[]
+  enabled: boolean
+}
+
 /** How often one value of a structured property appears in the range. */
 export interface PropertyValueCount {
   value: string

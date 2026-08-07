@@ -82,6 +82,11 @@ trace/span: @tr and @sp are validated on ingest — 32/16 hex chars, not all-zer
   filters exact-match across both ingestion routes.
 OTLP: /v1/logs events go through the same normalization; the full
   LogRecord -> Event mapping table lives in docs/ingestion-otlp.md.
+redaction: the last step before the write, and the only one that destroys data.
+  Off unless Settings names a property (docs/redaction.md): matching properties,
+  nested ones included, are stored as the string "[redacted]" instead of their
+  value, and a message that spelled one out is re-rendered from the redacted bag.
+  The key stays — a missing key would say the field was never there.
 
 --- SQLITE SETUP (MIGRATION RUNNER, ORDER MATTERS) ---
 

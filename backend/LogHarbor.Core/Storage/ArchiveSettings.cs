@@ -35,4 +35,9 @@ public interface ISettingsStore
     Task<Auth.LdapSettings> GetLdapSettingsAsync(CancellationToken cancellationToken = default);
 
     Task SaveLdapSettingsAsync(Auth.LdapSettings settings, CancellationToken cancellationToken = default);
+
+    /// <summary>Property names dropped on the way in. Empty (the shipped state) means none.</summary>
+    Task<RedactionSettings> GetRedactionSettingsAsync(CancellationToken cancellationToken = default);
+
+    Task SaveRedactionSettingsAsync(RedactionSettings settings, CancellationToken cancellationToken = default);
 }

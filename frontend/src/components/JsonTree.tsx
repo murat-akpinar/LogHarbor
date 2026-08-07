@@ -2,12 +2,21 @@ export type Json = string | number | boolean | null | Json[] | { [key: string]: 
 
 const KEY_CLASS = 'text-fg-muted'
 
+/** What the server writes where a property matched the redaction list (backend EventRedactor). */
+export const REDACTED = '[redacted]'
+
 function Primitive({ value }: { value: string | number | boolean | null }) {
   if (value === null) {
     return <span className="text-fg-subtle">null</span>
   }
   if (typeof value === 'string') {
-    return <span className="break-all text-fg">"{value}"</span>
+    // not an ordinary string: this one was written by this server, not by the application, and
+    // a reader has to be able to tell "the field was empty" from "we refused to keep it"
+    return value === REDACTED ? (
+      <span className="rounded bg-level-warning/12 px-1 py-0.5 text-level-warning">{REDACTED}</span>
+    ) : (
+      <span className="break-all text-fg">"{value}"</span>
+    )
   }
   return <span className="text-accent">{String(value)}</span>
 }

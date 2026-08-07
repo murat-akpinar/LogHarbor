@@ -7,6 +7,7 @@ public sealed class SqliteSettingsStore : ISettingsStore
 {
     private const string ArchiveKey = "archive";
     private const string LdapKey = "ldap";
+    private const string RedactionKey = "redaction";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -37,6 +38,16 @@ public sealed class SqliteSettingsStore : ISettingsStore
 
     public Task SaveLdapSettingsAsync(LdapSettings settings, CancellationToken cancellationToken = default)
         => SaveAsync(LdapKey, JsonSerializer.Serialize(settings, JsonOptions), cancellationToken);
+
+    /// <summary>Unconfigured reads back as the empty list, which is the same as configured and
+    /// left empty: nothing is redacted either way.</summary>
+    public async Task<RedactionSettings> GetRedactionSettingsAsync(CancellationToken cancellationToken = default)
+        => await LoadAsync(RedactionKey, cancellationToken) is { } json
+            ? JsonSerializer.Deserialize<RedactionSettings>(json, JsonOptions) ?? new RedactionSettings()
+            : new RedactionSettings();
+
+    public Task SaveRedactionSettingsAsync(RedactionSettings settings, CancellationToken cancellationToken = default)
+        => SaveAsync(RedactionKey, JsonSerializer.Serialize(settings, JsonOptions), cancellationToken);
 
     private async Task<string?> LoadAsync(string key, CancellationToken cancellationToken)
     {

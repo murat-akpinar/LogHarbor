@@ -237,6 +237,22 @@ page's own h1 over its only table names nothing. Tables live in a well with
 `overflow-x-auto`, charts in a padded well, and figures inside a well go one surface lighter
 again (the query detail's tiles) rather than taking a border.
 
+--- SETTINGS: REDACTION CARD ---
+
+Settings -> Ingestion -> Redaction (components/settings/RedactionCard.tsx) edits
+the property deny-list from docs/redaction.md. Deliberately a list of chips rather
+than a text area: every entry permanently destroys data on the way in, so each one
+is its own object, added on purpose and removable on sight. The usual names are
+offered as one-click suggestions, nothing is saved until Save (typing must not
+start deleting data), and a viewer sees the list without the controls.
+The card ends with what redaction does not reach — already-stored events, free
+text, exception stack traces — because a card that reads as "secrets cannot be
+here" would stop people looking where it cannot clean.
+A redacted value draws in the warning colour wherever an event is read
+(detail/PropertyRows.tsx and JsonTree.tsx), and that row offers no filter action:
+every redacted row holds the same placeholder, so filtering by it would select the
+redactions rather than anything about the event.
+
 --- LOADING, EMPTY AND FAILED (components/ui/States.tsx) ---
 
 Three shapes, shared by every panel that fetches; the words stay per page.

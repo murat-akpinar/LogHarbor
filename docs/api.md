@@ -251,6 +251,20 @@ GET /api/stats/top-exceptions
   (the whole first line when it has no colon).
   200: { "exceptions": [ { type, count, firstSeen, lastSeen } ] }
 
+GET /api/settings/redaction
+  200: { "properties": ["password"], "enabled": true }
+  Property names whose values are replaced with "[redacted]" as events arrive, on every
+  ingestion path (docs/redaction.md). Empty is the shipped state and means nothing is
+  redacted. Readable by any session.
+
+PUT /api/settings/redaction
+  Body: { "properties": ["Password", " token "] }
+  Saves the list, trimmed, lowercased and deduplicated — matching is case-insensitive, so
+  two entries differing only in case are one rule. 400 when there are more than 50 names,
+  a name is longer than 64 characters, or one holds a control character. Admin only, like
+  every mutation.
+  200: the saved settings, in the same shape as the GET.
+
 GET /api/stats/property-values
   Query: also property (required, [A-Za-z0-9_.] only -> else 400), limit? default 20
   Top values of one structured property among matching events.

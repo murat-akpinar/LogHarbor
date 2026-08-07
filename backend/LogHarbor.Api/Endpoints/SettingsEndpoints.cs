@@ -8,6 +8,15 @@ public static class SettingsEndpoints
     public sealed record ArchiveSettingsRequest(
         int? CompressAfterDays, int? HydrationKeepDays, int? RetentionDays, long? MaxDatabaseBytes);
 
+    public sealed record RedactionSettingsRequest(string[]? Properties);
+
+    /// <summary>A deny-list is read by a person; past a screenful nobody can say what it does.</summary>
+    public const int MaxRedactedProperties = 50;
+
+    /// <summary>Longer than any property name a sink actually writes, and the entries are
+    /// fragments of names rather than whole ones.</summary>
+    public const int MaxRedactedNameLength = 64;
+
     /// <summary>Below this a cap would fight the ingestion limits rather than protect the disk:
     /// one MaxBatchBytes batch has to fit with room to spare.</summary>
     public const long MinimumSizeCapBytes = 64 * 1024 * 1024;
@@ -73,6 +82,47 @@ public static class SettingsEndpoints
                 MaxDatabaseBytes = request.MaxDatabaseBytes ?? current.MaxDatabaseBytes,
             };
             await store.SaveArchiveSettingsAsync(settings, cancellationToken);
+            return Results.Ok(settings);
+        });
+
+        group.MapGet("/redaction", async (ISettingsStore store, CancellationToken cancellationToken) =>
+            Results.Ok(await store.GetRedactionSettingsAsync(cancellationToken)));
+
+        group.MapPut("/redaction", async (
+            RedactionSettingsRequest request, ISettingsStore store, CancellationToken cancellationToken) =>
+        {
+            // trimmed, lowercased and deduplicated here rather than at match time: the list is
+            // read by a person and matched case-insensitively, so two entries differing only in
+            // case are one rule wearing two hats
+            var names = (request.Properties ?? [])
+                .Select(name => name.Trim().ToLowerInvariant())
+                .Where(name => name.Length > 0)
+                .Distinct()
+                .ToArray();
+
+            var errors = new Dictionary<string, string[]>();
+            if (names.Length > MaxRedactedProperties)
+            {
+                errors["properties"] = [$"At most {MaxRedactedProperties} names."];
+            }
+            else if (Array.Find(names, name => name.Length > MaxRedactedNameLength) is { } tooLong)
+            {
+                errors["properties"] = [
+                    $"'{tooLong[..MaxRedactedNameLength]}…' is longer than {MaxRedactedNameLength} characters."];
+            }
+            // a control character cannot appear in a JSON property name that any sink writes, so
+            // one in the list is a paste accident that would silently match nothing
+            else if (Array.Find(names, name => name.Any(char.IsControl)) is not null)
+            {
+                errors["properties"] = ["Names cannot contain control characters."];
+            }
+            if (errors.Count > 0)
+            {
+                return Results.ValidationProblem(errors);
+            }
+
+            var settings = new RedactionSettings { Properties = names };
+            await store.SaveRedactionSettingsAsync(settings, cancellationToken);
             return Results.Ok(settings);
         });
 

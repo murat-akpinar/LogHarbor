@@ -22,6 +22,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { LdapCard } from '../components/settings/LdapCard'
 import { UsersCard } from '../components/settings/UsersCard'
 import { SettingsTabs } from '../components/settings/SettingsTabs'
+import { RedactionCard } from '../components/settings/RedactionCard'
 import { Input } from '../components/ui/Input'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
@@ -511,8 +512,11 @@ export function SettingsPage() {
             <SettingsSection title={t.settings.apiKeys} index={0}>
               <ApiKeysCard />
             </SettingsSection>
+            <SettingsSection title={t.settings.redaction} index={1}>
+              <RedactionCard />
+            </SettingsSection>
             {/* one click from the key, which is where somebody realises they need the snippet */}
-            <SectionBlock icon="events" title={t.send.title} index={1}>
+            <SectionBlock icon="events" title={t.send.title} index={2}>
               <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <p className="min-w-0 max-w-2xl text-sm leading-relaxed text-fg-muted">{t.send.lead}</p>
                 <Link

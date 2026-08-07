@@ -493,6 +493,22 @@ export const en = {
     events: 'Events',
     dbSize: 'Database size',
     apiKeys: 'API keys',
+    redaction: 'Redaction',
+    redactionHint:
+      'Whatever an application logs, this server stores verbatim and keeps. Name a property here '
+      + 'and its value is replaced with [redacted] as the event arrives — before it is written, so '
+      + 'nothing on disk ever held it. Names are matched as fragments, ignoring case: "token" '
+      + 'covers AccessToken and X-Csrf-Token.',
+    redactionNone: 'Nothing is redacted',
+    redactionNoneHint: 'Every property arrives and is stored as the application sent it.',
+    redactionAddLabel: 'Property name to redact',
+    redactionPlaceholder: 'password',
+    redactionSuggestions: 'Common ones:',
+    redactionRemove: (name: string) => `Stop redacting ${name}`,
+    redactionLimits:
+      'Applies to events arriving from now on — it cannot clean what is already stored. It reads '
+      + 'property names, so a secret pasted into the message text or inside an exception stack '
+      + 'trace stays; the message is only cleaned where it spelled out a property this list names.',
     backup: 'Backup',
     backupHint:
       'Downloads a consistent snapshot of the whole database — safe while the server is running. Restore steps are in the README.',

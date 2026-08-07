@@ -23,6 +23,7 @@ public static class OtlpEndpoints
     private static async Task<IResult> HandleLogsAsync(
         HttpRequest httpRequest,
         IEventStore eventStore,
+        ISettingsStore settingsStore,
         TailBroadcaster tailBroadcaster,
         IngestionOptions options,
         IngestRejectionRecorder rejections,
@@ -73,7 +74,8 @@ public static class OtlpEndpoints
         }
 
         var result = OtlpLogParser.Parse(request, DateTimeOffset.UtcNow, options.MaxEventBytes);
-        var ids = await eventStore.WriteBatchAsync(result.Events, cancellationToken);
+        var events = await Redaction.ApplyAsync(result.Events, settingsStore, cancellationToken);
+        var ids = await eventStore.WriteBatchAsync(events, cancellationToken);
         LogHarborMetrics.CountIngested(result.Events.Count, "otlp");
         await tailBroadcaster.BroadcastAsync(ids, cancellationToken);
         LogHarborMetrics.RecordIngestDuration(

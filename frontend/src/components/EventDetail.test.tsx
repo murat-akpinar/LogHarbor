@@ -99,6 +99,19 @@ it('asks for the surrounding minutes of this event', () => {
   expect(to).toBe('2026-07-13T10:02:00.000Z')
 })
 
+// the server wrote this value, the application did not: "the field was empty" and "we refused
+// to keep it" are different facts, and a plain quoted string tells the wrong one
+it('marks a redacted value instead of showing it as an ordinary string', () => {
+  renderDetail({ ...base, properties: '{"Password":"[redacted]","User":"ada"}' })
+
+  const marker = screen.getByText('[redacted]')
+  expect(marker.className).toContain('text-level-warning')
+  // an ordinary value draws as itself, in the ordinary colour
+  expect(screen.getByText('ada').className).toContain('text-fg')
+  // and there is nothing to filter by: every redacted row holds the same placeholder
+  expect(screen.queryByLabelText('Filter by Password')).toBeNull()
+})
+
 it('keeps the raw JSON collapsed until asked for', () => {
   renderDetail(base)
   const details = screen.getByText('Raw JSON').closest('details')

@@ -491,6 +491,22 @@ export const tr: Messages = {
     events: 'Olaylar',
     dbSize: 'Veritabanı boyutu',
     apiKeys: 'API anahtarları',
+    redaction: 'Maskeleme',
+    redactionHint:
+      'Bir uygulama ne loglarsa bu sunucu onu olduğu gibi saklar. Buraya bir property adı yaz, '
+      + 'değeri olay gelir gelmez [redacted] ile değiştirilsin — diske yazılmadan önce, yani hiçbir '
+      + 'zaman kaydedilmemiş olur. Adlar parça olarak, büyük/küçük harf gözetmeden eşleşir: "token" '
+      + 'hem AccessToken hem X-Csrf-Token demektir.',
+    redactionNone: 'Hiçbir şey maskelenmiyor',
+    redactionNoneHint: 'Her property uygulamanın gönderdiği hâliyle saklanıyor.',
+    redactionAddLabel: 'Maskelenecek property adı',
+    redactionPlaceholder: 'password',
+    redactionSuggestions: 'Sık kullanılanlar:',
+    redactionRemove: (name: string) => `${name} maskelemesini kaldır`,
+    redactionLimits:
+      'Bundan sonra gelen olaylar için geçerlidir; hâlihazırda kayıtlı olanı temizlemez. Property '
+      + 'adlarına bakar, dolayısıyla mesaj metnine ya da istisna yığın izine gömülmüş bir sır '
+      + 'kalır; mesaj yalnızca bu listedeki bir property\'yi yazıya döktüğü yerde temizlenir.',
     backup: 'Yedekleme',
     backupHint:
       'Veritabanının tamamının tutarlı bir anlık görüntüsünü indirir — sunucu çalışırken güvenlidir. Geri yükleme adımları README dosyasında.',

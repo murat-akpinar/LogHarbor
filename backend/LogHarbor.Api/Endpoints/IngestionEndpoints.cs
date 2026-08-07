@@ -33,6 +33,7 @@ public static class IngestionEndpoints
     private static async Task<IResult> HandleAsync(
         HttpRequest request,
         IEventStore eventStore,
+        ISettingsStore settingsStore,
         TailBroadcaster tailBroadcaster,
         IngestionOptions options,
         IngestRejectionRecorder rejections,
@@ -59,10 +60,12 @@ public static class IngestionEndpoints
             return await RejectAsync(request, rejections, failure, cancellationToken);
         }
 
+        var stored = await Redaction.ApplyAsync(events, settingsStore, cancellationToken);
+
         IReadOnlyList<long> ids;
         try
         {
-            ids = await eventStore.WriteBatchAsync(events, cancellationToken);
+            ids = await eventStore.WriteBatchAsync(stored, cancellationToken);
         }
         catch (SqliteException exception)
         {
