@@ -183,10 +183,23 @@
 }
 
 /* ---------------------------------------------------------------------------
-   The lit canvas: three washes over a gradient, painted on the root and fixed
-   so it does not travel with a scrolling page. Every translucent surface in the
-   app is transparent *to this* — without a lit background the glass has nothing
-   to be glass over and the whole palette collapses into flat grey.
+   The canvas: painted on the root and fixed so it does not travel with a
+   scrolling page. Every translucent surface in the app is transparent *to this*
+   — without a lit background the glass has nothing to be glass over and the
+   whole palette collapses into flat grey.
+
+   Two states, changed 2026-08-07 on the owner's ask. The signed-in app gets a
+   neutral ramp with one soft white wash: no colour, because a green and an
+   indigo bloom behind eight hours of log reading is tiring, and the reader's
+   eye should be caught by a 5xx bar and nothing else. Colour survives only
+   behind the sign-in screen (html.lit, set by LoginGate's Shell), which is the
+   one screen that is an impression rather than a readout.
+
+   What keeps the glass from collapsing: surfaces are white at 6-12% alpha, so
+   they read against *luminance* variation, not hue. The wash below is neutral
+   but it is still a gradient, the 165deg ramp still runs dark toward the
+   bottom, and body::after still lays noise over both — so blur, hairline and
+   shadow all have something to sit on.
    --------------------------------------------------------------------------- */
 
 html {
@@ -195,12 +208,21 @@ html {
      centre is outside the viewport shows only its own falloff, which is why the first attempt
      read as flat black. Ellipses stay large so no edge of the gradient is ever visible. */
   background-image:
+    radial-gradient(60rem 42rem at 12% 0%, rgb(255 255 255 / 0.045), transparent 70%),
+    linear-gradient(165deg, var(--color-bg) 0%, var(--color-bg-deep) 65%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* The sign-in canvas, unchanged from what the whole app used to wear. LoginGate's
+   Shell adds this class while it is mounted and takes it off on the way out, so it
+   covers the password-change screen too — both are pre-auth. */
+html.lit {
+  background-image:
     radial-gradient(55rem 38rem at 12% 0%, color-mix(in oklab, var(--color-glow-a) 26%, transparent), transparent 70%),
     radial-gradient(50rem 34rem at 92% 6%, color-mix(in oklab, var(--color-glow-b) 20%, transparent), transparent 68%),
     radial-gradient(45rem 30rem at 65% 100%, color-mix(in oklab, var(--color-glow-a) 14%, transparent), transparent 72%),
     linear-gradient(165deg, var(--color-bg) 0%, var(--color-bg-deep) 65%);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
 }
 
 body {

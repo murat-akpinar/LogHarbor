@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ComponentPropsWithoutRef, FormEvent, ReactNode } from 'react'
 import { useAuthStatus, useChangePassword, useLogin } from '../hooks/useAuth'
 import { useI18n } from '../i18n'
@@ -58,11 +58,16 @@ function SampleStream() {
   )
 }
 
-/** The page around the form: the product on the left, one card on the right. The canvas already
- *  carries the app's ambient wash; this page turns it up, because it is the only screen with
- *  room to be an impression rather than a readout. */
+/** The page around the form: the product on the left, one card on the right. The signed-in
+ *  canvas is neutral on purpose (index.css), so this screen turns the colour back on for as
+ *  long as it is mounted — it is the only screen with room to be an impression rather than a
+ *  readout, and the only one nobody stares at for eight hours. */
 function Shell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   const { t } = useI18n()
+  useEffect(() => {
+    document.documentElement.classList.add('lit')
+    return () => document.documentElement.classList.remove('lit')
+  }, [])
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
       <div
