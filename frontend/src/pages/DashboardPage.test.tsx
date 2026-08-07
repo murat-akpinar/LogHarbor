@@ -431,7 +431,7 @@ describe('alarm state', () => {
     expect(await screen.findByText(/checkout errors/)).toBeDefined()
     expect(await screen.findByRole('link', { name: 'Open events' })).toBeDefined()
 
-    const dimmed = document.querySelector('.opacity-60.saturate-50')
+    const dimmed = document.querySelector('[data-dimmed]')
     expect(dimmed).not.toBeNull()
     expect(dimmed!.textContent).toContain('Activity')
   })
@@ -442,7 +442,7 @@ describe('alarm state', () => {
 
     await screen.findByText('Activity')
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(document.querySelector('.opacity-60.saturate-50')).toBeNull()
+    expect(document.querySelector('[data-dimmed]')).toBeNull()
   })
 
   it('leaves an acknowledged rule out of the alarm', async () => {

@@ -152,9 +152,15 @@ export function DashboardPage() {
           answer. Dimmed rather than hidden: the page has to stay readable for the operator who
           wants it, and un-dimming the moment the alarm is acknowledged is what tells them the
           click landed. `now` moves with the page's own tick, so the state clears by itself. */}
+      {/* data-dimmed is the handle, not the classes: what "stepped back" looks like is a
+          judgement that gets retuned by looking at a real alarm, and a test should not hold it
+          to one opacity. Desaturation carries most of the weight — on a dark canvas 40% opacity
+          barely changes a near-black surface, but the level colours going grey is unmistakable,
+          and colour is what these charts say things with. */}
       <div
+        data-dimmed={firing.length > 0 ? '' : undefined}
         className={`flex flex-col gap-4 transition-[opacity,filter] duration-500 ${
-          firing.length > 0 ? 'opacity-60 saturate-50' : ''
+          firing.length > 0 ? 'opacity-50 saturate-[0.25]' : ''
         }`}
       >
       {summary.data && total === 0 && (
