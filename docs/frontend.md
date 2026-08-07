@@ -237,6 +237,27 @@ page's own h1 over its only table names nothing. Tables live in a well with
 `overflow-x-auto`, charts in a padded well, and figures inside a well go one surface lighter
 again (the query detail's tiles) rather than taking a border.
 
+--- LOADING, EMPTY AND FAILED (components/ui/States.tsx) ---
+
+Three shapes, shared by every panel that fetches; the words stay per page.
+
+ErrorState   the message (the server's own ProblemDetails detail wherever there is
+             one) plus a "Try again" wired to that query's refetch. A failed panel
+             used to print its message and stay dead until the reader guessed to
+             reload the page.
+EmptyState   title, optional description, optional page icon and action slot,
+             centred in the space the data would have filled — an empty well with
+             one sentence in its top-left corner reads as a table that failed.
+TableSkeletonBody / Skeleton
+             the shape of what is coming. The table keeps its header and swaps its
+             whole <tbody>, so nothing jumps when rows land.
+
+The skeleton is the one that fixes a real defect rather than tidying: a pending
+table and an empty table were both nothing at all, and React Query holds "pending"
+for seconds while it retries a failed request — so "still loading" and "nothing
+here" looked identical. The pulse lives on the one <tbody>, not on each cell,
+because test/perf-check counts how many elements animate at once.
+
 --- LEVEL COLORS ---
 
 Colors come from theme tokens, not per-component Tailwind classes: --color-level-fatal,

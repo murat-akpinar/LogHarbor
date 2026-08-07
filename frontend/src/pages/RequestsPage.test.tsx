@@ -179,6 +179,32 @@ it('ignores a status class it does not know', async () => {
   expect(screen.getByRole('button', { name: /5xx/ }).getAttribute('aria-pressed')).toBe('false')
 })
 
+// "still loading" and "nothing here" used to look identical -- both were an empty table -- and
+// React Query holds that state for seconds while it retries
+it('draws a skeleton while the table is still loading, and the empty line only when it is empty', async () => {
+  let land: (value: { operations: [] }) => void = () => {}
+  vi.mocked(getOperations).mockImplementationOnce(() => new Promise((resolve) => { land = resolve }))
+  renderPage()
+
+  const emptyLine = /No operations with a message template/
+  await waitFor(() => expect(document.querySelector('tbody[data-skeleton]')).not.toBeNull())
+  expect(screen.queryByText(emptyLine)).toBeNull()
+
+  land({ operations: [] })
+  expect(await screen.findByText(emptyLine)).toBeDefined()
+  expect(document.querySelector('tbody[data-skeleton]')).toBeNull()
+})
+
+it('offers a retry when the table request fails, and asks again on click', async () => {
+  vi.mocked(getOperations).mockRejectedValueOnce(new Error('Database is locked'))
+  renderPage()
+
+  expect(await screen.findByText('Database is locked')).toBeDefined()
+  const calls = vi.mocked(getOperations).mock.calls.length
+  screen.getByRole('button', { name: 'Try again' }).click()
+  await waitFor(() => expect(vi.mocked(getOperations).mock.calls.length).toBeGreaterThan(calls))
+})
+
 it('re-sorts by error % when that header is clicked', async () => {
   renderPage()
   await screen.findByText('/api/orders/{id}')

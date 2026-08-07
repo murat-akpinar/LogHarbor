@@ -7,6 +7,7 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
 import { formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
 import { LEVEL_CHART } from '../lib/levels'
@@ -70,7 +71,19 @@ export function AnalysisPage() {
         />
       </div>
 
-      {queryError && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queryError.message}</p>}
+      {queryError && (
+        <ErrorState
+          message={queryError.message}
+          onRetry={() => {
+            // one line for three queries, so the button has to reach all three: whichever
+            // failed is the one with something to retry, and a healthy query refetching costs
+            // one request
+            void errors.refetch()
+            void exceptions.refetch()
+            void slow.refetch()
+          }}
+        />
+      )}
 
       <SectionBlock icon="exceptions" title={t.analysis.topErrors} meta={(errors.data?.errors.length ?? 0).toLocaleString(lang)}>
         <Panel className="overflow-x-auto">
@@ -85,6 +98,9 @@ export function AnalysisPage() {
                 <th className={TH_CLASS}>{t.analysis.lastSeen}</th>
               </tr>
             </thead>
+            {errors.isPending ? (
+              <TableSkeletonBody columns={6} />
+            ) : (
             <tbody>
               {(errors.data?.errors ?? []).map((row) => (
                 <tr
@@ -117,10 +133,9 @@ export function AnalysisPage() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
-          {errors.data?.errors.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">{t.analysis.noErrors}</p>
-          )}
+          {errors.data?.errors.length === 0 && <EmptyState icon="exceptions" title={t.analysis.noErrors} />}
         </Panel>
       </SectionBlock>
 
@@ -141,6 +156,9 @@ export function AnalysisPage() {
                 <th className={TH_CLASS}>{t.analysis.lastSeen}</th>
               </tr>
             </thead>
+            {exceptions.isPending ? (
+              <TableSkeletonBody columns={4} />
+            ) : (
             <tbody>
               {(exceptions.data?.exceptions ?? []).map((row) => (
                 <tr key={row.type} className="border-b border-border last:border-b-0">
@@ -151,9 +169,10 @@ export function AnalysisPage() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
           {exceptions.data?.exceptions.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">{t.analysis.noExceptions}</p>
+            <EmptyState icon="exceptions" title={t.analysis.noExceptions} />
           )}
         </Panel>
       </SectionBlock>
@@ -177,6 +196,9 @@ export function AnalysisPage() {
                 <th className={TH_CLASS}>{t.analysis.trend}</th>
               </tr>
             </thead>
+            {slow.isPending ? (
+              <TableSkeletonBody columns={5} />
+            ) : (
             <tbody>
               {(slow.data?.operations ?? []).map((op) => (
                 <tr
@@ -206,9 +228,10 @@ export function AnalysisPage() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
           {slow.data && slow.data.operations.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">
+            <p className="px-4 py-10 text-center text-sm text-fg-muted">
               {slow.data.timedOperationCount === 0 ? (
                 <>
                   {t.analysis.noTimedOpsBefore}

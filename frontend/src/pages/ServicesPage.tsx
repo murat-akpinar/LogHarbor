@@ -6,6 +6,7 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
 import { quote } from '../lib/filter'
 import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
@@ -59,7 +60,7 @@ export function ServicesPage() {
       </div>
 
       {services.error && (
-        <p className="bg-level-error/10 p-2 text-sm text-level-error">{services.error.message}</p>
+        <ErrorState message={services.error.message} onRetry={() => services.refetch()} />
       )}
 
       <ServiceStatusBoard
@@ -83,6 +84,9 @@ export function ServicesPage() {
               <th className={TH_CLASS}>{t.services.trend}</th>
             </tr>
           </thead>
+          {services.isPending ? (
+            <TableSkeletonBody columns={5} />
+          ) : (
           <tbody>
             {(services.data?.services ?? []).map((row) => (
               <tr
@@ -113,10 +117,9 @@ export function ServicesPage() {
               </tr>
             ))}
           </tbody>
-        </table>
-          {services.data?.services.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">{t.services.empty}</p>
           )}
+        </table>
+          {services.data?.services.length === 0 && <EmptyState icon="services" title={t.services.empty} />}
         </Panel>
       </SectionBlock>
     </div>

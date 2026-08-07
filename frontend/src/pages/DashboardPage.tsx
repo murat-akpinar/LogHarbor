@@ -19,6 +19,7 @@ import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { Skeleton } from '../components/ui/States'
 import { StatTile } from '../components/StatTile'
 import { formatDuration } from '../lib/duration'
 import { LiveRangeControls } from '../components/LiveRangeControls'
@@ -263,7 +264,8 @@ export function DashboardPage() {
 
       <SectionBlock icon="dashboard" title={t.dashboard.activityByHour} index={4}>
         <Panel className="p-4">
-          {heatmap.isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
+          {/* the height the grid will take, so the section does not jump when it lands */}
+          {heatmap.isLoading && <Skeleton className="h-40 w-full" />}
           {heatmap.data && (
             <div className={heatmap.isFetching ? 'opacity-60 transition-opacity' : ''}>
               <Heatmap cells={heatmap.data.cells} />

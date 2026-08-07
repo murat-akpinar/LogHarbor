@@ -5,6 +5,7 @@ import { useIsAdmin } from '../hooks/useAuth'
 import { SignalForm } from '../components/SignalForm'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
 
@@ -56,7 +57,7 @@ function SignalRow({ signal, isAdmin }: { signal: Signal; isAdmin: boolean }) {
 
 export function SignalsPage() {
   const { t } = useI18n()
-  const { data: signals, isLoading, error } = useSignals()
+  const { data: signals, isLoading, error, refetch } = useSignals()
   const createSignal = useCreateSignal()
   const isAdmin = useIsAdmin()
 
@@ -75,9 +76,15 @@ export function SignalsPage() {
       {/* headerless: the page's own h1 already names the one list on it */}
       <SectionBlock index={1}>
         <Panel className="overflow-hidden">
-          {isLoading && <p className="p-4 text-sm text-fg-muted">{t.common.loading}</p>}
-          {error && <p className="p-4 text-sm text-level-error">{error.message}</p>}
-          {signals && signals.length === 0 && <p className="p-4 text-sm text-fg-muted">{t.signals.noSignals}</p>}
+          {isLoading && (
+            <div className="space-y-3 p-4">
+              <Skeleton className="h-5 w-2/5" />
+              <Skeleton className="h-5 w-1/3" />
+              <Skeleton className="h-5 w-1/2" />
+            </div>
+          )}
+          {error && <ErrorState className="m-3" message={error.message} onRetry={() => refetch()} />}
+          {signals && signals.length === 0 && <EmptyState icon="signals" title={t.signals.noSignals} />}
           {signals?.map((signal) => (
             <SignalRow key={signal.id} signal={signal} isAdmin={isAdmin} />
           ))}

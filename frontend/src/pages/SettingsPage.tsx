@@ -18,6 +18,7 @@ import { ArchiveSegments } from '../components/ArchiveSegments'
 import { KeyValueList } from '../components/ui/KeyValueList'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { LdapCard } from '../components/settings/LdapCard'
 import { UsersCard } from '../components/settings/UsersCard'
 import { SettingsTabs } from '../components/settings/SettingsTabs'
@@ -55,7 +56,7 @@ function ApiKeysCard() {
   const { t, lang } = useI18n()
   const isAdmin = useIsAdmin()
   const queryClient = useQueryClient()
-  const { data: keys, isLoading, error } = useQuery({ queryKey: API_KEYS_KEY, queryFn: getApiKeys })
+  const { data: keys, isLoading, error, refetch } = useQuery({ queryKey: API_KEYS_KEY, queryFn: getApiKeys })
   const [title, setTitle] = useState('')
   const [createdKey, setCreatedKey] = useState<CreatedApiKey | null>(null)
 
@@ -111,9 +112,14 @@ function ApiKeysCard() {
         </div>
       )}
 
-      {isLoading && <p className="text-sm text-fg-muted">{t.common.loading}</p>}
-      {error && <p className="text-sm text-level-error">{error.message}</p>}
-      {keys && keys.length === 0 && <p className="text-sm text-fg-muted">{t.settings.noKeys}</p>}
+      {isLoading && (
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-1/2" />
+          <Skeleton className="h-5 w-1/3" />
+        </div>
+      )}
+      {error && <ErrorState message={error.message} onRetry={() => refetch()} />}
+      {keys && keys.length === 0 && <EmptyState icon="settings" title={t.settings.noKeys} />}
 
       {keys && keys.length > 0 && (
         <table className="w-full text-sm">

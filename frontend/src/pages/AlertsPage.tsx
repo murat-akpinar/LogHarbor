@@ -7,6 +7,7 @@ import { formatTimestamp } from '../lib/dates'
 import { AlertForm } from '../components/AlertForm'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
 
@@ -78,7 +79,7 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
 
 export function AlertsPage() {
   const { t } = useI18n()
-  const { data: alerts, isLoading, error } = useAlerts()
+  const { data: alerts, isLoading, error, refetch } = useAlerts()
   const { data: signals } = useSignals()
   const createAlert = useCreateAlert()
   const isAdmin = useIsAdmin()
@@ -103,9 +104,15 @@ export function AlertsPage() {
       {/* headerless: the page's own h1 already names the one list on it */}
       <SectionBlock index={1}>
         <Panel className="overflow-hidden">
-          {isLoading && <p className="p-4 text-sm text-fg-muted">{t.common.loading}</p>}
-          {error && <p className="p-4 text-sm text-level-error">{error.message}</p>}
-          {alerts && alerts.length === 0 && <p className="p-4 text-sm text-fg-muted">{t.alerts.noAlerts}</p>}
+          {isLoading && (
+            <div className="space-y-3 p-4">
+              <Skeleton className="h-5 w-2/5" />
+              <Skeleton className="h-5 w-1/3" />
+              <Skeleton className="h-5 w-1/2" />
+            </div>
+          )}
+          {error && <ErrorState className="m-3" message={error.message} onRetry={() => refetch()} />}
+          {alerts && alerts.length === 0 && <EmptyState icon="alerts" title={t.alerts.noAlerts} />}
           {alerts?.map((alert) => (
             <AlertRow key={alert.id} alert={alert} signalTitle={signalTitle(alert.signalId)} isAdmin={isAdmin} />
           ))}

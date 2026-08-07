@@ -6,6 +6,7 @@ import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
 import { formatTimestamp } from '../lib/dates'
 import { propertyEquals } from '../lib/filter'
 import { SERIES } from '../lib/series'
@@ -68,7 +69,7 @@ export function UsersPage() {
         </div>
       </div>
 
-      {users.error && <p className="bg-level-error/10 p-2 text-sm text-level-error">{users.error.message}</p>}
+      {users.error && <ErrorState message={users.error.message} onRetry={() => users.refetch()} />}
 
       {/* headerless: the h1 above already names the one table on this page */}
       <SectionBlock>
@@ -83,6 +84,9 @@ export function UsersPage() {
               <th className={TH_CLASS}>{t.users.trend}</th>
             </tr>
           </thead>
+          {users.isPending ? (
+            <TableSkeletonBody columns={5} />
+          ) : (
           <tbody>
             {(users.data?.users ?? []).map((row) => {
               const errorPct = row.total > 0 ? (row.errorCount / row.total) * 100 : 0
@@ -105,8 +109,9 @@ export function UsersPage() {
               )
             })}
           </tbody>
+          )}
         </table>
-          {users.data?.users.length === 0 && <p className="p-3 text-sm text-fg-muted">{t.users.empty(property)}</p>}
+          {users.data?.users.length === 0 && <EmptyState icon="users" title={t.users.empty(property)} />}
         </Panel>
       </SectionBlock>
     </div>

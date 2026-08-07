@@ -11,6 +11,7 @@ import { STATUS_FILTERS, statusFilter } from '../lib/status'
 import type { StatusClass, StatusSelection } from '../lib/status'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
 import { Input } from '../components/ui/Input'
 import { METHOD_PROPERTY, ROUTE_PROPERTY, operationFilter } from '../lib/operations'
 import { SERIES } from '../lib/series'
@@ -138,7 +139,7 @@ export function RequestsPage() {
       </div>
 
       {operations.error && (
-        <p className="bg-level-error/10 p-2 text-sm text-level-error">{operations.error.message}</p>
+        <ErrorState message={operations.error.message} onRetry={() => operations.refetch()} />
       )}
 
       <SectionBlock icon="requests" title={t.requests.statusCodes} className="shrink-0">
@@ -159,6 +160,9 @@ export function RequestsPage() {
               <th className={TH_CLASS}>{t.analysis.trend}</th>
             </tr>
           </thead>
+          {operations.isPending ? (
+            <TableSkeletonBody columns={5} />
+          ) : (
           <tbody>
             {rows.map((op) => {
               const errorPct = errorFraction(op) * 100
@@ -197,9 +201,10 @@ export function RequestsPage() {
               )
             })}
           </tbody>
+          )}
         </table>
           {operations.data?.operations.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">{t.analysis.noOperations}</p>
+            <EmptyState icon="requests" title={t.analysis.noOperations} />
           )}
         </Panel>
       </SectionBlock>

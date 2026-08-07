@@ -26,6 +26,7 @@ export const en = {
     back: 'Back',
     close: 'Close',
     dismiss: 'Dismiss',
+    retry: 'Try again',
   },
   onboarding: {
     title: 'Send your first log',

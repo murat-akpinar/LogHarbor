@@ -12,6 +12,7 @@ import { Sparkline } from '../components/Sparkline'
 import { SqlText } from '../components/SqlText'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { useLocalStorage } from '../hooks/useLocalStorage'
@@ -134,7 +135,7 @@ export function QueriesPage() {
         </div>
       </div>
 
-      {queries.error && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queries.error.message}</p>}
+      {queries.error && <ErrorState message={queries.error.message} onRetry={() => queries.refetch()} />}
 
       <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
         {/* master and detail are one object read left to right, so neither half takes a
@@ -151,6 +152,9 @@ export function QueriesPage() {
                 {sortableHeader('p95', t.queries.p95)}
               </tr>
             </thead>
+            {queries.isPending ? (
+              <TableSkeletonBody columns={5} />
+            ) : (
             <tbody>
               {rows.map((row) => (
                 <tr
@@ -183,12 +187,10 @@ export function QueriesPage() {
                 </tr>
               ))}
             </tbody>
+            )}
           </table>
             {queries.data && rows.length === 0 && (
-              <div className="p-4">
-                <p className="text-sm text-fg">{t.queries.noQueries}</p>
-                <p className="mt-2 text-sm text-fg-muted">{t.queries.noQueriesHint}</p>
-              </div>
+              <EmptyState icon="queries" title={t.queries.noQueries} description={t.queries.noQueriesHint} />
             )}
           </Panel>
         </SectionBlock>

@@ -6,6 +6,7 @@ import { ExceptionContextPanel } from '../components/exceptions/ExceptionContext
 import { Sparkline } from '../components/Sparkline'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
+import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
 import { formatTimestamp } from '../lib/dates'
 import { exceptionStartsWith } from '../lib/filter'
 import { SERIES } from '../lib/series'
@@ -43,7 +44,7 @@ export function ExceptionsPage() {
       </div>
 
       {exceptions.error && (
-        <p className="bg-level-error/10 p-2 text-sm text-level-error">{exceptions.error.message}</p>
+        <ErrorState message={exceptions.error.message} onRetry={() => exceptions.refetch()} />
       )}
 
       {/* the sentence belongs to the table, so it lives on the same plate: a count of
@@ -64,6 +65,9 @@ export function ExceptionsPage() {
               <th className={TH_CLASS}>{t.analysis.lastSeen}</th>
             </tr>
           </thead>
+          {exceptions.isPending ? (
+            <TableSkeletonBody columns={6} />
+          ) : (
           <tbody>
             {rows.map((row) => (
               <Fragment key={row.type}>
@@ -97,9 +101,10 @@ export function ExceptionsPage() {
               </Fragment>
             ))}
           </tbody>
+          )}
         </table>
           {exceptions.data && rows.length === 0 && (
-            <p className="p-3 text-sm text-fg-muted">{t.analysis.noExceptions}</p>
+            <EmptyState icon="exceptions" title={t.analysis.noExceptions} />
           )}
         </Panel>
       </SectionBlock>

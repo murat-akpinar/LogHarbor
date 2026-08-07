@@ -28,6 +28,7 @@ export const tr: Messages = {
     back: 'Geri',
     close: 'Kapat',
     dismiss: 'Kapat',
+    retry: 'Yeniden dene',
   },
   onboarding: {
     title: 'İlk logunu gönder',
