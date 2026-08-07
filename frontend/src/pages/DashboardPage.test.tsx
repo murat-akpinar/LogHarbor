@@ -7,6 +7,7 @@ import { LanguageProvider } from '../i18n'
 import { TimeRangeProvider } from '../hooks/useLiveRange'
 import { DashboardPage } from './DashboardPage'
 import * as stats from '../api/stats'
+import * as alertsApi from '../api/alerts'
 
 const FIFTEEN_MIN_MS = 15 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
@@ -86,7 +87,30 @@ const stub = vi.hoisted(() => ({
   /** Answers the previous-period call only; null means both windows read the same summary. */
   previousSummary: null as { total: number; byLevel: Record<string, number> } | null,
   previousBefore: '',
+  /** Alert rules as the server would answer them; empty is a quiet dashboard. */
+  alerts: [] as Record<string, unknown>[],
 }))
+
+/** A rule that fired a minute ago and is not acknowledged: alarming. */
+function firingRule(over: Record<string, unknown> = {}) {
+  return {
+    id: 1,
+    title: 'checkout-errors',
+    signalId: 7,
+    thresholdCount: 10,
+    windowMinutes: 5,
+    webhookUrl: 'https://example.com/hook',
+    isEnabled: true,
+    createdAt: '2026-07-24T09:00:00.0000000Z',
+    lastTriggeredAt: new Date(Date.now() - 60_000).toISOString(),
+    lastError: null,
+    payloadFormat: 'generic',
+    condition: 'at-least',
+    acknowledgedUntil: null,
+    acknowledgedBy: null,
+    ...over,
+  }
+}
 
 vi.mock('../api/stats', () => ({
   getSummary: vi.fn(async (params: { to: string }) =>
@@ -109,6 +133,26 @@ vi.mock('../api/stats', () => ({
   getOperations: vi.fn(async () => stub.operations ?? OPERATIONS),
   getUserActivity: vi.fn(async () => USERS),
 }))
+
+vi.mock('../api/alerts', () => ({
+  getAlerts: vi.fn(async () => stub.alerts),
+  acknowledgeAlert: vi.fn(async () => stub.alerts[0]),
+  resumeAlert: vi.fn(async () => stub.alerts[0]),
+  createAlert: vi.fn(),
+  updateAlert: vi.fn(),
+  deleteAlert: vi.fn(),
+}))
+
+vi.mock('../api/signals', () => ({
+  getSignals: vi.fn(async () => [
+    { id: 7, title: 'checkout errors', filter: "@Level = 'Error'", createdAt: '2026-07-24T09:00:00.0000000Z' },
+  ]),
+  createSignal: vi.fn(),
+  updateSignal: vi.fn(),
+  deleteSignal: vi.fn(),
+}))
+
+vi.mock('../hooks/useAuth', () => ({ useIsAdmin: () => true }))
 
 function renderPage() {
   localStorage.setItem('logharbor-lang', 'en')
@@ -137,6 +181,7 @@ afterEach(() => {
   stub.operations = null
   stub.previousSummary = null
   stub.previousBefore = ''
+  stub.alerts = []
 })
 
 describe('DashboardPage', () => {
@@ -368,5 +413,54 @@ describe('DashboardPage', () => {
       const width = Date.now() - new Date((visible as { from: string }).from).getTime()
       expect(width).toBeLessThanOrEqual(FIFTEEN_MIN_MS + 60_000)
     })
+  })
+})
+
+describe('alarm state', () => {
+  // an alert used to fire into a webhook and nowhere else: the dashboard looked the same
+  // whether everything was fine or the checkout had been erroring for ten minutes
+  it('raises a deck naming what is firing, and dims the rest of the page', async () => {
+    stub.alerts = [firingRule()]
+    renderPage()
+
+    const deck = await screen.findByRole('alert')
+    expect(deck.textContent).toContain('An alert is firing')
+    expect(deck.textContent).toContain('checkout-errors')
+    // the signal it watches, resolved for the reader once that query lands, and the way into
+    // its events
+    expect(await screen.findByText(/checkout errors/)).toBeDefined()
+    expect(await screen.findByRole('link', { name: 'Open events' })).toBeDefined()
+
+    const dimmed = document.querySelector('.opacity-60.saturate-50')
+    expect(dimmed).not.toBeNull()
+    expect(dimmed!.textContent).toContain('Activity')
+  })
+
+  it('says nothing at all when no rule is firing', async () => {
+    stub.alerts = [firingRule({ lastTriggeredAt: '2026-07-24T08:00:00.0000000Z' })]
+    renderPage()
+
+    await screen.findByText('Activity')
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(document.querySelector('.opacity-60.saturate-50')).toBeNull()
+  })
+
+  it('leaves an acknowledged rule out of the alarm', async () => {
+    stub.alerts = [firingRule({ acknowledgedUntil: new Date(Date.now() + 3_600_000).toISOString() })]
+    renderPage()
+
+    await screen.findByText('Activity')
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  // the deck is where somebody actually meets the alarm, so it carries the lever
+  it('acknowledges from the deck itself', async () => {
+    stub.alerts = [firingRule()]
+    renderPage()
+    await screen.findByRole('alert')
+
+    screen.getByRole('button', { name: 'Acknowledge for 1h' }).click()
+
+    await waitFor(() => expect(vi.mocked(alertsApi.acknowledgeAlert)).toHaveBeenCalledWith(1, 60))
   })
 })

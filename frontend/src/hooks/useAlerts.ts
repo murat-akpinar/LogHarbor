@@ -4,8 +4,10 @@ import type { AlertRequest } from '../api/alerts'
 
 const ALERTS_KEY = ['alerts']
 
+/** Polled at the rate the server evaluates rules: the dashboard's alarm state is read from
+ *  these rows, and a state that only refreshed on navigation would be a state nobody sees. */
 export function useAlerts() {
-  return useQuery({ queryKey: ALERTS_KEY, queryFn: getAlerts })
+  return useQuery({ queryKey: ALERTS_KEY, queryFn: getAlerts, refetchInterval: 60_000 })
 }
 
 export function useCreateAlert() {

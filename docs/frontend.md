@@ -613,6 +613,32 @@ man's switch). Choosing silence hides the threshold field (sent as 0) and relabe
 window as the silence period; the rule row summary reads "fires when silent for Nmin".
 Read-only for viewers (list only; the create form and edit/delete buttons are admin-only).
 
+--- DASHBOARD: ALARM STATE ---
+
+When a rule is firing the dashboard stops being a dashboard. A deck rises above
+everything (components/dashboard/AlarmDeck.tsx) naming what is firing, what it
+watches, when it last fired and the error the webhook returned if there was one;
+everything below it drops to opacity-60 saturate-50. A page read top to bottom for
+context is the wrong answer when something is actually wrong — one card is.
+
+Firing is derived, not stored (lib/alerts.ts): a rule is alarming when it is
+enabled, is not acknowledged, and last triggered within its own window plus one
+scheduler tick. The extra tick is what makes it exact and self-clearing — once the
+rule has had a pass in which it could have re-fired and did not, the condition has
+cleared. Nothing to write down, nothing to expire server-side, and every browser
+agrees because they all read the same three columns against their own clock. The
+clock it uses is the page's own rolling `to`, so the deck appears and clears on
+the tick the rest of the page already moves with; /api/alerts is polled once a
+minute, which is how often the server evaluates.
+
+The deck carries the two things anybody does at that moment: open the signal's
+events, or silence it for 1h / 4h / 24h — the same durations the Alerts page
+offers, from lib/alertDurations.ts so the two can never drift. Acknowledging from
+the deck makes it disappear and the page brighten, which is how the reader knows
+the click landed. Viewers get the deck and the link, not the durations.
+One thing on that page keeps moving: the alarm dot (animate-pulse-dot-error). An
+alarm that sits still reads as a screenshot of an alarm.
+
 --- ALERTS PAGE: ACKNOWLEDGING ---
 
 A firing rule re-fires every window for as long as the condition holds, and the

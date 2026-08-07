@@ -15,6 +15,7 @@ import {
   useUserActivity,
 } from '../hooks/useStats'
 import { ActivityTimeline, TIMELINE_BUCKETS } from '../components/dashboard/ActivityTimeline'
+import { AlarmDeck } from '../components/dashboard/AlarmDeck'
 import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionBlock } from '../components/ui/SectionBlock'
@@ -33,6 +34,8 @@ import { UsersPanel } from '../components/dashboard/UsersPanel'
 import { Heatmap } from '../components/Heatmap'
 import { Card } from '../components/ui/Card'
 import type { HistogramBucket } from '../types'
+import { useAlerts } from '../hooks/useAlerts'
+import { firingRules } from '../lib/alerts'
 import { LEVELS } from '../lib/levels'
 import { SERIES } from '../lib/series'
 import { useI18n } from '../i18n'
@@ -68,6 +71,16 @@ export function DashboardPage() {
     const span = Math.max(1, new Date(range.to).getTime() - from)
     return { from: new Date(from - span).toISOString(), to: range.from }
   }, [range.from, range.to])
+
+  // What is alarming right now, derived from the rules themselves (lib/alerts): a rule that
+  // triggered inside its own window, is enabled and is not acknowledged. `range.to` is the
+  // clock this page already advances on, so the deck appears and clears on the same tick the
+  // rest of the page moves with, and no extra timer is needed.
+  const alerts = useAlerts()
+  const firing = useMemo(
+    () => firingRules(alerts.data, new Date(range.to).getTime()),
+    [alerts.data, range.to],
+  )
 
   const summary = useSummary(range)
   const previousSummary = useSummary(previousRange)
@@ -133,6 +146,17 @@ export function DashboardPage() {
 
       {queryError && <p className="bg-level-error/10 p-2 text-sm text-level-error">{queryError.message}</p>}
 
+      {firing.length > 0 && <AlarmDeck firing={firing} from={range.from} to={range.to} />}
+
+      {/* Everything below is context, and while something is alarming the context is not the
+          answer. Dimmed rather than hidden: the page has to stay readable for the operator who
+          wants it, and un-dimming the moment the alarm is acknowledged is what tells them the
+          click landed. `now` moves with the page's own tick, so the state clears by itself. */}
+      <div
+        className={`flex flex-col gap-4 transition-[opacity,filter] duration-500 ${
+          firing.length > 0 ? 'opacity-60 saturate-50' : ''
+        }`}
+      >
       {summary.data && total === 0 && (
         <Card className="p-6 text-center">
           <p className="text-sm text-fg-muted">{t.dashboard.noEventsYet}</p>
@@ -273,6 +297,7 @@ export function DashboardPage() {
           )}
         </Panel>
       </SectionBlock>
+      </div>
     </div>
   )
 }

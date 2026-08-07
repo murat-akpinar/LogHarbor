@@ -232,6 +232,9 @@ export const tr: Messages = {
   },
   dashboard: {
     title: 'Panel',
+    alarmTitle: (count: number) => (count === 1 ? 'Bir uyarı çalıyor' : `${count} uyarı çalıyor`),
+    alarmOpenEvents: 'Olayları aç',
+    alarmAllRules: 'Tüm uyarı kuralları',
     activity: 'Etkinlik',
     duration: 'Süre',
     avg: 'Ort.',

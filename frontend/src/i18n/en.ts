@@ -233,6 +233,9 @@ export const en = {
   },
   dashboard: {
     title: 'Dashboard',
+    alarmTitle: (count: number) => (count === 1 ? 'An alert is firing' : `${count} alerts are firing`),
+    alarmOpenEvents: 'Open events',
+    alarmAllRules: 'All alert rules',
     activity: 'Activity',
     duration: 'Duration',
     avg: 'Avg',

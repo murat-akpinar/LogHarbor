@@ -369,6 +369,24 @@ textarea {
   animation: lh-pulse 2.4s ease-in-out infinite;
 }
 
+/* the same pulse in the colour of trouble, for the dashboard's alarm deck. The one thing on
+   that page allowed to keep moving: an alarm that sits still reads as a screenshot of one. */
+@keyframes lh-pulse-error {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-level-error) 55%, transparent);
+  }
+  50% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 0.3rem color-mix(in oklab, var(--color-level-error) 0%, transparent);
+  }
+}
+
+.animate-pulse-dot-error {
+  animation: lh-pulse-error 2.4s ease-in-out infinite;
+}
+
 /* a value that just changed, in a figure that updates while you watch it */
 @keyframes lh-tick {
   from {
@@ -417,7 +435,8 @@ textarea {
     animation-name: lh-tail-flash;
   }
 
-  .animate-pulse-dot {
+  .animate-pulse-dot,
+  .animate-pulse-dot-error {
     animation: none;
     opacity: 1;
     transform: none;

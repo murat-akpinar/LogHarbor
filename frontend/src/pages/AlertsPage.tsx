@@ -4,20 +4,14 @@ import { useAcknowledgeAlert, useAlerts, useCreateAlert, useDeleteAlert, useUpda
 import { useSignals } from '../hooks/useSignals'
 import { useIsAdmin } from '../hooks/useAuth'
 import { formatTimestamp } from '../lib/dates'
+import { ACKNOWLEDGE_DURATIONS } from '../lib/alertDurations'
+import { isAcknowledged } from '../lib/alerts'
 import { AlertForm } from '../components/AlertForm'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
-
-/** How long an operator silences an alarm for. Three, because a list of durations is a
- *  decision and the useful ones are "until I have looked", "until after lunch" and "tomorrow". */
-const ACKNOWLEDGE_DURATIONS: { minutes: number; label: string }[] = [
-  { minutes: 60, label: '1h' },
-  { minutes: 4 * 60, label: '4h' },
-  { minutes: 24 * 60, label: '24h' },
-]
 
 function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTitle: string; isAdmin: boolean }) {
   const { t, lang } = useI18n()
@@ -27,10 +21,7 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
   const acknowledge = useAcknowledgeAlert()
   // an acknowledgement in the past is none: the server stops honouring it at that instant and
   // the row must not go on claiming a silence that has run out
-  const silencedUntil =
-    alert.acknowledgedUntil !== null && Date.parse(alert.acknowledgedUntil) > Date.now()
-      ? alert.acknowledgedUntil
-      : null
+  const silencedUntil = isAcknowledged(alert) ? alert.acknowledgedUntil : null
 
   if (isEditing) {
     return (
