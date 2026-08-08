@@ -24,6 +24,9 @@ using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// "Server: Kestrel" on every response names the stack to anyone scanning and buys nothing back
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
 builder.Services.AddSingleton(new LogHarborDb(
     builder.Configuration["LogHarbor:DatabasePath"] ?? "data/logharbor.db"));
 builder.Services.AddSingleton<IEventStore, SqliteEventStore>();
@@ -240,6 +243,44 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
         .ExecuteAsync(context);
 }));
 app.UseStatusCodePages();
+
+// Registered here, inside the exception handler, so the headers survive a 500: UseExceptionHandler
+// clears the response and re-runs the pipeline from this point, and anything set before it would
+// be thrown away with the rest.
+//
+// Why a log server wants a real CSP more than most apps do: rendering strings somebody else wrote
+// *is* the product. There is no known XSS today — React escapes, nothing uses
+// dangerouslySetInnerHTML, and Highlighted.tsx builds its <mark> out of text nodes on purpose —
+// but CSP is what keeps the next one from becoming an account takeover instead of a broken page.
+//
+// Two things the policy has to allow, both found by looking rather than guessing: index.css
+// paints its grain with a url("data:image/svg+xml,...") background, hence data: in img-src; and
+// Swagger UI ships inline script and style, so a strict policy blanks it. Swagger is admin-only
+// and its own document, so it gets its own line rather than a hole in everyone else's.
+//
+// Not set here: HSTS. The supported deployment terminates TLS at a reverse proxy (README), which
+// is where a header that pins every browser to https for a month belongs — guessing at it from
+// inside the container is how a sibling app on the same hostname stops answering.
+const string StrictCsp =
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; " +
+    "form-action 'self'; img-src 'self' data:";
+const string SwaggerCsp =
+    "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; " +
+    "form-action 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; " +
+    "style-src 'self' 'unsafe-inline'";
+app.Use(async (context, next) =>
+{
+    var headers = context.Response.Headers;
+    headers.ContentSecurityPolicy =
+        context.Request.Path.StartsWithSegments("/swagger") ? SwaggerCsp : StrictCsp;
+    headers.XContentTypeOptions = "nosniff";
+    // a URL here carries the filter somebody typed, which can name a customer or an id; there is
+    // nowhere it needs to travel to
+    headers["Referrer-Policy"] = "no-referrer";
+    // frame-ancestors above is the modern form; this is for the browsers that only read the old one
+    headers.XFrameOptions = "DENY";
+    await next();
+});
 
 // production runs behind a reverse proxy (see the cookie policy above), where every request
 // carries the proxy's address — so the login limiter's per-IP partition would put every user in
