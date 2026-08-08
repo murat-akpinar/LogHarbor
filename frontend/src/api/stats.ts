@@ -1,5 +1,5 @@
 import { api } from './client'
-import type { HeatmapCell, Histogram, IngestRejectionsResult, IngestionLagResult, LatencyOverview, OperationOverview, PropertyValueCount, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
+import type { Finding, HeatmapCell, Histogram, IngestRejectionsResult, IngestionLagResult, LatencyOverview, OperationOverview, PropertyValueCount, QueryOverview, ServiceOverview, ServiceStatusBoard, SlowOperationsResult, StatsSummary, TopError, TopException, UserActivity } from '../types'
 
 export interface StatsRangeParams {
   from: string
@@ -93,4 +93,11 @@ export function getSlowOperations(
   params: StatsRangeParams & { property?: string; minSamples?: number; floorMs?: number; factor?: number; limit?: number },
 ): Promise<SlowOperationsResult> {
   return api.get<SlowOperationsResult>(`/api/stats/slow-operations${buildQuery(params)}`)
+}
+
+/** Takes no filter: a findings scan asks what the server noticed, not what you were looking at. */
+export function getFindings(
+  params: { from: string; to: string; routeProperty?: string; methodProperty?: string },
+): Promise<{ findings: Finding[] }> {
+  return api.get<{ findings: Finding[] }>(`/api/stats/findings${buildQuery(params)}`)
 }

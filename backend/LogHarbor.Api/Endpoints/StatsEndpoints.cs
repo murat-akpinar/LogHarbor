@@ -1,3 +1,4 @@
+using LogHarbor.Core.Analysis;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Query;
 using LogHarbor.Core.Storage;
@@ -25,6 +26,39 @@ public static class StatsEndpoints
         group.MapGet("/operations", OperationsAsync);
         group.MapGet("/user-activity", UserActivityAsync);
         group.MapGet("/queries", QueriesAsync);
+        group.MapGet("/findings", FindingsAsync);
+    }
+
+    /// <summary>
+    /// What the server noticed by itself in this range: no rule, no threshold, nothing to set up.
+    /// It lives under /stats because that is what it is — a derived read over the same range and
+    /// the same validation as every row on the analysis pages. Nothing is stored and nothing is
+    /// pushed; a finding is a shortlist entry, never an alarm.
+    /// </summary>
+    private static async Task<IResult> FindingsAsync(
+        FindingScanner scanner,
+        CancellationToken cancellationToken,
+        string from,
+        string to,
+        string routeProperty = "Path",
+        string methodProperty = "Method")
+    {
+        foreach (var name in new[] { routeProperty, methodProperty })
+        {
+            if (name.Length == 0 || !name.All(c => char.IsAsciiLetterOrDigit(c) || c == '_' || c == '.'))
+            {
+                return Problems.BadRequest(
+                    "Invalid query", "property names must contain only letters, digits, underscores, or dots.");
+            }
+        }
+        if (!TryParseRange(from, to, out var fromValue, out var toValue, out var rangeError))
+        {
+            return Problems.BadRequest("Invalid query", rangeError!);
+        }
+
+        var findings = await scanner.ScanAsync(
+            fromValue, toValue, routeProperty, methodProperty, cancellationToken);
+        return Results.Ok(new { findings });
     }
 
     private static readonly string[] DefaultErrorLevels = ["Error", "Fatal"];

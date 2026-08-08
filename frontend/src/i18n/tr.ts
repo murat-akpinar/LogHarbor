@@ -421,6 +421,24 @@ export const tr: Messages = {
     bothRequired: 'Başlık ve filtre alanlarının ikisi de zorunludur.',
     couldNotSave: 'Sinyal kaydedilemedi.',
   },
+  findings: {
+    title: 'Bakmaya değer',
+    subtitle: 'Kural yazılmadan bulundu',
+    kind: {
+      went_quiet: 'Sustu',
+      new_exception: 'Yeni',
+      failing_route: 'Hata',
+      slower_than_usual: 'Yavaş',
+    },
+    wentQuiet: (service: string, wasPerWindow: string) =>
+      `${service} bu aralıkta hiçbir şey göndermedi — normalde ${wasPerWindow} kadar gönderir`,
+    newException: (type: string, count: string) =>
+      `${type} — ${count}×, bu sunucuda daha önce hiç kaydedilmemiş`,
+    failingRoute: (route: string, nowPct: string, wasPct: string) =>
+      `${route} isteklerin %${nowPct}'ini hatayla bitiriyor, önceden %${wasPct}`,
+    slowerThanUsual: (operation: string, nowMs: string, wasMs: string) =>
+      `${operation} — p95 ${nowMs} ms, normalde ${wasMs} ms`,
+  },
   alerts: {
     newRule: 'Yeni kural',
     title: 'Uyarılar',

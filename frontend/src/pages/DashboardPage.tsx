@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
+  useFindings,
   useHeatmap,
   useHistogram,
   useIngestionLag,
@@ -16,6 +17,7 @@ import {
 } from '../hooks/useStats'
 import { ActivityTimeline, TIMELINE_BUCKETS } from '../components/dashboard/ActivityTimeline'
 import { AlarmDeck } from '../components/dashboard/AlarmDeck'
+import { FindingsBand } from '../components/dashboard/FindingsBand'
 import { IngestionLagStrip } from '../components/dashboard/IngestionLagStrip'
 import { IngestRejectionBanner } from '../components/dashboard/IngestRejectionBanner'
 import { SectionBlock } from '../components/ui/SectionBlock'
@@ -81,6 +83,10 @@ export function DashboardPage() {
     () => firingRules(alerts.data, new Date(range.to).getTime()),
     [alerts.data, range.to],
   )
+
+  // What nobody wrote a rule for. Same range as everything else on the page, so it moves with the
+  // picker; no filter, because a findings scan asks what the server noticed, not what you asked.
+  const findings = useFindings({ from: range.from, to: range.to })
 
   const summary = useSummary(range)
   const previousSummary = useSummary(previousRange)
@@ -163,6 +169,11 @@ export function DashboardPage() {
           firing.length > 0 ? 'opacity-50 saturate-[0.25]' : ''
         }`}
       >
+      {/* Inside the dimmed block on purpose: while a real alarm is up, a guess is context too. */}
+      {(findings.data?.findings.length ?? 0) > 0 && (
+        <FindingsBand findings={findings.data!.findings} from={range.from} to={range.to} />
+      )}
+
       {summary.data && total === 0 && (
         <Card className="p-6 text-center">
           <p className="text-sm text-fg-muted">{t.dashboard.noEventsYet}</p>

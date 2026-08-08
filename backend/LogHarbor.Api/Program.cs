@@ -14,6 +14,7 @@ using LogHarbor.Api.Auth;
 using LogHarbor.Api.Endpoints;
 using LogHarbor.Api.LiveTail;
 using LogHarbor.Core.Alerting;
+using LogHarbor.Core.Analysis;
 using LogHarbor.Core.Archiving;
 using LogHarbor.Core.Auth;
 using LogHarbor.Core.Storage;
@@ -63,6 +64,7 @@ builder.Services.AddSingleton<IAlertStore, SqliteAlertStore>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IWebhookSender, HttpWebhookSender>();
 builder.Services.AddSingleton<AlertEvaluator>();
+builder.Services.AddSingleton<FindingScanner>();
 
 // tests disable the schedulers: their timed passes would race the events tests seed
 if (builder.Configuration.GetValue("LogHarbor:RunBackgroundJobs", true))

@@ -309,6 +309,36 @@ GET /api/stats/slow-operations
   non-zero but comparableOperationCount is 0, no group has a baseline before `from` to
   compare against (narrow the range). The two counts let the UI explain an empty list.
 
+GET /api/stats/findings
+  Query: from, to, routeProperty? (default Path), methodProperty? (default Method).
+         No filter: a findings scan asks what the server noticed, not what you were looking at.
+  What the server noticed by itself, most urgent first — no rule, no threshold, no setup. Four
+  detectors, all of them compositions of the aggregations above over data already stored:
+    went_quiet         a service that logged steadily across the baseline and nothing at all in
+                       the window. The one shape an alert rule structurally cannot express: a
+                       rule counts what arrived, so it can say "too many" but never "none".
+                       now = 0, baseline = events per window it used to send.
+    new_exception      an exception type with no occurrence anywhere before the window (baseline
+                       is all of history here — a crash last seen in March is a returning crash).
+                       now = count = occurrences; baseline = 0.
+    failing_route      a route whose share of failed requests rose >= 5 points over its own
+                       recent normal, with >= 20 requests in each window. A share, not a count:
+                       a route that doubled its traffic doubles its errors with nothing wrong.
+                       now/baseline = percent failed; count = errors in the window.
+    slower_than_usual  the slow-operations test at its own defaults but against a trailing
+                       baseline, which is the difference that matters: with the Analysis page's
+                       "everything older than the range" model, an operation younger than the
+                       range has an empty baseline and can never be flagged at any threshold.
+                       now/baseline = p95 in ms; count = samples.
+  Baseline for the rate detectors is the 4 windows immediately before [from, to).
+  200: { "findings": [ { kind, subject, filter, now, baseline, count } ] }, at most 12.
+  `filter` opens exactly the events the finding came from, and is what "make this an alert"
+  hands to a rule (which no longer needs a saved signal — see ALERTS).
+  Nothing is stored: no table, no scan schedule, no dedupe, no acknowledgement. A finding is
+  never an alarm — it does not fire a webhook and does not turn the dashboard red. An automatic
+  detector produces false positives, and spending an alarm's credibility on them would cost more
+  than the detector is worth.
+
 GET /api/stats/services
   Query: limit? default 50
   Per-service RED numbers. Service identity is the "service.name" property (OTLP

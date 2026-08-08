@@ -374,6 +374,17 @@ every row.
 The home page (route /): a Nightwatch-style monitoring overview composed entirely
 from the existing /api/stats/* endpoints (no dedicated endpoint), grouped into
 labelled sections, each with a "view all" link to its full page.
+"Worth a look" (components/dashboard/FindingsBand.tsx, GET /api/stats/findings): what
+the server noticed by itself, no rule written for any of it — a service that went
+quiet, an exception type never recorded before, a route whose failure share climbed,
+an operation past its own p95. One line each, said as a sentence, clicking opens the
+events behind it with the filter the server derived (handed through untouched — the
+band never rebuilds one from the subject text). It sits above the panels and below
+the alarm deck, inside the dimmed block: while a real alarm is up, a guess is context
+too. Deliberately quiet — no glow, no pulse, never turns the page red. An alarm is
+something a person decided was worth waking up for and a finding is a guess; giving
+the two the same voice would spend the alarm's credibility on the guess. Nothing is
+stored or acknowledged, so it clears itself when the cause does.
 Live toggle: a heartbeat control in the header, over the app's shared window (see
 LIVE + TIME RANGE above). It opens live on a rolling last hour, and the
 window still refreshes every 10 s as its end ticks (React Query refetch;

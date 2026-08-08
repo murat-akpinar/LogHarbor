@@ -115,6 +115,27 @@ export interface TopError {
   lastSeen: string
 }
 
+export type FindingKind = 'went_quiet' | 'new_exception' | 'failing_route' | 'slower_than_usual'
+
+/**
+ * Something the server noticed without anybody writing a rule for it. Never an alarm: not stored,
+ * not acknowledged, never pushed — a shortlist entry that clears itself when the cause does.
+ *
+ * `now` and `baseline` are the comparison that made it a finding, in whatever unit the kind
+ * measures (a percentage of failed requests, a p95 in ms, an events-per-window rate). `count` is
+ * always how many events stand behind it.
+ */
+export interface Finding {
+  kind: FindingKind
+  /** The service, exception type, route or operation it is about. */
+  subject: string
+  /** Opens exactly the events it was derived from; also what "make this an alert" hands to a rule. */
+  filter: string
+  now: number
+  baseline: number
+  count: number
+}
+
 /** One exception group, keyed by the first line of the exception text up to ':'. */
 export interface TopException {
   type: string

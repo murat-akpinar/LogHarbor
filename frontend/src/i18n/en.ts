@@ -424,6 +424,24 @@ export const en = {
     bothRequired: 'Title and filter are both required.',
     couldNotSave: 'Could not save signal.',
   },
+  findings: {
+    title: 'Worth a look',
+    subtitle: 'Found without a rule',
+    kind: {
+      went_quiet: 'Quiet',
+      new_exception: 'New',
+      failing_route: 'Failing',
+      slower_than_usual: 'Slow',
+    },
+    wentQuiet: (service: string, wasPerWindow: string) =>
+      `${service} has sent nothing this range — it usually sends about ${wasPerWindow}`,
+    newException: (type: string, count: string) =>
+      `${type} — ${count}×, never recorded on this server before`,
+    failingRoute: (route: string, nowPct: string, wasPct: string) =>
+      `${route} is failing ${nowPct}% of requests, up from ${wasPct}%`,
+    slowerThanUsual: (operation: string, nowMs: string, wasMs: string) =>
+      `${operation} — p95 ${nowMs} ms, usually ${wasMs} ms`,
+  },
   alerts: {
     newRule: 'New rule',
     title: 'Alerts',
