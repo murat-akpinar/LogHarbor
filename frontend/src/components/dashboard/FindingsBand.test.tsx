@@ -2,9 +2,14 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LanguageProvider } from '../../i18n'
 import type { Finding } from '../../types'
 import { FindingsBand } from './FindingsBand'
+
+// each row draws a sparkline, which fetches its own histogram; the shape is asserted separately
+// in lib/findings.test.ts, so here the request only has to not blow up
+vi.mock('../../api/stats', () => ({ getHistogram: vi.fn(async () => ({ buckets: [] })) }))
 
 afterEach(() => {
   cleanup()
@@ -19,20 +24,23 @@ function EventsProbe() {
 
 function renderBand(findings: Finding[]) {
   localStorage.setItem('logharbor-lang', 'en')
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
-    <MemoryRouter initialEntries={['/']}>
-      <LanguageProvider>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <FindingsBand findings={findings} from="2026-08-08T09:00:00Z" to="2026-08-08T10:00:00Z" />
-            }
-          />
-          <Route path="/events" element={<EventsProbe />} />
-        </Routes>
-      </LanguageProvider>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/']}>
+        <LanguageProvider>
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <FindingsBand findings={findings} from="2026-08-08T09:00:00Z" to="2026-08-08T10:00:00Z" />
+              }
+            />
+            <Route path="/events" element={<EventsProbe />} />
+          </Routes>
+        </LanguageProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

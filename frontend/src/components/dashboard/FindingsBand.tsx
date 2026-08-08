@@ -1,6 +1,9 @@
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Finding } from '../../types'
+import { FINDING_COLOR, sparklineRange } from '../../lib/findings'
 import { Panel } from '../ui/Panel'
+import { Sparkline } from '../Sparkline'
 import { useI18n } from '../../i18n'
 
 interface FindingsBandProps {
@@ -16,6 +19,12 @@ interface FindingsBandProps {
  * alarm is something a person decided was worth waking up for, and a finding is a guess. Giving
  * the two the same voice would spend the alarm's credibility on the guess. What it does earn is
  * position: a reader who never opens Analysis still walks past it.
+ *
+ * What it does instead of shouting is speak the dashboard's own language. Each row takes the hue
+ * this page already draws that measurement in (lib/findings) and carries its own shape as a
+ * sparkline over the same window — so a finding reads as one more chart among the charts rather
+ * than as a paragraph pinned above them. The first version was a grey chip and a grey sentence,
+ * and the owner walked straight past it on the live server.
  */
 export function FindingsBand({ findings, from, to }: FindingsBandProps) {
   const { t, lang } = useI18n()
@@ -52,20 +61,37 @@ export function FindingsBand({ findings, from, to }: FindingsBandProps) {
       </div>
 
       <ul className="-mx-2 divide-y divide-border/60">
-        {findings.map((finding) => (
-          <li key={`${finding.kind}\n${finding.subject}`}>
-            <button
-              type="button"
-              onClick={() => openEvents(finding)}
-              className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors duration-150 hover:bg-surface-hover"
-            >
-              <span className="shrink-0 rounded bg-surface-inset px-1.5 py-0.5 text-[0.6875rem] font-medium text-fg-muted">
-                {t.findings.kind[finding.kind]}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-sm text-fg">{describe(finding)}</span>
-            </button>
-          </li>
-        ))}
+        {findings.map((finding) => {
+          const color = FINDING_COLOR[finding.kind]
+          const strip = sparklineRange(finding, from, to)
+          return (
+            <li key={`${finding.kind}\n${finding.subject}`}>
+              <button
+                type="button"
+                onClick={() => openEvents(finding)}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors duration-150 hover:bg-surface-hover"
+              >
+                {/* the chip is the direct label, so identity never rests on the hue alone */}
+                <span
+                  className="shrink-0 rounded px-1.5 py-0.5 text-[0.6875rem] font-medium"
+                  style={
+                    {
+                      color,
+                      background: `color-mix(in oklab, ${color} 16%, transparent)`,
+                    } as CSSProperties
+                  }
+                >
+                  {t.findings.kind[finding.kind]}
+                </span>
+                {/* text keeps text tokens: the mark beside it carries the colour, not the words */}
+                <span className="min-w-0 flex-1 truncate text-sm text-fg">{describe(finding)}</span>
+                <span className="shrink-0">
+                  <Sparkline filter={finding.filter} color={color} from={strip.from} to={strip.to} />
+                </span>
+              </button>
+            </li>
+          )
+        })}
       </ul>
     </Panel>
   )
