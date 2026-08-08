@@ -12,6 +12,7 @@
 #   DEPLOY_URL         base URL as seen ON the server (default http://127.0.0.1:5000)
 #   DEPLOY_CONTAINER   container name                 (default logharbor)
 #   DEPLOY_IMAGE       image tag                      (default logharbor)
+#   BUILD_CACHE_MAX    ceiling for BuildKit's cache   (default 10GB)
 set -euo pipefail
 
 HOST=${DEPLOY_HOST:-root@192.168.1.131}
@@ -260,5 +261,16 @@ if [ -n "$MIGRATIONS" ]; then
 fi
 
 remote "printf '%s\n' '$SHA' > '$DIR/.deployed-sha'"
+
+# Every build leaves layers in BuildKit's cache and nothing ever reclaimed them: found
+# 2026-08-09 at 75 GB, 62 GB of it reclaimable, on a 98 GB disk that was 86% full. A log server
+# whose host runs out of disk is the failure /healthz was rewritten to detect, and this deploy
+# script was the thing filling it.
+#
+# Bounded rather than emptied, and only after the verify above passed: the cache is what makes
+# the next build fast, and a failed deploy should keep it for the retry.
+CACHE=$(remote "docker builder prune -f --max-used-space ${BUILD_CACHE_MAX:-10GB} 2>/dev/null | tail -1" || true)
+[ -z "$CACHE" ] || info "build cache: $CACHE"
+info "disk $(remote "df -h / | awk 'NR==2 {print \$4\" free (\"\$5\" used)\"}'" || echo unknown)"
 
 step "Deployed ${SHA:0:12} to $HOST"
