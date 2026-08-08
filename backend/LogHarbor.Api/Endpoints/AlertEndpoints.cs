@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using LogHarbor.Core.Events;
+using LogHarbor.Core.Query;
 using LogHarbor.Core.Storage;
 
 namespace LogHarbor.Api.Endpoints;
@@ -20,7 +21,7 @@ public static class AlertEndpoints
 
     public sealed record AlertRequest(
         string? Title, long? SignalId, int? ThresholdCount, int? WindowMinutes, string? WebhookUrl, bool? IsEnabled,
-        string? PayloadFormat, string? Condition);
+        string? PayloadFormat, string? Condition, string? Filter = null);
 
     public sealed record AcknowledgeRequest(int? Minutes);
 
@@ -41,7 +42,7 @@ public static class AlertEndpoints
             try
             {
                 var created = await store.CreateAsync(
-                    request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount ?? 0,
+                    request.Title!.Trim(), request.SignalId, Trimmed(request.Filter), request.ThresholdCount ?? 0,
                     request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true,
                     request.PayloadFormat ?? "generic", request.Condition ?? "at-least", cancellationToken);
                 return Results.Created($"/api/alerts/{created.Id}", created);
@@ -67,7 +68,7 @@ public static class AlertEndpoints
             try
             {
                 var updated = await store.UpdateAsync(
-                    id, request.Title!.Trim(), request.SignalId!.Value, request.ThresholdCount ?? 0,
+                    id, request.Title!.Trim(), request.SignalId, Trimmed(request.Filter), request.ThresholdCount ?? 0,
                     request.WindowMinutes!.Value, request.WebhookUrl!, request.IsEnabled ?? true,
                     request.PayloadFormat ?? "generic", request.Condition ?? "at-least", cancellationToken);
                 return updated is not null
@@ -130,10 +131,7 @@ public static class AlertEndpoints
         {
             errors["title"] = ["Title is required."];
         }
-        if (request.SignalId is null)
-        {
-            errors["signalId"] = ["Signal is required."];
-        }
+        ValidateCondition(request, errors);
         var condition = request.Condition ?? "at-least";
         if (!Conditions.Contains(condition))
         {
@@ -159,4 +157,42 @@ public static class AlertEndpoints
         }
         return errors.Count > 0 ? Results.ValidationProblem(errors) : null;
     }
+
+    /// <summary>
+    /// A rule watches exactly one thing: a saved signal, or a filter of its own. Both at once has
+    /// no meaning — there would be no way to tell which one fired — and neither leaves nothing to
+    /// evaluate. The rule's own filter is parsed here rather than at evaluation time, because a
+    /// typo caught while the form is open is a red field, and a typo caught an hour later is a
+    /// rule that quietly never fires.
+    /// </summary>
+    private static void ValidateCondition(AlertRequest request, Dictionary<string, string[]> errors)
+    {
+        var filter = Trimmed(request.Filter);
+        if (request.SignalId is not null && filter is not null)
+        {
+            errors["filter"] = ["Watch a signal or a filter, not both."];
+            return;
+        }
+        if (request.SignalId is null && filter is null)
+        {
+            errors["filter"] = ["Enter a filter, or pick a saved signal."];
+            return;
+        }
+        if (filter is null)
+        {
+            return;
+        }
+        try
+        {
+            QueryParser.Parse(filter);
+        }
+        catch (QueryParseException ex)
+        {
+            errors["filter"] = [ex.Message];
+        }
+    }
+
+    /// <summary>Whitespace is not a filter: a blank box means "no filter here", not an empty one.</summary>
+    private static string? Trimmed(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

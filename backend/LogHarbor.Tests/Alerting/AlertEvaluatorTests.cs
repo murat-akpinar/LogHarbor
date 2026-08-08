@@ -115,6 +115,72 @@ public sealed class AlertEvaluatorTests : IDisposable
         Assert.Equal(5, payload.GetProperty("windowMinutes").GetInt32());
     }
 
+    [Fact]
+    public async Task ARuleWithItsOwnFilter_FiresWithoutASignal()
+    {
+        var keyResponse = await _client.PostAsJsonAsync("/api/apikeys", new { title = "alerts" });
+        var token = (await keyResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+        var ingest = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent(
+                $$"""{"@t":"{{DateTimeOffset.UtcNow:yyyy-MM-ddTHH:mm:ssZ}}","@l":"Error","@m":"boom"}""",
+                Encoding.UTF8, "application/vnd.serilog.clef"),
+        };
+        ingest.Headers.Add("X-LogHarbor-ApiKey", token);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(ingest)).StatusCode);
+
+        var alert = await _client.PostAsJsonAsync("/api/alerts", new
+        {
+            title = "no-signal-rule",
+            filter = "@Level = 'Error'",
+            thresholdCount = 1,
+            windowMinutes = 5,
+            webhookUrl = "https://example.com/hook",
+            isEnabled = true,
+        });
+        Assert.Equal(HttpStatusCode.Created, alert.StatusCode);
+
+        var payload = await EvaluateAndReadPayloadAsync();
+
+        // signal goes null rather than echoing the filter back under a name it does not have;
+        // filter carries what was actually evaluated, exactly as for a signal-backed rule
+        Assert.Equal(JsonValueKind.Null, payload.GetProperty("signal").ValueKind);
+        Assert.Equal("@Level = 'Error'", payload.GetProperty("filter").GetString());
+        Assert.Equal(1, payload.GetProperty("count").GetInt64());
+    }
+
+    [Fact]
+    public async Task ARuleWithItsOwnFilter_NamesTheFilterInTheMessage()
+    {
+        var keyResponse = await _client.PostAsJsonAsync("/api/apikeys", new { title = "alerts" });
+        var token = (await keyResponse.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("token").GetString()!;
+        var ingest = new HttpRequestMessage(HttpMethod.Post, "/api/events/raw")
+        {
+            Content = new StringContent(
+                $$"""{"@t":"{{DateTimeOffset.UtcNow:yyyy-MM-ddTHH:mm:ssZ}}","@l":"Error","@m":"boom"}""",
+                Encoding.UTF8, "application/vnd.serilog.clef"),
+        };
+        ingest.Headers.Add("X-LogHarbor-ApiKey", token);
+        Assert.Equal(HttpStatusCode.Created, (await _client.SendAsync(ingest)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Created, (await _client.PostAsJsonAsync("/api/alerts", new
+        {
+            title = "no-signal-slack",
+            filter = "@Level = 'Error'",
+            thresholdCount = 1,
+            windowMinutes = 5,
+            webhookUrl = "https://example.com/hook",
+            isEnabled = true,
+            payloadFormat = "slack",
+        })).StatusCode);
+
+        var payload = await EvaluateAndReadPayloadAsync();
+
+        var text = payload.GetProperty("text").GetString();
+        Assert.Contains("no-signal-slack", text);
+        Assert.Contains("@Level = 'Error'", text);
+    }
+
     /// <summary>A signal on Error events and a silence rule over it; returns (signalId, createdAt).</summary>
     private async Task<(long SignalId, DateTimeOffset CreatedAt)> ArrangeSilenceRuleAsync(int windowMinutes = 5)
     {

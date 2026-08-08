@@ -425,13 +425,13 @@ export const tr: Messages = {
     newRule: 'Yeni kural',
     title: 'Uyarılar',
     description:
-      'Bir sinyal, pencere içinde en az eşik sayısı kadar olayla eşleştiğinde (en-az) ya da bir zamanlar etkin olan bir sinyal tüm pencere boyunca sustuğunda (dead man’s switch) bir webhook POST isteği gönderir.',
+      'İzlenen filtre, pencere içinde en az eşik sayısı kadar olayla eşleştiğinde (en-az) ya da bir zamanlar etkin olan bir filtre tüm pencere boyunca sustuğunda (dead man’s switch) bir webhook POST isteği gönderir. Bir kural kendi filtresini taşıyabilir ya da kayıtlı bir sinyali izleyebilir.',
     enabled: 'etkin',
     disabled: 'devre dışı',
-    summary: (signalTitle: string, threshold: number, windowMinutes: number) =>
-      `${signalTitle} — ${windowMinutes} dk içinde ≥${threshold} olayda tetiklenir →`,
-    summarySilence: (signalTitle: string, windowMinutes: number) =>
-      `${signalTitle} — ${windowMinutes} dk sessiz kalınca tetiklenir →`,
+    summary: (watching: string, threshold: number, windowMinutes: number) =>
+      `${watching} — ${windowMinutes} dk içinde ≥${threshold} olayda tetiklenir →`,
+    summarySilence: (watching: string, windowMinutes: number) =>
+      `${watching} — ${windowMinutes} dk sessiz kalınca tetiklenir →`,
     conditionTitle: 'Uyarı koşulu',
     conditionAtLeast: 'En az N olay',
     conditionSilence: 'N dakika sessiz',
@@ -444,7 +444,10 @@ export const tr: Messages = {
     acknowledgedBy: (who: string) => ` — ${who}`,
     resume: 'Devam ettir',
     resumeHint: 'Susturmayı kaldırır; kural bir sonraki geçişte yeniden değerlendirilir.',
-    selectSignal: 'Bir sinyal seç…',
+    watchTitle: 'Bu kuralın izlediği şey',
+    watchOwnFilter: 'Filtre',
+    watchSignalGroup: 'Kayıtlı sinyaller',
+    filterTitle: 'İzlenecek filtre',
     titlePlaceholder: 'Başlık',
     countPlaceholder: 'Sayı',
     thresholdTitle: 'Eşik sayısı',
@@ -453,7 +456,7 @@ export const tr: Messages = {
     enabledLabel: 'Etkin',
     formatTitle: 'Webhook gövde biçimi',
     formatGeneric: 'Genel (ham JSON)',
-    allRequired: 'Başlık, sinyal ve webhook URL alanlarının tümü zorunludur.',
+    allRequired: 'Başlık, webhook URL ve izlenecek bir şey zorunludur.',
     couldNotSave: 'Uyarı kuralı kaydedilemedi.',
   },
   settings: {

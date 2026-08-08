@@ -13,7 +13,7 @@ import { EmptyState, ErrorState, Skeleton } from '../components/ui/States'
 import { Button } from '../components/ui/Button'
 import { useI18n } from '../i18n'
 
-function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTitle: string; isAdmin: boolean }) {
+function AlertRow({ alert, watching, isAdmin }: { alert: AlertRule; watching: string; isAdmin: boolean }) {
   const { t, lang } = useI18n()
   const [isEditing, setIsEditing] = useState(false)
   const updateAlert = useUpdateAlert()
@@ -30,6 +30,7 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
           initial={{
             title: alert.title,
             signalId: alert.signalId,
+            filter: alert.filter,
             thresholdCount: alert.thresholdCount,
             windowMinutes: alert.windowMinutes,
             webhookUrl: alert.webhookUrl,
@@ -58,8 +59,8 @@ function AlertRow({ alert, signalTitle, isAdmin }: { alert: AlertRule; signalTit
           </span>
           <div className="mt-0.5 truncate text-xs text-fg-muted">
             {alert.condition === 'silence'
-              ? t.alerts.summarySilence(signalTitle, alert.windowMinutes)
-              : t.alerts.summary(signalTitle, alert.thresholdCount, alert.windowMinutes)}{' '}
+              ? t.alerts.summarySilence(watching, alert.windowMinutes)
+              : t.alerts.summary(watching, alert.thresholdCount, alert.windowMinutes)}{' '}
             <span className="font-mono">{alert.webhookUrl}</span>
           </div>
           {alert.lastTriggeredAt && (
@@ -128,7 +129,12 @@ export function AlertsPage() {
   const createAlert = useCreateAlert()
   const isAdmin = useIsAdmin()
 
-  const signalTitle = (signalId: number) => signals?.find((signal) => signal.id === signalId)?.title ?? `#${signalId}`
+  // what the row calls the thing being watched: the signal's name where there is one, the rule's
+  // own filter text otherwise — the same fallback the webhook message uses
+  const watching = (alert: AlertRule) =>
+    alert.signalId === null
+      ? (alert.filter ?? '')
+      : (signals?.find((signal) => signal.id === alert.signalId)?.title ?? `#${alert.signalId}`)
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
@@ -158,7 +164,7 @@ export function AlertsPage() {
           {error && <ErrorState className="m-3" message={error.message} onRetry={() => refetch()} />}
           {alerts && alerts.length === 0 && <EmptyState icon="alerts" title={t.alerts.noAlerts} />}
           {alerts?.map((alert) => (
-            <AlertRow key={alert.id} alert={alert} signalTitle={signalTitle(alert.signalId)} isAdmin={isAdmin} />
+            <AlertRow key={alert.id} alert={alert} watching={watching(alert)} isAdmin={isAdmin} />
           ))}
         </Panel>
       </SectionBlock>

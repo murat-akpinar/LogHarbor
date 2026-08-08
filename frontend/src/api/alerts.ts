@@ -3,7 +3,9 @@ import type { AlertCondition, AlertPayloadFormat, AlertRule } from '../types'
 
 export interface AlertRequest {
   title: string
-  signalId: number
+  /** Send one of these two, never both: a saved signal to watch, or a filter of the rule's own. */
+  signalId: number | null
+  filter: string | null
   thresholdCount: number
   windowMinutes: number
   webhookUrl: string

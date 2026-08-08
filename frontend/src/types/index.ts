@@ -328,7 +328,11 @@ export type AlertCondition = 'at-least' | 'silence'
 export interface AlertRule {
   id: number
   title: string
-  signalId: number
+  /** The saved signal this watches, or null when the rule carries its own `filter`. */
+  signalId: number | null
+  /** The rule's own filter expression, or null when it watches a `signalId`. Exactly one of the
+   *  two is ever set. */
+  filter: string | null
   thresholdCount: number
   windowMinutes: number
   webhookUrl: string

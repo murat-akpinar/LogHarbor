@@ -13,7 +13,8 @@ public interface IWebhookSender
 
 /// <summary>
 /// Checks every enabled alert rule against the last WindowMinutes of events and fires
-/// its webhook when the signal's match count reaches the threshold. After a firing the
+/// its webhook when the watched filter's match count reaches the threshold — the filter
+/// being the rule's own or the signal's, whichever it was created with. After a firing the
 /// rule stays quiet for one full window (cooldown), successful or not, so a dead
 /// webhook is not hammered every evaluation. An acknowledged rule is skipped entirely
 /// until its acknowledgement expires.
@@ -43,8 +44,9 @@ public sealed class AlertEvaluator
     public async Task<int> EvaluateAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         var due = new List<(AlertRule Rule, string Payload)>();
-        foreach (var (rule, signalTitle, signalFilter) in await _alerts.GetEnabledWithSignalAsync(cancellationToken))
+        foreach (var alert in await _alerts.GetEnabledWithSignalAsync(cancellationToken))
         {
+            var rule = alert.Rule;
             var toUtc = ClefParser.FormatTimestamp(now);
             var fromUtc = ClefParser.FormatTimestamp(now.AddMinutes(-rule.WindowMinutes));
             // acknowledged first, and before the count query: somebody has said they know, so
@@ -63,12 +65,15 @@ public sealed class AlertEvaluator
             QuerySql filterSql;
             try
             {
-                filterSql = SqlTranslator.Translate(QueryParser.Parse(signalFilter));
+                filterSql = SqlTranslator.Translate(QueryParser.Parse(alert.Filter));
             }
             catch (QueryParseException ex)
             {
-                // the signal was edited into something unparseable after the rule was created
-                await _alerts.SetErrorAsync(rule.Id, $"invalid signal filter: {ex.Message}", cancellationToken);
+                // the filter was edited into something unparseable after the rule was created —
+                // name which one, since a rule's own filter and a shared signal are fixed in
+                // different places
+                var origin = alert.SignalTitle is null ? "filter" : "signal filter";
+                await _alerts.SetErrorAsync(rule.Id, $"invalid {origin}: {ex.Message}", cancellationToken);
                 continue;
             }
 
@@ -99,7 +104,7 @@ public sealed class AlertEvaluator
             }
 
             due.Add((rule with { LastTriggeredAt = toUtc }, BuildPayload(
-                rule, signalTitle, signalFilter, count, fromUtc, toUtc)));
+                rule, alert.SignalTitle, alert.Watching, alert.Filter, count, fromUtc, toUtc)));
         }
 
         if (due.Count == 0)
@@ -134,13 +139,17 @@ public sealed class AlertEvaluator
 
     /// <summary>Slack and Discord incoming webhooks reject arbitrary JSON — they require
     /// {"text"} / {"content"} respectively; everything else gets the structured payload.
-    /// A silence payload carries condition:"silence" and count:0 instead of a threshold.</summary>
+    /// A silence payload carries condition:"silence" and count:0 instead of a threshold.
+    /// The "signal" key stays in the structured payload and goes null for a rule that carries its
+    /// own filter: a consumer reading it gets nothing rather than a filter expression dressed up
+    /// as a signal name, and "filter" holds what was actually evaluated either way.</summary>
     private static string BuildPayload(
-        AlertRule rule, string signalTitle, string signalFilter, long count, string fromUtc, string toUtc)
+        AlertRule rule, string? signalTitle, string watching, string filter,
+        long count, string fromUtc, string toUtc)
     {
         var message = rule.Condition == "silence"
-            ? BuildSilenceMessage(rule, signalTitle)
-            : BuildMessage(rule, signalTitle, count);
+            ? BuildSilenceMessage(rule, watching)
+            : BuildMessage(rule, watching, count);
 
         switch (rule.PayloadFormat)
         {
@@ -154,7 +163,7 @@ public sealed class AlertEvaluator
                     {
                         rule = rule.Title,
                         signal = signalTitle,
-                        filter = signalFilter,
+                        filter,
                         condition = "silence",
                         count,
                         windowMinutes = rule.WindowMinutes,
@@ -165,7 +174,7 @@ public sealed class AlertEvaluator
                     {
                         rule = rule.Title,
                         signal = signalTitle,
-                        filter = signalFilter,
+                        filter,
                         count,
                         threshold = rule.ThresholdCount,
                         windowMinutes = rule.WindowMinutes,
@@ -175,11 +184,11 @@ public sealed class AlertEvaluator
         }
     }
 
-    private static string BuildMessage(AlertRule rule, string signalTitle, long count) =>
-        $"LogHarbor alert '{rule.Title}': {count} events matched '{signalTitle}' " +
+    private static string BuildMessage(AlertRule rule, string watching, long count) =>
+        $"LogHarbor alert '{rule.Title}': {count} events matched '{watching}' " +
         $"in the last {rule.WindowMinutes} min (threshold {rule.ThresholdCount}).";
 
-    private static string BuildSilenceMessage(AlertRule rule, string signalTitle) =>
-        $"LogHarbor alert '{rule.Title}': signal '{signalTitle}' has been silent for " +
+    private static string BuildSilenceMessage(AlertRule rule, string watching) =>
+        $"LogHarbor alert '{rule.Title}': '{watching}' has been silent for " +
         $"{rule.WindowMinutes} min (expected at least one event).";
 }

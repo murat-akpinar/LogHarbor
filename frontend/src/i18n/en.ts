@@ -428,13 +428,13 @@ export const en = {
     newRule: 'New rule',
     title: 'Alerts',
     description:
-      'Fires a webhook POST when a signal matches at least the threshold count of events in the window (at-least), or when a once-active signal goes silent for the whole window (dead man’s switch).',
+      'Fires a webhook POST when the watched filter matches at least the threshold count of events in the window (at-least), or when a once-active filter goes silent for the whole window (dead man’s switch). A rule can carry its own filter or watch a saved signal.',
     enabled: 'enabled',
     disabled: 'disabled',
-    summary: (signalTitle: string, threshold: number, windowMinutes: number) =>
-      `${signalTitle} — fires at ≥${threshold} events / ${windowMinutes}min →`,
-    summarySilence: (signalTitle: string, windowMinutes: number) =>
-      `${signalTitle} — fires when silent for ${windowMinutes}min →`,
+    summary: (watching: string, threshold: number, windowMinutes: number) =>
+      `${watching} — fires at ≥${threshold} events / ${windowMinutes}min →`,
+    summarySilence: (watching: string, windowMinutes: number) =>
+      `${watching} — fires when silent for ${windowMinutes}min →`,
     conditionTitle: 'Alert condition',
     conditionAtLeast: 'At least N events',
     conditionSilence: 'Silent for N minutes',
@@ -447,7 +447,10 @@ export const en = {
     acknowledgedBy: (who: string) => ` by ${who}`,
     resume: 'Resume',
     resumeHint: 'Stop silencing and evaluate again on the next pass.',
-    selectSignal: 'Select a signal…',
+    watchTitle: 'What this rule watches',
+    watchOwnFilter: 'Filter',
+    watchSignalGroup: 'Saved signals',
+    filterTitle: 'Filter to watch',
     titlePlaceholder: 'Title',
     countPlaceholder: 'Count',
     thresholdTitle: 'Threshold count',
@@ -456,7 +459,7 @@ export const en = {
     enabledLabel: 'Enabled',
     formatTitle: 'Webhook payload format',
     formatGeneric: 'Generic (raw JSON)',
-    allRequired: 'Title, signal and webhook URL are all required.',
+    allRequired: 'Title, webhook URL and something to watch are all required.',
     couldNotSave: 'Could not save alert rule.',
   },
   settings: {

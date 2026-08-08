@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useSignals } from '../hooks/useSignals'
+import { validateFilter } from '../api/events'
 import type { AlertRequest } from '../api/alerts'
 import type { AlertPayloadFormat } from '../types'
 import { useI18n } from '../i18n'
@@ -15,9 +16,12 @@ interface AlertFormProps {
   onCancel?: () => void
 }
 
+// a rule's own filter, not a signal: the common case is a condition nobody wants cluttering the
+// signal list, and a fresh install has no signals to pick from at all
 const DEFAULTS: AlertRequest = {
   title: '',
-  signalId: 0,
+  signalId: null,
+  filter: '',
   thresholdCount: 1,
   windowMinutes: 5,
   webhookUrl: '',
@@ -26,6 +30,11 @@ const DEFAULTS: AlertRequest = {
   condition: 'at-least',
 }
 
+/** The one select covers both sources, so its value has to say which: a signal id or the rule's own filter. */
+const OWN_FILTER = 'filter'
+
+const watchedValue = (form: AlertRequest) => (form.signalId === null ? OWN_FILTER : `signal:${form.signalId}`)
+
 export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFormProps) {
   const { t } = useI18n()
   const { data: signals } = useSignals()
@@ -33,16 +42,37 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const watchesOwnFilter = form.signalId === null
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!form.title.trim() || !form.signalId || !form.webhookUrl.trim()) {
+    const filter = (form.filter ?? '').trim()
+    if (!form.title.trim() || !form.webhookUrl.trim() || (watchesOwnFilter && !filter)) {
       setError(t.alerts.allRequired)
       return
     }
     setIsSubmitting(true)
     setError(null)
     try {
-      await onSubmit({ ...form, title: form.title.trim(), webhookUrl: form.webhookUrl.trim() })
+      // same check the Signals form makes, for the same reason: a filter that does not parse is
+      // caught while the box is still open, not by a rule that quietly never fires
+      if (watchesOwnFilter) {
+        const validation = await validateFilter(filter)
+        if (!validation.valid) {
+          setError(
+            validation.position !== undefined
+              ? t.filters.errorAtPosition(validation.error ?? t.filters.invalidFilter, validation.position)
+              : (validation.error ?? t.filters.invalidFilter),
+          )
+          return
+        }
+      }
+      await onSubmit({
+        ...form,
+        title: form.title.trim(),
+        webhookUrl: form.webhookUrl.trim(),
+        filter: watchesOwnFilter ? filter : null,
+      })
       if (!initial) setForm(DEFAULTS)
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : t.alerts.couldNotSave)
@@ -79,19 +109,40 @@ export function AlertForm({ initial, submitLabel, onSubmit, onCancel }: AlertFor
           <option value="silence">{t.alerts.conditionSilence}</option>
         </Select>
         <Select
-          value={form.signalId || ''}
-          onChange={(event) => setForm((current) => ({ ...current, signalId: Number(event.target.value) }))}
+          value={watchedValue(form)}
+          onChange={(event) => {
+            const watched = event.target.value
+            setForm((current) => ({
+              ...current,
+              signalId: watched === OWN_FILTER ? null : Number(watched.slice('signal:'.length)),
+            }))
+          }}
+          title={t.alerts.watchTitle}
           disabled={isSubmitting}
         >
-          <option value="" disabled>
-            {t.alerts.selectSignal}
-          </option>
-          {(signals ?? []).map((signal) => (
-            <option key={signal.id} value={signal.id}>
-              {signal.title}
-            </option>
-          ))}
+          <option value={OWN_FILTER}>{t.alerts.watchOwnFilter}</option>
+          {(signals ?? []).length > 0 && (
+            <optgroup label={t.alerts.watchSignalGroup}>
+              {(signals ?? []).map((signal) => (
+                <option key={signal.id} value={`signal:${signal.id}`}>
+                  {signal.title}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </Select>
+        {watchesOwnFilter && (
+          <Input
+            type="text"
+            value={form.filter ?? ''}
+            onChange={(event) => setForm((current) => ({ ...current, filter: event.target.value }))}
+            placeholder="@Level = 'Error'"
+            title={t.alerts.filterTitle}
+            mono
+            className="min-w-56 flex-1"
+            disabled={isSubmitting}
+          />
+        )}
         {form.condition === 'at-least' && (
           <Input
             type="number"

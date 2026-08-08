@@ -149,19 +149,28 @@ DELETE /api/signals/{id}         204 | 404 | 400 when an alert rule still refere
 
 --- ALERTS ---
 
-Evaluated once a minute. An `at-least` rule (the default) fires a webhook POST when a
-signal matches at least thresholdCount events within the trailing windowMinutes. A
-`silence` rule (dead man's switch) fires when the signal matched at least once between
+Evaluated once a minute. An `at-least` rule (the default) fires a webhook POST when the
+watched filter matches at least thresholdCount events within the trailing windowMinutes. A
+`silence` rule (dead man's switch) fires when that filter matched at least once between
 the rule's creation and the start of the window, but zero events within the window —
 a once-alive heartbeat that stopped.
 
-GET    /api/alerts        200: [ { id, title, signalId, thresholdCount, windowMinutes, webhookUrl,
-                                    isEnabled, createdAt, lastTriggeredAt, lastError, payloadFormat,
-                                    condition, acknowledgedUntil, acknowledgedBy } ]
-POST   /api/alerts        body { title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled,
-                                 payloadFormat?, condition? }
+A rule watches exactly one thing, and says which by sending exactly one of two fields:
+`filter` (its own expression, the usual case) or `signalId` (a saved signal, when the same
+filter is also one you toggle on while reading events). Sending both, or neither, is a 400
+on `filter`; so is an expression that does not parse, which is checked at save time rather
+than left for the next evaluation pass to discover. A rule with its own filter needs no
+signal to exist at all, so an install with an empty Signals list can still alert.
+
+GET    /api/alerts        200: [ { id, title, signalId, filter, thresholdCount, windowMinutes,
+                                    webhookUrl, isEnabled, createdAt, lastTriggeredAt, lastError,
+                                    payloadFormat, condition, acknowledgedUntil, acknowledgedBy } ]
+                                (signalId and filter: exactly one is set, the other is null)
+POST   /api/alerts        body { title, signalId | filter, thresholdCount, windowMinutes, webhookUrl,
+                                 isEnabled, payloadFormat?, condition? }
                           201: AlertRule | 400 validation | 400 duplicate title | 400 unknown signal
 PUT    /api/alerts/{id}   same body  200: AlertRule | 404 | 400 (as above)
+                          switching which of the two is sent moves the rule between them
 DELETE /api/alerts/{id}   204 | 404
 
 POST   /api/alerts/{id}/acknowledge   body { minutes }   200: AlertRule | 400 | 404
@@ -182,7 +191,10 @@ is ignored and may be 0). webhookUrl must be an absolute http(s) URL (never a fi
 other local scheme). After firing (successfully or not) a rule cools down for one full
 windowMinutes before it can retrigger, so a dead webhook is not hammered every evaluation
 pass; a silence rule therefore re-fires once per window while the signal stays quiet.
-payloadFormat picks the webhook body shape (default generic):
+payloadFormat picks the webhook body shape (default generic). In the generic payloads `filter`
+is always what was evaluated, and `signal` is the signal's name or null for a rule carrying its
+own filter; the slack/discord message names the signal where there is one and the filter text
+otherwise:
   generic (at-least)  { rule, signal, filter, count, threshold, windowMinutes, from, to }
   generic (silence)   { rule, signal, filter, condition: "silence", count: 0, windowMinutes, from, to }
   slack    { "text": "LogHarbor alert '<rule>': ..." }

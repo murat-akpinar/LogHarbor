@@ -30,7 +30,18 @@ export function AlarmDeck({ firing, from, to }: AlarmDeckProps) {
   const { data: signals } = useSignals()
 
   function signalOf(rule: AlertRule) {
-    return signals?.find((signal) => signal.id === rule.signalId)
+    return rule.signalId === null ? undefined : signals?.find((signal) => signal.id === rule.signalId)
+  }
+
+  /** What to call the rule's condition here, the same fallback the row and the webhook use. */
+  function watchedName(rule: AlertRule) {
+    return signalOf(rule)?.title ?? rule.filter ?? `#${rule.signalId}`
+  }
+
+  /** The filter "Open events" opens. A rule carrying its own filter has one without a signal —
+   *  and losing the button there would drop the most useful thing on an alarm. */
+  function watchedFilter(rule: AlertRule) {
+    return rule.filter ?? signalOf(rule)?.filter ?? null
   }
 
   return (
@@ -47,7 +58,8 @@ export function AlarmDeck({ firing, from, to }: AlarmDeckProps) {
 
       <ul className="mt-3 flex flex-col gap-2">
         {firing.map((rule) => {
-          const signal = signalOf(rule)
+          const watching = watchedName(rule)
+          const filter = watchedFilter(rule)
           return (
             <li
               key={rule.id}
@@ -57,8 +69,8 @@ export function AlarmDeck({ firing, from, to }: AlarmDeckProps) {
                 <p className="truncate text-sm font-medium text-fg">{rule.title}</p>
                 <p className="mt-0.5 truncate text-xs text-fg-muted">
                   {rule.condition === 'silence'
-                    ? t.alerts.summarySilence(signal?.title ?? `#${rule.signalId}`, rule.windowMinutes)
-                    : t.alerts.summary(signal?.title ?? `#${rule.signalId}`, rule.thresholdCount, rule.windowMinutes)}
+                    ? t.alerts.summarySilence(watching, rule.windowMinutes)
+                    : t.alerts.summary(watching, rule.thresholdCount, rule.windowMinutes)}
                   {rule.lastTriggeredAt && (
                     <span className="text-fg-subtle">
                       {' · '}
@@ -71,9 +83,9 @@ export function AlarmDeck({ firing, from, to }: AlarmDeckProps) {
 
               <div className="flex shrink-0 items-center gap-2">
                 {/* look at it, or silence it — the only two things anybody does at this moment */}
-                {signal && (
+                {filter && (
                   <Link
-                    to={`/events?${new URLSearchParams({ from, to, filter: signal.filter }).toString()}`}
+                    to={`/events?${new URLSearchParams({ from, to, filter }).toString()}`}
                     className="rounded-lg border border-border px-2 py-1 text-xs font-medium text-fg transition-colors hover:bg-surface-hover"
                   >
                     {t.dashboard.alarmOpenEvents}

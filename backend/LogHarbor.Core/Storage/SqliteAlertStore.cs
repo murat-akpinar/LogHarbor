@@ -9,7 +9,7 @@ public sealed class SqliteAlertStore : IAlertStore
     private const string Columns =
         "id, title, signal_id, threshold_count, window_minutes, webhook_url, is_enabled, " +
         "created_at, last_triggered_at, last_error, payload_format, condition, " +
-        "acknowledged_until, acknowledged_by";
+        "acknowledged_until, acknowledged_by, filter";
 
     private const int UniqueConstraintCode = 2067;     // SQLITE_CONSTRAINT_UNIQUE
     private const int ForeignKeyConstraintCode = 787;  // SQLITE_CONSTRAINT_FOREIGNKEY
@@ -19,7 +19,7 @@ public sealed class SqliteAlertStore : IAlertStore
     public SqliteAlertStore(LogHarborDb db) => _db = db;
 
     public async Task<AlertRule> CreateAsync(
-        string title, long signalId, int thresholdCount, int windowMinutes, string webhookUrl,
+        string title, long? signalId, string? filter, int thresholdCount, int windowMinutes, string webhookUrl,
         bool isEnabled, string payloadFormat, string condition, CancellationToken cancellationToken = default)
     {
         var createdAt = ClefParser.FormatTimestamp(DateTimeOffset.UtcNow);
@@ -27,10 +27,10 @@ public sealed class SqliteAlertStore : IAlertStore
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText =
-            "INSERT INTO alert_rules (title, signal_id, threshold_count, window_minutes, webhook_url, is_enabled, payload_format, condition, created_at) " +
-            "VALUES (@title, @signalId, @threshold, @window, @webhookUrl, @isEnabled, @payloadFormat, @condition, @createdAt); " +
+            "INSERT INTO alert_rules (title, signal_id, filter, threshold_count, window_minutes, webhook_url, is_enabled, payload_format, condition, created_at) " +
+            "VALUES (@title, @signalId, @filter, @threshold, @window, @webhookUrl, @isEnabled, @payloadFormat, @condition, @createdAt); " +
             "SELECT last_insert_rowid();";
-        AddRuleParameters(command, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled, payloadFormat, condition);
+        AddRuleParameters(command, title, signalId, filter, thresholdCount, windowMinutes, webhookUrl, isEnabled, payloadFormat, condition);
         command.Parameters.AddWithValue("@createdAt", createdAt);
 
         long id;
@@ -44,11 +44,11 @@ public sealed class SqliteAlertStore : IAlertStore
         }
         catch (SqliteException ex) when (ex.SqliteExtendedErrorCode == ForeignKeyConstraintCode)
         {
-            throw new UnknownSignalException(signalId);
+            throw new UnknownSignalException(signalId!.Value);
         }
 
         return new AlertRule(id, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled,
-            createdAt, LastTriggeredAt: null, LastError: null, payloadFormat, condition);
+            createdAt, LastTriggeredAt: null, LastError: null, payloadFormat, condition, Filter: filter);
     }
 
     public async Task<IReadOnlyList<AlertRule>> ListAsync(CancellationToken cancellationToken = default)
@@ -67,17 +67,18 @@ public sealed class SqliteAlertStore : IAlertStore
     }
 
     public async Task<AlertRule?> UpdateAsync(
-        long id, string title, long signalId, int thresholdCount, int windowMinutes, string webhookUrl,
-        bool isEnabled, string payloadFormat, string condition, CancellationToken cancellationToken = default)
+        long id, string title, long? signalId, string? filter, int thresholdCount, int windowMinutes,
+        string webhookUrl, bool isEnabled, string payloadFormat, string condition,
+        CancellationToken cancellationToken = default)
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
         command.CommandText =
-            "UPDATE alert_rules SET title = @title, signal_id = @signalId, threshold_count = @threshold, " +
-            "window_minutes = @window, webhook_url = @webhookUrl, is_enabled = @isEnabled, " +
-            "payload_format = @payloadFormat, condition = @condition " +
+            "UPDATE alert_rules SET title = @title, signal_id = @signalId, filter = @filter, " +
+            "threshold_count = @threshold, window_minutes = @window, webhook_url = @webhookUrl, " +
+            "is_enabled = @isEnabled, payload_format = @payloadFormat, condition = @condition " +
             $"WHERE id = @id RETURNING {Columns};";
-        AddRuleParameters(command, title, signalId, thresholdCount, windowMinutes, webhookUrl, isEnabled, payloadFormat, condition);
+        AddRuleParameters(command, title, signalId, filter, thresholdCount, windowMinutes, webhookUrl, isEnabled, payloadFormat, condition);
         command.Parameters.AddWithValue("@id", id);
 
         try
@@ -91,7 +92,7 @@ public sealed class SqliteAlertStore : IAlertStore
         }
         catch (SqliteException ex) when (ex.SqliteExtendedErrorCode == ForeignKeyConstraintCode)
         {
-            throw new UnknownSignalException(signalId);
+            throw new UnknownSignalException(signalId!.Value);
         }
     }
 
@@ -109,18 +110,23 @@ public sealed class SqliteAlertStore : IAlertStore
     {
         using var connection = _db.OpenConnection();
         using var command = connection.CreateCommand();
+        // LEFT JOIN, not JOIN: a rule carrying its own filter has no signal row to join to, and an
+        // inner join would silently drop it from every evaluation pass
         command.CommandText =
             "SELECT r.id, r.title, r.signal_id, r.threshold_count, r.window_minutes, r.webhook_url, " +
             "r.is_enabled, r.created_at, r.last_triggered_at, r.last_error, r.payload_format, r.condition, " +
-            "r.acknowledged_until, r.acknowledged_by, s.title, s.filter " +
-            "FROM alert_rules r JOIN signals s ON s.id = r.signal_id " +
+            "r.acknowledged_until, r.acknowledged_by, r.filter, s.title, s.filter " +
+            "FROM alert_rules r LEFT JOIN signals s ON s.id = r.signal_id " +
             "WHERE r.is_enabled = 1 ORDER BY r.id;";
 
         var alerts = new List<EnabledAlert>();
         using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken))
         {
-            alerts.Add(new EnabledAlert(ReadRule(reader), reader.GetString(14), reader.GetString(15)));
+            alerts.Add(new EnabledAlert(
+                ReadRule(reader),
+                reader.IsDBNull(15) ? null : reader.GetString(15),
+                reader.IsDBNull(16) ? null : reader.GetString(16)));
         }
         return alerts;
     }
@@ -165,11 +171,12 @@ public sealed class SqliteAlertStore : IAlertStore
     }
 
     private static void AddRuleParameters(
-        SqliteCommand command, string title, long signalId, int thresholdCount, int windowMinutes,
-        string webhookUrl, bool isEnabled, string payloadFormat, string condition)
+        SqliteCommand command, string title, long? signalId, string? filter, int thresholdCount,
+        int windowMinutes, string webhookUrl, bool isEnabled, string payloadFormat, string condition)
     {
         command.Parameters.AddWithValue("@title", title);
-        command.Parameters.AddWithValue("@signalId", signalId);
+        command.Parameters.AddWithValue("@signalId", (object?)signalId ?? DBNull.Value);
+        command.Parameters.AddWithValue("@filter", (object?)filter ?? DBNull.Value);
         command.Parameters.AddWithValue("@threshold", thresholdCount);
         command.Parameters.AddWithValue("@window", windowMinutes);
         command.Parameters.AddWithValue("@webhookUrl", webhookUrl);
@@ -181,7 +188,7 @@ public sealed class SqliteAlertStore : IAlertStore
     private static AlertRule ReadRule(SqliteDataReader reader) => new(
         reader.GetInt64(0),
         reader.GetString(1),
-        reader.GetInt64(2),
+        reader.IsDBNull(2) ? null : reader.GetInt64(2),
         reader.GetInt32(3),
         reader.GetInt32(4),
         reader.GetString(5),
@@ -192,5 +199,6 @@ public sealed class SqliteAlertStore : IAlertStore
         reader.GetString(10),
         reader.GetString(11),
         reader.IsDBNull(12) ? null : reader.GetString(12),
-        reader.IsDBNull(13) ? null : reader.GetString(13));
+        reader.IsDBNull(13) ? null : reader.GetString(13),
+        reader.IsDBNull(14) ? null : reader.GetString(14));
 }

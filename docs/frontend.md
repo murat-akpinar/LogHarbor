@@ -27,7 +27,7 @@ React 18 + TypeScript + Vite + Tailwind CSS. SPA served by the backend in produc
              and operations slower than their own baseline; rows deep-link to
              filtered Events
 /signals     List, create, edit, delete signals
-/alerts      List, create, edit, delete alert rules (signal + threshold -> webhook)
+/alerts      List, create, edit, delete alert rules (filter or signal + threshold -> webhook)
 /settings    API key management, archive/retention settings, backup download
              (admin only), user management (admin only), directory sign-in
              (LDAP, admin only), health status, sign out
@@ -605,9 +605,17 @@ Row click (errors and slow operations): navigates to Events with
 
 --- ALERTS PAGE ---
 
-List, create, edit, delete alert rules: title, signal, threshold count, window
+List, create, edit, delete alert rules: title, what it watches, threshold count, window
 (minutes), webhook URL, payload format (generic / Slack / Discord), enabled toggle.
 Shows last-fired time and last error inline.
+What it watches is one select: "Filter" (the default) or a saved signal, grouped under
+"Saved signals" and absent entirely when the install has none. Filter opens a mono box
+next to it and the rule carries its own expression — the whole point being that a
+condition nobody wants to read events through should not have to become a signal first,
+and a fresh install with no signals can still create an alert. The expression is checked
+against /api/query/validate on submit, the same call SignalForm makes, so a typo is a red
+line under the form rather than a rule that quietly never fires. The row names the signal
+where there is one and the filter text otherwise — matching what the webhook message says.
 Condition selector: "at least N events" (threshold) or "silent for N minutes" (dead
 man's switch). Choosing silence hides the threshold field (sent as 0) and relabels the
 window as the silence period; the rule row summary reads "fires when silent for Nmin".
@@ -631,8 +639,9 @@ clock it uses is the page's own rolling `to`, so the deck appears and clears on
 the tick the rest of the page already moves with; /api/alerts is polled once a
 minute, which is how often the server evaluates.
 
-The deck carries the two things anybody does at that moment: open the signal's
-events, or silence it for 1h / 4h / 24h — the same durations the Alerts page
+The deck carries the two things anybody does at that moment: open the watched
+filter's events (the rule's own, or the signal's — either way there is one, so the
+button never goes missing), or silence it for 1h / 4h / 24h — the same durations the Alerts page
 offers, from lib/alertDurations.ts so the two can never drift. Acknowledging from
 the deck makes it disappear and the page brighten, which is how the reader knows
 the click landed. Viewers get the deck and the link, not the durations.

@@ -11,6 +11,7 @@ const RULE: AlertRule = {
   id: 1,
   title: 'errors-spike',
   signalId: 7,
+  filter: null,
   thresholdCount: 10,
   windowMinutes: 5,
   webhookUrl: 'https://example.com/hook',
