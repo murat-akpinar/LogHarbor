@@ -10,6 +10,8 @@ services:
     environment:
       - LOGHARBOR_ADMIN_PASSWORD=${LOGHARBOR_ADMIN_PASSWORD:-}
 #     - LogHarbor__AllowInsecureCookie=true # For HTTP
+#     - LogHarbor__KnownProxies__0=172.18.0.2 # Behind a reverse proxy: its address, or one
+#       client's ten wrong passwords lock out everyone (README "Behind a reverse proxy")
     # health status is inherited from the Dockerfile HEALTHCHECK (GET /healthz)
     security_opt:
       - no-new-privileges:true

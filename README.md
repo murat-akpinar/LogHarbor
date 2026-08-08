@@ -112,6 +112,32 @@ Now log in with **admin / admin** over HTTP and set a new password when prompted
 (the default) whenever a reverse proxy terminates TLS in front of LogHarbor — the cookie must
 stay `Secure` there. It is a testing convenience, not for anything exposed beyond a trusted LAN.
 
+### Behind a reverse proxy: name the proxy
+
+If TLS is terminated in front of LogHarbor, set **`LogHarbor__KnownProxies__0`** to the proxy's
+address:
+
+```yaml
+    environment:
+      - LogHarbor__KnownProxies__0=172.18.0.2     # the proxy, as LogHarbor sees it
+```
+
+Without it, every request arrives wearing the proxy's address, and the login rate limiter —
+ten attempts per minute, per client — puts the whole organisation in one bucket. **Ten wrong
+passwords from one person then lock everybody out**, for as long as anyone keeps trying.
+
+Measured 2026-08-09 against Caddy in front of the shipped image, two clients on different
+addresses:
+
+| | client A: 12 attempts | client B: first attempt |
+|---|---|---|
+| `KnownProxies` set | `401`×10 then `429` | `401` — unaffected |
+| `KnownProxies` unset | `401`×10 then `429` | **`429`** — locked out by A |
+
+Only addresses listed here may rewrite the client address, so an unset value is safe rather than
+trusting; it is the availability that suffers, not the authentication. With nothing in front of
+LogHarbor, leave it unset.
+
 ## Quick start (from source)
 
 Requires .NET 8 SDK and Node 22+.

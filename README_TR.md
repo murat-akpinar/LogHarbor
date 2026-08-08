@@ -115,6 +115,31 @@ Artık düz HTTP üzerinden **admin / admin** ile girip istendiğinde yeni parol
 `Secure` kalmalı. Bu yalnızca bir test kolaylığıdır; güvendiğin yerel ağ dışına açılan hiçbir
 kurulumda kullanma.
 
+### Reverse proxy arkasında: proxy'nin adresini yaz
+
+TLS'i LogHarbor'ın önünde sonlandırıyorsan **`LogHarbor__KnownProxies__0`** değerini proxy'nin
+adresine ayarla:
+
+```yaml
+    environment:
+      - LogHarbor__KnownProxies__0=172.18.0.2     # LogHarbor'ın gördüğü haliyle proxy
+```
+
+Bu olmadan her istek proxy'nin adresiyle gelir ve giriş hız sınırı — istemci başına dakikada on
+deneme — bütün kurumu tek kovaya koyar. **Bir kişinin on yanlış parolası herkesi kilitler**, hem
+de biri denemeye devam ettiği sürece.
+
+2026-08-09'da, gönderilen imajın önünde Caddy ile, farklı adreslerdeki iki istemciyle ölçüldü:
+
+| | istemci A: 12 deneme | istemci B: ilk deneme |
+|---|---|---|
+| `KnownProxies` ayarlı | 10×`401`, sonra `429` | `401` — etkilenmiyor |
+| `KnownProxies` ayarsız | 10×`401`, sonra `429` | **`429`** — A yüzünden kilitli |
+
+Yalnızca burada yazan adresler istemci adresini değiştirebilir; yani ayarsız bırakmak güvensiz
+değil, sadece erişilebilirliği vuruyor — kimlik doğrulamayı değil. LogHarbor'ın önünde bir şey
+yoksa ayarsız bırak.
+
 ## Hızlı başlangıç (kaynaktan)
 
 .NET 8 SDK ve Node 22+ gerekir.
