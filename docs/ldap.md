@@ -92,23 +92,36 @@ its own TLS verification and ignores the managed "trust this certificate" callba
 LogHarbor sets libldap's `TLS_REQCERT` at startup instead — and libldap reads that exactly once
 per process.
 
-Do not expect to need it first. Measured 2026-08-01 against `test/ldap_test`'s self-signed
-OpenLDAP, from the shipped image (Debian 12, .NET 8 runtime, libldap 2.5): both **LDAPS on 636
-and StartTLS on 389 bound and read the user's groups with this setting off**, no restart
-involved. The container carries no `/etc/ldap/ldap.conf`, so libldap is not being told to
-demand a chain it cannot build.
+Against a self-signed directory you will need it, and the earlier claim here that you would not
+was measured wrong. Re-measured 2026-08-09 against `test/ldap_test`'s self-signed OpenLDAP
+(192.168.1.132) from the shipped image, storing the setting and restarting between runs rather
+than only passing it to the test button:
+
+| stored setting, then restarted | LDAPS 636 | StartTLS 389 | plain 389 |
+|---|---|---|---|
+| accept untrusted **off** | LDAP error 81 | LDAP error 91 | binds, role admin |
+| accept untrusted **on**  | binds, role admin | binds, role admin | binds, role admin |
+
+Why the first measurement said the opposite, because the trap catches anyone checking this: the
+flag is **process-global**. LogHarbor applies it by setting libldap's `TLS_REQCERT` at startup,
+so a server that booted with it on verifies nothing for the rest of its life, whatever any
+individual test request asks for. Test *from* a process started with the setting on and TLS
+appears to work with it off. The only honest way to measure it is to store the value, restart,
+and then test — the same sequence a real deployment goes through.
 
 Where TLS does fail, it never says "certificate" anywhere:
 
 ```
 LDAPS    LDAP error 81: The LDAP server is unavailable.
-StartTLS TlsOperationException: An unspecified operation error occurred. The server is unavailable.
+StartTLS LDAP error 91: The connection cannot be established.
+         (or TlsOperationException: An unspecified operation error occurred.)
 Plain    the directory rejected the credentials      <- reached the directory, wrong password
 ```
 
-Measured 2026-08-01 against a Windows Server AD (`hogwarts.local`, two DCs) from the test
-button, one connection mode at a time. Read the three together, because the same words have
-two different causes:
+Measured 2026-08-01 against a Windows Server AD (`hogwarts.local`, two DCs) and again
+2026-08-09 against the self-signed OpenLDAP above, from the test button, one connection mode at
+a time. Read them together, because the same words have two different causes — and note that a
+refused *certificate* and an absent one are indistinguishable from the message alone:
 
 * **The directory has no certificate at all.** Nothing on this card fixes it — not "accept an
   untrusted certificate", not a restart. LDAPS is not a switch in AD: a DC serves 636 when it
@@ -124,7 +137,9 @@ two different causes:
 If you turn the setting on and press **Test** before restarting, and the directory was in fact
 rejecting the certificate, that is exactly what you will still see — so the test button adds
 "this server has not been restarted since …" to the message rather than leaving you looking
-for a network fault.
+for a network fault. Confirmed 2026-08-09: with the setting off in the running process and on
+in the test request, the self-signed directory answered `LDAP error 81` *followed by* that
+sentence, which is the one thing that tells you to restart rather than to check the network.
 
 The better answer for anything long-lived is to install the directory's CA certificate into the
 container's trust store and leave this off.
