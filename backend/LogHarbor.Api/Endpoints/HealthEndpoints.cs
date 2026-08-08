@@ -1,3 +1,4 @@
+using LogHarbor.Api.Auth;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Storage;
 
@@ -22,6 +23,7 @@ public static class HealthEndpoints
         // measured. Recorded write failures are the ground truth the probe cannot reach:
         // not a guess about the next write, but a write that already did not happen.
         app.MapGet("/healthz", async (
+            HttpContext http, AuthService authService,
             LogHarborDb db, IIngestRejectionStore rejections, IngestionOptions options,
             CancellationToken cancellationToken) =>
         {
@@ -37,17 +39,29 @@ public static class HealthEndpoints
             var roomForABatch = freeDiskBytes is null || freeDiskBytes >= options.MaxBatchBytes;
             var healthy = writable && !failingNow && roomForABatch;
 
-            var payload = new
-            {
-                status = healthy ? "ok" : "degraded",
-                writable,
-                roomForABatch,
-                lastWriteFailure,
-                eventCount = db.CountEvents(),
-                dbSizeBytes = db.GetDatabaseSizeBytes(),
-                freeDiskBytes,
-            };
-            // 503 so the Docker healthcheck (curl -f) and any uptime monitor act on it
+            var status = healthy ? "ok" : "degraded";
+            // This endpoint is outside the auth gate — it has to be, the container healthcheck
+            // calls it with no session — but "how many events, how big, how much disk is left"
+            // is capacity planning about somebody's server, and it was going to anyone who could
+            // reach the port. The verdict is what a liveness probe needs; the numbers are what
+            // the Settings page needs, and that page has a session. Authenticated, not admin: a
+            // viewer's Events page reads eventCount to tell a first run from an empty filter.
+            var detailed = !await authService.IsEnabledAsync(cancellationToken)
+                || http.User.Identity?.IsAuthenticated == true;
+            object payload = detailed
+                ? new
+                {
+                    status,
+                    writable,
+                    roomForABatch,
+                    lastWriteFailure,
+                    eventCount = db.CountEvents(),
+                    dbSizeBytes = db.GetDatabaseSizeBytes(),
+                    freeDiskBytes,
+                }
+                : new { status };
+            // 503 so the Docker healthcheck (curl -f) and any uptime monitor act on it. Unchanged
+            // by the trimming above: the code is the signal, the body is the detail.
             return healthy
                 ? Results.Ok(payload)
                 : Results.Json(payload, statusCode: StatusCodes.Status503ServiceUnavailable);

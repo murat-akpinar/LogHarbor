@@ -565,9 +565,15 @@ Only events matching the subscribed filter are pushed.
 --- HEALTH ---
 
 GET /healthz    No auth. 200 when the server can still store events, 503 when it cannot.
+                With a session (or on an install with no accounts at all):
                 { "status": "ok"|"degraded", "writable": bool, "roomForABatch": bool,
                   "lastWriteFailure": ts|null, "eventCount": n, "dbSizeBytes": n,
                   "freeDiskBytes": n|null }
+                With none: { "status": "ok"|"degraded" } and the same status code. The endpoint
+                stays open because the container HEALTHCHECK calls it without a session, but
+                event count, database size and free disk are capacity facts about someone's
+                server and do not belong to whoever can reach the port. The status code is
+                unchanged either way — it is what curl -f acts on.
                 Degraded when any signal fires, because none is sufficient alone:
                   writable  a real insert inside a rolled-back transaction. Catches a
                             read-only mount or lost permissions. It is one small row, so on a
