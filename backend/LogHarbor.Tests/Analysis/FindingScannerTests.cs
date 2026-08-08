@@ -84,7 +84,7 @@ public sealed class FindingScannerTests : IDisposable
         // a 12-hour window: four windows would be two days, so the cap makes the baseline one day
         var to = new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero);
         var from = to.AddHours(-12);
-        var baselineStart = from - FindingScanner.MaxBaseline;
+        var baselineStart = from - Baseline.Max;
         await WriteAsync([.. Spread(baselineStart, from, 40, properties: Service("billing"))]);
         await WriteAsync([.. Spread(baselineStart, to, 40, properties: Service("api"))]);
 

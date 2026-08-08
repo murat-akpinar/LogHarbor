@@ -605,11 +605,14 @@ Top errors table: /api/stats/top-errors grouped by (message template, level);
 Top exceptions table: /api/stats/top-exceptions grouped by exception type
 Slower than usual table: /api/stats/slow-operations lists operation groups whose
   p95 of the Elapsed property in the range is >= factor x the group's own baseline
-  p95 (its history before the range) — adaptive, no fixed threshold; columns are
-  usual p95, now p95, x slower, count and a template-filtered sparkline. When the list is
-  empty the card reads timedOperationCount/comparableOperationCount from the response to say
-  which case it is: no event carries an Elapsed duration, no group has baseline history
-  before the range to compare against (narrow the range), or nothing regressed.
+  p95 — adaptive, no fixed threshold; columns are usual p95, now p95, x slower, count
+  and a template-filtered sparkline. A footnote under the table names what "usual" was
+  measured over ("the 4 hours before this range"), computed from the response's
+  baselineFrom: the server bounds the baseline and the reader cannot see that in a number.
+  When the list is empty the card reads timedOperationCount/comparableOperationCount from
+  the response to say which case it is: no event carries an Elapsed duration, no group has
+  enough baseline history to compare against (widen the range — the baseline scales with it
+  up to a day), or nothing regressed.
 Row click (errors and slow operations): navigates to Events with
   @MessageTemplate = '...' and the range as from/to; EventsPage reads the ?filter=
   deep link on mount

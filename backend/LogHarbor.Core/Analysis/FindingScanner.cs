@@ -15,22 +15,6 @@ namespace LogHarbor.Core.Analysis;
 /// </summary>
 public sealed class FindingScanner
 {
-    /// <summary>How much history each rate is judged against, as a multiple of the window itself.
-    /// Four is enough for the comparison to mean something without reaching back so far that a
-    /// deploy last week still counts as normal.</summary>
-    public const int BaselineWindows = 4;
-
-    /// <summary>
-    /// And never further back than this, however wide the window.
-    ///
-    /// Four windows of a 24-hour range is four days, which cost 9.9 s to scan on a 494k-event
-    /// server — against a 10 s live tick, so the band could never finish before the next tick
-    /// replaced it and showed the previous range's rows forever. The cap is also the more honest
-    /// baseline: "usual" meaning the last four days is a claim a deploy on Tuesday already
-    /// falsifies, and a full day of history is enough to be usual against.
-    /// </summary>
-    public static readonly TimeSpan MaxBaseline = TimeSpan.FromHours(24);
-
     /// <summary>Events before this predate any server, so it stands in for "all of history".
     /// Only the new-exception detector wants it: a crash last seen three months ago is not new,
     /// however quiet the last four windows were.</summary>
@@ -76,11 +60,7 @@ public sealed class FindingScanner
         CancellationToken cancellationToken = default)
     {
         var span = to - from;
-        var baselineSpan = span * BaselineWindows;
-        if (baselineSpan > MaxBaseline)
-        {
-            baselineSpan = MaxBaseline;
-        }
+        var baselineSpan = Baseline.SpanFor(span);
         var baselineFrom = from - baselineSpan;
 
         var fromUtc = ClefParser.FormatTimestamp(from);
@@ -93,7 +73,7 @@ public sealed class FindingScanner
         var baselineToUtc = ClefParser.FormatTimestamp(from.AddTicks(-1));
 
         // how many windows the baseline actually covers, which the cap can make fewer than
-        // BaselineWindows — the quiet detector divides by it to get a per-window rate
+        // Baseline.Windows — the quiet detector divides by it to get a per-window rate
         var baselineWindows = baselineSpan / span;
 
         // the four are independent and each store call opens its own connection, so the pass costs
@@ -148,7 +128,7 @@ public sealed class FindingScanner
             .Where(service => !alive.Contains(service.Service))
             // the baseline's own per-window rate is what the window should have seen; comparing
             // raw totals would gate on the wrong number, and the divisor is not always four
-            // because MaxBaseline can cut the baseline short of BaselineWindows
+            // because Baseline.Max can cut the baseline short of Baseline.Windows
             .Select(service => (service, rate: service.Total / baselineWindows))
             .Where(pair => pair.rate >= QuietMinBaselineRate)
             .Select(pair => new Finding(

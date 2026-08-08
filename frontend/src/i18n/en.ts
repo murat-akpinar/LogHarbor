@@ -372,7 +372,8 @@ export const en = {
     noExceptions: 'No exceptions in the selected range.',
     noTimedOpsBefore: 'No operation reports an ',
     noTimedOpsAfter: ' duration in this range.',
-    noBaselineToCompare: 'No operation has enough history before the selected range to compare against. Try a narrower range.',
+    usualMeans: (span: string) => `“Usual” is the p95 over the ${span} before this range.`,
+    noBaselineToCompare: 'No operation has enough history before the selected range to compare against. Try a wider range.',
     noSlowOps: 'No operations are slower than usual.',
   },
   requests: {

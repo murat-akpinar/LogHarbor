@@ -102,8 +102,13 @@ cron ticking once a minute. Both detectors fired.
 
 _Findings surfaced by running this harness against the test server._
 
-- **The Analysis page's default 24 h range can never flag an operation younger than 24 h —
-  including a live, ×4 regression.** The selected `from` is not the start of the analysed
+- ~~**The Analysis page's default 24 h range can never flag an operation younger than 24 h —
+  including a live, ×4 regression.**~~ **FIXED 2026-08-09.** The baseline is a trailing window
+  now — four windows before `from`, capped at 24 h, shared with the findings scan
+  (`Core/Analysis/Baseline.cs`). The argument below is what asked for it, kept because it is also
+  where the cost came from: the open-ended scan measured 4.3 s cold / 7.7 s warm on the test
+  server's dashboard, fifty times the next slowest stats call on the same page.
+  The selected `from` is not the start of the analysed
   window; it is the **split** between "usual" and "now": `SlowOperationsAsync` calls the store
   with `baselineFromUtc = 2000-01-01` and `splitUtc = from` (`StatsEndpoints.cs:97`), so the
   baseline is *everything older than the range you picked* and the current window is the range

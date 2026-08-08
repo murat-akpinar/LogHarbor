@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatRelative, formatTimestamp } from './dates'
+import { formatRelative, formatSpan, formatTimestamp } from './dates'
 
 describe('formatRelative', () => {
   it('formats in English for en', () => {
@@ -10,6 +10,20 @@ describe('formatRelative', () => {
   it('formats in Turkish for tr', () => {
     const iso = new Date(Date.now() - 3 * 60_000).toISOString()
     expect(formatRelative(iso, 'tr')).toBe('3 dakika önce')
+  })
+})
+
+describe('formatSpan', () => {
+  it('names a length, not a moment', () => {
+    // the distinction the function exists for: "4 hours" goes inside a sentence about a
+    // stretch of history, where formatRelative's "4 hours ago" would name a point instead
+    expect(formatSpan(4 * 3600, 'en')).toBe('4 hours')
+    expect(formatSpan(4 * 3600, 'tr')).toBe('4 saat')
+  })
+
+  it('picks the unit the length reads best in', () => {
+    expect(formatSpan(45 * 60, 'en')).toBe('45 minutes')
+    expect(formatSpan(24 * 3600, 'en')).toBe('1 day')
   })
 })
 

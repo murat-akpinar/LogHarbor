@@ -171,6 +171,8 @@ export interface SlowOperationsResult {
   operations: SlowOperation[]
   timedOperationCount: number
   comparableOperationCount: number
+  /** Where "usual" starts: a bounded stretch of recent history, not everything ever stored. */
+  baselineFrom: string
 }
 
 /** RED numbers for one service; p95ElapsedMs is null when no event carried Elapsed. */

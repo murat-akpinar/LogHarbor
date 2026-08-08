@@ -369,7 +369,8 @@ export const tr: Messages = {
     noExceptions: 'Seçilen aralıkta istisna yok.',
     noTimedOpsBefore: 'Bu aralıkta hiçbir işlem ',
     noTimedOpsAfter: ' süresi bildirmiyor.',
-    noBaselineToCompare: 'Seçilen aralıktan önce karşılaştırılacak yeterli geçmişi olan işlem yok. Daha dar bir aralık deneyin.',
+    usualMeans: (span: string) => `“Normal”, bu aralıktan önceki ${span} boyunca ölçülen p95 değeridir.`,
+    noBaselineToCompare: 'Seçilen aralıktan önce karşılaştırılacak yeterli geçmişi olan işlem yok. Daha geniş bir aralık deneyin.',
     noSlowOps: 'Normalden yavaş işlem yok.',
   },
   requests: {

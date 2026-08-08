@@ -42,6 +42,21 @@ export function formatAge(seconds: number, locale?: string): string {
   return relativeFormat(locale).format(-Math.round(magnitude / unitSeconds), unit)
 }
 
+/**
+ * A stretch of time as a bare phrase — "4 hours", "45 minutes", "4 saat". Unlike formatAge it
+ * carries no direction: the caller is naming a length ("the 4 hours before this range"), and
+ * "4 hours ago" would name a moment instead and read as the wrong claim inside a sentence.
+ */
+export function formatSpan(seconds: number, locale?: string): string {
+  const magnitude = Math.max(0, seconds)
+  const [unitSeconds, , unit] = RELATIVE_STEPS.find(([, upTo]) => magnitude < upTo)!
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit,
+    unitDisplay: 'long',
+  }).format(Math.round(magnitude / unitSeconds))
+}
+
 /** datetime-local inputs carry no timezone; interpret as local time and emit UTC ISO for the API. */
 export function localInputToIso(value: string): string | undefined {
   if (!value) return undefined

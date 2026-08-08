@@ -753,6 +753,43 @@ public sealed class StatsEndpointsTests : IAsyncLifetime
         Assert.Equal(1, body.GetProperty("comparableOperationCount").GetInt64());
     }
 
+    [Fact]
+    public async Task SlowOperations_JudgesAgainstRecentHistory_NotEverythingEverStored()
+    {
+        var store = _factory.Services.GetRequiredService<IEventStore>();
+        var batch = new List<Event>();
+        // a month before the window, when this operation really was slow. It is not what "usual"
+        // means any more, and while the baseline was open-ended it drowned the regression below.
+        for (var i = 0; i < 5; i++) batch.Add(Timed("2026-06-18T10:00:00.0000000Z", "Checkout {Path}", 5000 + i));
+        // an hour before the window, inside the four-window baseline: ~100ms is the recent normal
+        for (var i = 0; i < 5; i++) batch.Add(Timed("2026-07-18T09:00:00.0000000Z", "Checkout {Path}", 100 + i));
+        // in the window: 4x the recent normal, but a twelfth of the ancient one
+        for (var i = 0; i < 5; i++) batch.Add(Timed("2026-07-18T10:10:00.0000000Z", "Checkout {Path}", 400 + i));
+        await store.WriteBatchAsync(batch);
+
+        var body = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/slow-operations?from=2026-07-18T10:00:00Z&to=2026-07-18T11:00:00Z&minSamples=3&floorMs=10&factor=2");
+
+        // four windows of an hour, so the comparison starts at 06:00 and the June events are outside it
+        Assert.Equal("2026-07-18T06:00:00.0000000Z", body.GetProperty("baselineFrom").GetString());
+        var op = Assert.Single(body.GetProperty("operations").EnumerateArray());
+        Assert.Equal("Checkout {Path}", op.GetProperty("template").GetString());
+        // the recent 100ms, not the June 5000ms: against the old open-ended baseline this row
+        // could not exist, because 400ms is nothing like twice 5000ms
+        Assert.InRange(op.GetProperty("baselineP95").GetDouble(), 100, 110);
+    }
+
+    [Fact]
+    public async Task SlowOperations_BaselineIsCappedRegardlessOfRangeWidth()
+    {
+        // three days wide: four windows would reach back twelve, which is both slower to scan and
+        // a wider claim about "usual" than a log server can make
+        var body = await _client.GetFromJsonAsync<JsonElement>(
+            "/api/stats/slow-operations?from=2026-07-15T00:00:00Z&to=2026-07-18T00:00:00Z");
+
+        Assert.Equal("2026-07-14T00:00:00.0000000Z", body.GetProperty("baselineFrom").GetString());
+    }
+
     [Theory]
     [InlineData("/api/stats/slow-operations?from=2026-07-16T10:00:00Z&to=2026-07-16T11:00:00Z&property=bad%27name")]
     [InlineData("/api/stats/slow-operations?from=2026-07-16T10:00:00Z&to=2026-07-16T11:00:00Z&factor=0.5")]

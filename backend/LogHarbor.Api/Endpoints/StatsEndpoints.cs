@@ -84,9 +84,6 @@ public static class StatsEndpoints
         });
     }
 
-    // events before this predate the server; used as the open-ended baseline start for slow-operations
-    private const string BaselineStart = "2000-01-01T00:00:00.0000000Z";
-
     // widest trend strip any page draws is 24 columns in a table cell; the ceiling leaves room to
     // grow one without being an invitation to ask for a thousand
     private const int MaxTrendBuckets = 120;
@@ -161,10 +158,23 @@ public static class StatsEndpoints
             return error!;
         }
 
+        // "usual" is a bounded stretch of recent history (Baseline), not everything the database
+        // ever stored. The open-ended version made this the slowest call on the dashboard by a
+        // factor of fifty and got slower every day the server ran; it also meant a wider range was
+        // judged against *less* history, because the baseline ended where the window began.
+        var baselineFrom = ClefParser.FormatTimestamp(Baseline.StartFor(fromValue, toValue));
         var result = await eventStore.GetSlowOperationsAsync(
-            filterSql, BaselineStart, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
+            filterSql, baselineFrom, ClefParser.FormatTimestamp(fromValue), ClefParser.FormatTimestamp(toValue),
             property, minSamples, floorMs, factor, limit, cancellationToken);
-        return Results.Ok(result);
+        return Results.Ok(new
+        {
+            result.Operations,
+            result.TimedOperationCount,
+            result.ComparableOperationCount,
+            // what the rows were compared against, so a reader can be told what "usual" means
+            // rather than having to know the rule
+            baselineFrom,
+        });
     }
 
     private static async Task<IResult> ServicesAsync(

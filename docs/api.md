@@ -299,15 +299,22 @@ GET /api/stats/slow-operations
   Query: also property? (default Elapsed, [A-Za-z0-9_.] only), minSamples? (default 20),
          floorMs? (default 50), factor? (default 2.0)
   Operation groups (by message_template) whose p95 of the numeric `property` in [from, to)
-  is >= factor x the group's own baseline p95 (its history before `from`), most-regressed
-  first. Guardrails: a group needs >= minSamples timed events in each window and a baseline
-  p95 >= floorMs. No global threshold; each group is compared to itself.
+  is >= factor x the group's own baseline p95, most-regressed first. Guardrails: a group
+  needs >= minSamples timed events in each window and a baseline p95 >= floorMs. No global
+  threshold; each group is compared to itself.
+  The baseline is [baselineFrom, from): four windows of history, never more than 24 hours,
+  the same rule /api/stats/findings uses. It is not all of history — that version rescanned
+  the whole database on every dashboard load and got slower every day the server ran, and it
+  also meant a wider range was judged against *less* history, because the baseline ended
+  where the window began.
   200: { "operations": [ { template, baselineP95, currentP95, count } ],
          "timedOperationCount": N,        // groups with >= 1 timed sample in [from, to)
-         "comparableOperationCount": N }  // groups with >= minSamples in BOTH windows
+         "comparableOperationCount": N,   // groups with >= minSamples in BOTH windows
+         "baselineFrom": "ISO-8601" }     // where "usual" starts, so a UI can say so
   timedOperationCount is 0 when no event in the range carries the property; when it is
-  non-zero but comparableOperationCount is 0, no group has a baseline before `from` to
-  compare against (narrow the range). The two counts let the UI explain an empty list.
+  non-zero but comparableOperationCount is 0, no group has enough history in the baseline to
+  compare against (widen the range — the baseline scales with it up to the cap). The two
+  counts let the UI explain an empty list.
 
 GET /api/stats/findings
   Query: from, to, routeProperty? (default Path), methodProperty? (default Method).
@@ -325,17 +332,17 @@ GET /api/stats/findings
                        recent normal, with >= 20 requests in each window. A share, not a count:
                        a route that doubled its traffic doubles its errors with nothing wrong.
                        now/baseline = percent failed; count = errors in the window.
-    slower_than_usual  the slow-operations test at its own defaults but against a trailing
-                       baseline, which is the difference that matters: with the Analysis page's
-                       "everything older than the range" model, an operation younger than the
-                       range has an empty baseline and can never be flagged at any threshold.
+    slower_than_usual  the slow-operations test at its own defaults, over the same trailing
+                       baseline that endpoint now uses.
                        now/baseline = p95 in ms; count = samples.
                        Two passes: against the four windows before this one, then — only if that
                        found nothing — the window's own first half against its second. The second
                        pass is what catches an episode that began inside the range, which is the
                        usual case when somebody picks "last hour" and it broke forty minutes ago.
   Baseline for the rate detectors is the 4 windows immediately before [from, to), capped at 24 h
-  however wide the window. The cap is both a cost and a correctness bound: four windows of a 24 h
+  however wide the window — the same rule as /api/stats/slow-operations, in one place in the code
+  (Core/Analysis/Baseline.cs), because "usual" answering two different questions in one product is
+  the bug. The cap is both a cost and a correctness bound: four windows of a 24 h
   range is four days, which measured 9.9 s on a 494k-event server — longer than the dashboard's
   10 s live tick, so the band could never settle — and "usual" meaning the last four days is a
   claim any midweek deploy already falsifies.

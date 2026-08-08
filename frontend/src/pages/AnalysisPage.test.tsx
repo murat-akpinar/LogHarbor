@@ -19,11 +19,14 @@ vi.mock('../api/stats', () => ({
   getTopErrors: vi.fn(async () => ({ errors: [] })),
   getTopExceptions: vi.fn(async () => ({ exceptions: [] })),
   getHistogram: vi.fn(async () => ({ buckets: [] })),
-  getSlowOperations: vi.fn(async ({ from }: { from: string }) =>
-    Date.now() - new Date(from).getTime() <= RECENT_MS
-      ? { operations: [SLOW_OP], timedOperationCount: 1, comparableOperationCount: 1 }
-      : { operations: [], timedOperationCount: 0, comparableOperationCount: 0 },
-  ),
+  getSlowOperations: vi.fn(async ({ from, to }: { from: string; to: string }) => {
+    // the server's rule, mirrored: four windows of history, never more than a day
+    const span = Math.min(4 * (new Date(to).getTime() - new Date(from).getTime()), 24 * 60 * 60 * 1000)
+    const baselineFrom = new Date(new Date(from).getTime() - span).toISOString()
+    return Date.now() - new Date(from).getTime() <= RECENT_MS
+      ? { operations: [SLOW_OP], timedOperationCount: 1, comparableOperationCount: 1, baselineFrom }
+      : { operations: [], timedOperationCount: 0, comparableOperationCount: 0, baselineFrom }
+  }),
 }))
 
 afterEach(() => {
@@ -63,9 +66,22 @@ it('lists a regression hidden by the default range once the 15-minute preset is 
   expect(await screen.findByText(SLOW_OP.template)).toBeDefined()
 })
 
+it('says what "usual" was measured over, since the server bounds it', async () => {
+  localStorage.setItem('logharbor-lang', 'en')
+  renderPage()
+  screen.getByTitle('Time range').click()
+  ;(await screen.findByText('Last 15 minutes')).click()
+  await screen.findByText(SLOW_OP.template)
+
+  // four windows of fifteen minutes: the reader is told the hour, not left to guess that the
+  // column means "before this range" and nothing more
+  expect(screen.getByText(/“Usual” is the p95 over the 1 hour before this range\./)).toBeDefined()
+})
+
 it('explains an empty card: no operation reports a duration', async () => {
   localStorage.setItem('logharbor-lang', 'en')
-  vi.mocked(getSlowOperations).mockResolvedValue({ operations: [], timedOperationCount: 0, comparableOperationCount: 0 })
+  vi.mocked(getSlowOperations).mockResolvedValue(
+    { operations: [], timedOperationCount: 0, comparableOperationCount: 0, baselineFrom: '2026-08-09T09:00:00.0000000Z' })
   renderPage()
 
   expect(await screen.findByText(/No operation reports an/)).toBeDefined()
@@ -73,7 +89,8 @@ it('explains an empty card: no operation reports a duration', async () => {
 
 it('explains an empty card: no baseline history to compare against', async () => {
   localStorage.setItem('logharbor-lang', 'en')
-  vi.mocked(getSlowOperations).mockResolvedValue({ operations: [], timedOperationCount: 3, comparableOperationCount: 0 })
+  vi.mocked(getSlowOperations).mockResolvedValue(
+    { operations: [], timedOperationCount: 3, comparableOperationCount: 0, baselineFrom: '2026-08-09T09:00:00.0000000Z' })
   renderPage()
 
   expect(await screen.findByText(/No operation has enough history/)).toBeDefined()
@@ -81,7 +98,8 @@ it('explains an empty card: no baseline history to compare against', async () =>
 
 it('explains an empty card: comparable but nothing regressed', async () => {
   localStorage.setItem('logharbor-lang', 'en')
-  vi.mocked(getSlowOperations).mockResolvedValue({ operations: [], timedOperationCount: 3, comparableOperationCount: 3 })
+  vi.mocked(getSlowOperations).mockResolvedValue(
+    { operations: [], timedOperationCount: 3, comparableOperationCount: 3, baselineFrom: '2026-08-09T09:00:00.0000000Z' })
   renderPage()
 
   expect(await screen.findByText('No operations are slower than usual.')).toBeDefined()

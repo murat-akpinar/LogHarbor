@@ -8,7 +8,7 @@ import { useLiveRange } from '../hooks/useLiveRange'
 import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { EmptyState, ErrorState, TableSkeletonBody } from '../components/ui/States'
-import { formatTimestamp } from '../lib/dates'
+import { formatSpan, formatTimestamp } from '../lib/dates'
 import { quote } from '../lib/filter'
 import { LEVEL_CHART } from '../lib/levels'
 import { useI18n } from '../i18n'
@@ -226,6 +226,18 @@ export function AnalysisPage() {
             </tbody>
             )}
           </table>
+          )}
+          {slow.data && slow.data.operations.length > 0 && (
+            // the column is headed "Usual p95" and the server decides what usual is — a bounded
+            // stretch of recent history, which the reader has no way to know from the number
+            <p className="border-t border-border px-3 py-2 text-xs text-fg-subtle">
+              {t.analysis.usualMeans(
+                formatSpan(
+                  (new Date(range.from).getTime() - new Date(slow.data.baselineFrom).getTime()) / 1000,
+                  lang,
+                ),
+              )}
+            </p>
           )}
           {slow.data && slow.data.operations.length === 0 && (
             <p className="px-4 py-10 text-center text-sm text-fg-muted">
