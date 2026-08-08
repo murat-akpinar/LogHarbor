@@ -96,16 +96,19 @@ public sealed class FindingScanner
         // BaselineWindows — the quiet detector divides by it to get a per-window rate
         var baselineWindows = baselineSpan / span;
 
-        var findings = new List<Finding>();
-        findings.AddRange(await WentQuietAsync(
-            baselineWindows, baselineFromUtc, baselineToUtc, fromUtc, toUtc, cancellationToken));
-        findings.AddRange(await NewExceptionsAsync(baselineToUtc, fromUtc, toUtc, cancellationToken));
-        findings.AddRange(await FailingRoutesAsync(
-            baselineFromUtc, baselineToUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
-        findings.AddRange(await SlowerThanUsualAsync(
-            from, to, baselineFromUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
+        // the four are independent and each store call opens its own connection, so the pass costs
+        // the slowest detector rather than the sum of all of them. Awaited one after another, this
+        // was seven queries deep and the band arrived visibly after the rest of the dashboard.
+        var detectors = await Task.WhenAll(
+            WentQuietAsync(baselineWindows, baselineFromUtc, baselineToUtc, fromUtc, toUtc, cancellationToken),
+            NewExceptionsAsync(baselineToUtc, fromUtc, toUtc, cancellationToken),
+            FailingRoutesAsync(
+                baselineFromUtc, baselineToUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken),
+            SlowerThanUsualAsync(
+                from, to, baselineFromUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
 
-        return findings
+        return detectors
+            .SelectMany(found => found)
             .OrderBy(finding => Array.IndexOf(FindingKinds.ByUrgency, finding.Kind))
             .ThenByDescending(Magnitude)
             .Take(MaxFindings)

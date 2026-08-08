@@ -51,7 +51,11 @@ export function FindingsBand({ findings, from, to }: FindingsBandProps) {
   }
 
   return (
-    <Panel className="p-4">
+    // the scan is slower than the panels around it — several aggregations against a baseline,
+    // where they each run one — so the band lands a beat after the page. The same entrance every
+    // other section uses is what makes that read as arriving rather than as jumping: without it
+    // the row appears fully formed and shoves the page down with no explanation.
+    <Panel className="animate-rise p-4">
       <div className="mb-3 flex items-center gap-2">
         <h3 className="text-xs font-semibold tracking-[0.12em] text-fg-subtle uppercase">{t.findings.title}</h3>
         <span className="tabular rounded-full bg-surface-inset px-1.5 py-0.5 text-xs text-fg-muted">
