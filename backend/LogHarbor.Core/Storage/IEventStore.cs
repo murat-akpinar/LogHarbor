@@ -153,6 +153,18 @@ public interface IEventStore
         string property, int minSamples, double floorMs, double factor, int limit,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Just the distinct exception type names in the range — no counts, no first/last seen, no
+    /// sample text. The findings scan asks "which types has this server ever recorded", over all
+    /// of history, and <see cref="GetTopExceptionsAsync"/> answers that at the cost of a window
+    /// function and a join per type whose results it then throws away: 0.46 s against 78% of a
+    /// whole one-hour scan, measured on 495k events. Being unlimited also fixes what the limit
+    /// cost the caller — a rare old type past the top N read as never seen before.
+    /// Searches hot + hydrated data.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetExceptionTypesAsync(
+        QuerySql? filter, string fromUtc, string toUtc, CancellationToken cancellationToken = default);
+
     /// <summary>Counts by exception type, most frequent first. Searches hot + hydrated data.</summary>
     Task<IReadOnlyList<TopException>> GetTopExceptionsAsync(
         QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default);

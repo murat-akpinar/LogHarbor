@@ -879,6 +879,33 @@ public sealed class SqliteEventStore : IEventStore
         return new SlowOperationsResult(rows, timed, comparable);
     }
 
+    public async Task<IReadOnlyList<string>> GetExceptionTypesAsync(
+        QuerySql? filter, string fromUtc, string toUtc, CancellationToken cancellationToken = default)
+    {
+        using var connection = _db.OpenConnection();
+        using var command = connection.CreateCommand();
+        var source = await BuildStatsSourceAsync(
+            connection, command, filter, "exception", fromUtc, toUtc, cancellationToken);
+
+        // the same first-line-up-to-':' identity GetTopExceptionsAsync groups by, and nothing else:
+        // no COUNT, no MIN/MAX, no ROW_NUMBER over each type to fetch a sample. DISTINCT is the
+        // whole question when the caller only wants to know which types exist.
+        command.CommandText =
+            "SELECT DISTINCT CASE WHEN instr(first_line, ':') > 0 " +
+            "THEN substr(first_line, 1, instr(first_line, ':') - 1) ELSE first_line END AS ex_type FROM (" +
+            "SELECT rtrim(CASE WHEN instr(exception, char(10)) > 0 " +
+            "THEN substr(exception, 1, instr(exception, char(10)) - 1) ELSE exception END, char(13)) AS first_line " +
+            $"FROM {source} WHERE exception IS NOT NULL);";
+
+        var types = new List<string>();
+        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            types.Add(reader.GetString(0));
+        }
+        return types;
+    }
+
     public async Task<IReadOnlyList<TopException>> GetTopExceptionsAsync(
         QuerySql? filter, string fromUtc, string toUtc, int limit, CancellationToken cancellationToken = default)
     {

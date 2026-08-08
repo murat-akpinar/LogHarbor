@@ -36,8 +36,8 @@ public sealed class FindingScanner
     /// however quiet the last four windows were.</summary>
     private const string AllHistory = "2000-01-01T00:00:00.0000000Z";
 
-    /// <summary>Groups to pull per query. The same ponytail the Analysis page has: a type beyond
-    /// the baseline's top N reads as new. Generous enough that it takes a genuinely long tail.</summary>
+    /// <summary>Groups to pull per query. The new-exception baseline is exempt — it asks for names
+    /// only, unlimited, because a limit there would report a rare old type as never seen.</summary>
     private const int GroupLimit = 100;
 
     /// <summary>Findings returned. More than this on one screen is not a shortlist any more.</summary>
@@ -173,8 +173,9 @@ public sealed class FindingScanner
         {
             return [];
         }
-        var known = (await _events.GetTopExceptionsAsync(null, AllHistory, baselineToUtc, GroupLimit, cancellationToken))
-            .Select(row => row.Type)
+        // names only, and unlimited: this is the slowest branch of the whole scan, and it is also
+        // the one where a limit would lie — a rare type past the top N would read as never seen
+        var known = (await _events.GetExceptionTypesAsync(null, AllHistory, baselineToUtc, cancellationToken))
             .ToHashSet();
         // an install whose whole history is inside the window has no "before" to be new against,
         // and calling every exception it has ever recorded a discovery would be noise on day one

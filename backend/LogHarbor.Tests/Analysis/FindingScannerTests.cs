@@ -166,6 +166,23 @@ public sealed class FindingScannerTests : IDisposable
         Assert.Equal("Acme.Checkout.CartEmptyException", found.Subject);
     }
 
+    // the baseline used to come from the top-100 exception groups, so a type that had occurred
+    // once, long ago, sat past the cut and came back as a discovery. Names only and unlimited now.
+    [Fact]
+    public async Task ARareOldTypeBuriedUnderAHundredCommonOnes_IsNotNew()
+    {
+        var noise = Enumerable.Range(0, 120).SelectMany(i =>
+            Spread(BaselineStart, From, 3, "Error", exception: $"Noise.Type{i:D3}Exception: chatter"));
+        await WriteAsync([.. noise]);
+        // one occurrence, older than the window, drowned by everything above it
+        await WriteAsync(At(BaselineStart.AddMinutes(5), "Error", exception: "Rare.OldException: seen once"));
+        await WriteAsync([.. Spread(From, To, 4, "Error", exception: "Rare.OldException: seen once")]);
+
+        Assert.DoesNotContain(
+            await ScanAsync(),
+            f => f.Kind == FindingKinds.NewException && f.Subject == "Rare.OldException");
+    }
+
     // --- failing route -------------------------------------------------------------------
 
     private static string Request(string path, int status) =>
