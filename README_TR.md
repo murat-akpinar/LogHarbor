@@ -12,6 +12,15 @@
 sunucusu. Yapısal log olaylarını (CLEF/JSON) toplar, tek bir SQLite dosyasında saklar; arama,
 canlı akış, panolar ve uyarılar için bir web arayüzü sunar.
 
+<p align="center">
+  <a href="images/Dashboard.png">
+    <img src="images/logharbor-tour.gif" width="860"
+         alt="Pano, canlı olaylar, istekler, istisnalar ve analiz, tek geçişte">
+  </a>
+</p>
+<p align="center"><sub>Pano → Olaylar → İstekler → İstisnalar → Analiz, çalışan bir kurulum
+üzerinde. Tam boy görüntü için tıkla.</sub></p>
+
 *[English README](README.md)*
 
 **Yeni misin?** [5 dakikada çalıştır](docs/running-in-5-minutes.md) — container'ı

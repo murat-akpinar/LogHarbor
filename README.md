@@ -12,6 +12,15 @@ Self-hosted structured log server, inspired by [Seq](https://datalust.co/seq).
 Ingests structured log events (CLEF/JSON), stores them in a single SQLite file, and
 serves a web UI for search, live tail, dashboards and alerts.
 
+<p align="center">
+  <a href="images/Dashboard.png">
+    <img src="images/logharbor-tour.gif" width="860"
+         alt="Dashboard, live events, requests, exceptions and analysis, in one pass">
+  </a>
+</p>
+<p align="center"><sub>Dashboard → Events → Requests → Exceptions → Analysis, on a live
+instance. Click for a full-size still.</sub></p>
+
 *[Türkçe README](README_TR.md)*
 
 **New here?** [Running in 5 minutes](docs/running-in-5-minutes.md) — start the
