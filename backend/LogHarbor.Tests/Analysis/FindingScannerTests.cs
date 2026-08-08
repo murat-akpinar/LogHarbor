@@ -75,6 +75,27 @@ public sealed class FindingScannerTests : IDisposable
         Assert.Contains("billing", quiet.Filter);
     }
 
+    // MaxBaseline cuts a wide range's baseline short of four windows, so the per-window rate has
+    // to divide by what the baseline actually covers. Dividing by four regardless would quarter
+    // the reported "usually N" and, worse, gate real silences out.
+    [Fact]
+    public async Task AWideRangeReportsTheRateItsShortenedBaselineActuallyHolds()
+    {
+        // a 12-hour window: four windows would be two days, so the cap makes the baseline one day
+        var to = new DateTimeOffset(2026, 8, 8, 12, 0, 0, TimeSpan.Zero);
+        var from = to.AddHours(-12);
+        var baselineStart = from - FindingScanner.MaxBaseline;
+        await WriteAsync([.. Spread(baselineStart, from, 40, properties: Service("billing"))]);
+        await WriteAsync([.. Spread(baselineStart, to, 40, properties: Service("api"))]);
+
+        var findings = await _scanner.ScanAsync(from, to, "Path", "Method");
+        var quiet = Assert.Single(findings.Where(f => f.Kind == FindingKinds.WentQuiet));
+
+        Assert.Equal("billing", quiet.Subject);
+        // one day of baseline is two 12-hour windows, so 40 events is 20 a window — not 10
+        Assert.Equal(20, quiet.Baseline);
+    }
+
     [Fact]
     public async Task AServiceThatBarelyLogged_IsNotCalledQuiet()
     {

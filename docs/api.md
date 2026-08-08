@@ -334,7 +334,11 @@ GET /api/stats/findings
                        found nothing — the window's own first half against its second. The second
                        pass is what catches an episode that began inside the range, which is the
                        usual case when somebody picks "last hour" and it broke forty minutes ago.
-  Baseline for the rate detectors is the 4 windows immediately before [from, to).
+  Baseline for the rate detectors is the 4 windows immediately before [from, to), capped at 24 h
+  however wide the window. The cap is both a cost and a correctness bound: four windows of a 24 h
+  range is four days, which measured 9.9 s on a 494k-event server — longer than the dashboard's
+  10 s live tick, so the band could never settle — and "usual" meaning the last four days is a
+  claim any midweek deploy already falsifies.
   200: { "findings": [ { kind, subject, filter, now, baseline, count } ] }, at most 12.
   `filter` opens exactly the events the finding came from, and is what "make this an alert"
   hands to a rule (which no longer needs a saved signal — see ALERTS).

@@ -40,3 +40,11 @@ it('reaches back over the baseline for a silence, so the strip shows it stopping
   expect(range.to).toBe('2026-08-08T10:00:00.000Z')
   expect(range.from).toBe('2026-08-08T05:00:00.000Z')   // four windows back, matching the scanner
 })
+
+// the scanner caps its baseline at a day, so four windows of a 24 h range is not four days here
+// either — a strip that drew more history than the sentence was computed from would be a lie
+it('never reaches back more than a day, matching the scanner’s cap', () => {
+  const range = sparklineRange(finding('went_quiet'), '2026-08-07T10:00:00.000Z', '2026-08-08T10:00:00.000Z')
+
+  expect(range.from).toBe('2026-08-06T10:00:00.000Z')   // one day, not four
+})

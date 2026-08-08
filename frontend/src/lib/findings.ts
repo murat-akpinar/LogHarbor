@@ -45,7 +45,13 @@ export function sparklineRange(finding: Finding, from: string, to: string): { fr
   }
   const start = new Date(from).getTime()
   const span = Math.max(1, new Date(to).getTime() - start)
-  // the scanner's own baseline is four windows; matching it means the strip shows exactly the
-  // history the "usually N" in the sentence was computed from
-  return { from: new Date(start - span * 4).toISOString(), to }
+  // mirrors FindingScanner: four windows, never more than a day. Both halves matter — four
+  // windows is what "usually N" was computed from, and the cap is what stops a 24 h range from
+  // drawing four days. If the scanner's numbers move, this moves with them or the strip stops
+  // being a picture of the sentence beside it.
+  const baseline = Math.min(span * BASELINE_WINDOWS, MAX_BASELINE_MS)
+  return { from: new Date(start - baseline).toISOString(), to }
 }
+
+const BASELINE_WINDOWS = 4
+const MAX_BASELINE_MS = 24 * 60 * 60 * 1000

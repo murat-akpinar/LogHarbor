@@ -20,6 +20,17 @@ public sealed class FindingScanner
     /// deploy last week still counts as normal.</summary>
     public const int BaselineWindows = 4;
 
+    /// <summary>
+    /// And never further back than this, however wide the window.
+    ///
+    /// Four windows of a 24-hour range is four days, which cost 9.9 s to scan on a 494k-event
+    /// server — against a 10 s live tick, so the band could never finish before the next tick
+    /// replaced it and showed the previous range's rows forever. The cap is also the more honest
+    /// baseline: "usual" meaning the last four days is a claim a deploy on Tuesday already
+    /// falsifies, and a full day of history is enough to be usual against.
+    /// </summary>
+    public static readonly TimeSpan MaxBaseline = TimeSpan.FromHours(24);
+
     /// <summary>Events before this predate any server, so it stands in for "all of history".
     /// Only the new-exception detector wants it: a crash last seen three months ago is not new,
     /// however quiet the last four windows were.</summary>
@@ -65,7 +76,12 @@ public sealed class FindingScanner
         CancellationToken cancellationToken = default)
     {
         var span = to - from;
-        var baselineFrom = from - span * BaselineWindows;
+        var baselineSpan = span * BaselineWindows;
+        if (baselineSpan > MaxBaseline)
+        {
+            baselineSpan = MaxBaseline;
+        }
+        var baselineFrom = from - baselineSpan;
 
         var fromUtc = ClefParser.FormatTimestamp(from);
         var toUtc = ClefParser.FormatTimestamp(to);
@@ -76,8 +92,13 @@ public sealed class FindingScanner
         // counted as both the news and the history that disproves it.
         var baselineToUtc = ClefParser.FormatTimestamp(from.AddTicks(-1));
 
+        // how many windows the baseline actually covers, which the cap can make fewer than
+        // BaselineWindows — the quiet detector divides by it to get a per-window rate
+        var baselineWindows = baselineSpan / span;
+
         var findings = new List<Finding>();
-        findings.AddRange(await WentQuietAsync(baselineFromUtc, baselineToUtc, fromUtc, toUtc, cancellationToken));
+        findings.AddRange(await WentQuietAsync(
+            baselineWindows, baselineFromUtc, baselineToUtc, fromUtc, toUtc, cancellationToken));
         findings.AddRange(await NewExceptionsAsync(baselineToUtc, fromUtc, toUtc, cancellationToken));
         findings.AddRange(await FailingRoutesAsync(
             baselineFromUtc, baselineToUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
@@ -108,7 +129,7 @@ public sealed class FindingScanner
     /// filter somebody already thought to write — this asks it of every service at once.
     /// </summary>
     private async Task<IEnumerable<Finding>> WentQuietAsync(
-        string baselineFromUtc, string baselineToUtc, string fromUtc, string toUtc,
+        double baselineWindows, string baselineFromUtc, string baselineToUtc, string fromUtc, string toUtc,
         CancellationToken cancellationToken)
     {
         var baseline = await _events.GetServiceOverviewAsync(
@@ -122,9 +143,10 @@ public sealed class FindingScanner
 
         return baseline
             .Where(service => !alive.Contains(service.Service))
-            // the baseline covers BaselineWindows windows, so its own per-window rate is what the
-            // window should have seen — comparing raw totals would gate on the wrong number
-            .Select(service => (service, rate: (double)service.Total / BaselineWindows))
+            // the baseline's own per-window rate is what the window should have seen; comparing
+            // raw totals would gate on the wrong number, and the divisor is not always four
+            // because MaxBaseline can cut the baseline short of BaselineWindows
+            .Select(service => (service, rate: service.Total / baselineWindows))
             .Where(pair => pair.rate >= QuietMinBaselineRate)
             .Select(pair => new Finding(
                 FindingKinds.WentQuiet,
