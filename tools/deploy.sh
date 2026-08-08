@@ -67,10 +67,19 @@ fail() { printf '\nFAILED: %s\n' "$*" >&2; exit 1; }
 
 remote() { ssh -o BatchMode=yes -o ConnectTimeout=10 "$HOST" "$@"; }
 
-# eventCount out of /healthz without assuming jq exists on the server.
-event_count() {
-  remote "curl -fsS $URL/healthz" 2>/dev/null |
-    grep -o '"eventCount":[0-9]*' | tr -dc '0-9'
+# Identity of the database file inside the named volume: mountpoint, inode, size.
+#
+# This used to read eventCount out of /healthz, which stopped working the day that endpoint
+# stopped telling an anonymous caller how many events it holds (PHASE 25) -- and the deploy
+# failed loudly rather than silently, which is the point of it. Asking the filesystem is the
+# better question anyway: the guard exists to prove the data volume survived, and a recreated
+# volume gives a different inode however healthy the app looks. It needs no session, no jq and
+# no sqlite3, none of which the server has.
+db_identity() {
+  remote "set -e
+    mount=\$(docker inspect $CONTAINER --format '{{range .Mounts}}{{if eq .Destination \"/data\"}}{{.Source}}{{end}}{{end}}')
+    [ -n \"\$mount\" ]
+    printf '%s %s\n' \"\$mount\" \"\$(stat -c '%i %s' \"\$mount/logharbor.db\")\"" 2>/dev/null
 }
 
 # The asset filenames index.html points at -- what a browser actually loads.
@@ -104,11 +113,11 @@ if [ -n "$PREVIOUS_SHA" ]; then
   info "deployed now  ${PREVIOUS_SHA:0:12}"
 fi
 
-COUNT_BEFORE=$(event_count || true)
-[ -n "$COUNT_BEFORE" ] ||
-  fail "cannot read $URL/healthz on $HOST -- refusing to deploy over a server
-        whose current state cannot be compared against afterwards"
-info "eventCount    $COUNT_BEFORE"
+DB_BEFORE=$(db_identity || true)
+[ -n "$DB_BEFORE" ] ||
+  fail "cannot stat the database inside $CONTAINER's data volume on $HOST -- refusing to
+        deploy over a server whose current state cannot be compared against afterwards"
+info "database      $DB_BEFORE"
 
 COMPOSE_BEFORE=$(remote "sha256sum '$DIR/docker-compose.yml'" | cut -d' ' -f1)
 IMAGE_BEFORE=$(remote "docker image inspect $IMAGE --format '{{.Id}}'" 2>/dev/null || echo none)
@@ -234,11 +243,15 @@ INSIDE=$(remote "docker exec $CONTAINER cat wwwroot/index.html" | asset_refs) ||
         container: $(echo "$INSIDE" | tr '\n' ' ')"
 ok "serving $(echo "$SERVED" | tr '\n' ' ')"
 
-COUNT_AFTER=$(event_count || true)
-[ -n "$COUNT_AFTER" ] || fail "/healthz unreadable after the deploy"
-[ "$COUNT_AFTER" -ge "$COUNT_BEFORE" ] ||
-  fail "eventCount dropped $COUNT_BEFORE -> $COUNT_AFTER: the data volume was not preserved"
-ok "eventCount $COUNT_BEFORE -> $COUNT_AFTER"
+DB_AFTER=$(db_identity || true)
+[ -n "$DB_AFTER" ] || fail "the database is not there after the deploy"
+# path and inode, not size: SQLite legitimately shrinks when the archive pass compacts, and a
+# guard that cries about that gets switched off. A different inode means a different file.
+[ "${DB_BEFORE% *}" = "${DB_AFTER% *}" ] ||
+  fail "the data volume was not preserved
+        before: $DB_BEFORE
+        after:  $DB_AFTER"
+ok "same database file, ${DB_BEFORE##* } -> ${DB_AFTER##* } bytes"
 
 MIGRATIONS=$(remote "docker logs $CONTAINER 2>&1 | grep -i migration | tail -5" || true)
 if [ -n "$MIGRATIONS" ]; then
