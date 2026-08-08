@@ -133,8 +133,11 @@ public sealed class RedactionEndpointsTests : IDisposable
             new { properties = new[] { "  Password ", "PASSWORD", "token", "" } });
 
         var saved = await put.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal(["password", "token"],
-            saved.GetProperty("properties").EnumerateArray().Select(value => value.GetString()).ToArray());
+        // typed non-nullable: xunit 2.9 added an Assert.Equal(ReadOnlySpan<T>, T[]) overload that
+        // a string?[] cannot satisfy, and the values here are never null anyway
+        var properties = saved.GetProperty("properties").EnumerateArray()
+            .Select(value => value.GetString() ?? "").ToArray();
+        Assert.Equal(["password", "token"], properties);
     }
 
     [Theory]

@@ -11,6 +11,17 @@
     <!-- build-time protoc only; GrpcServices=None below keeps the gRPC server stack out -->
     <PackageReference Include="Grpc.Tools" Version="2.82.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!-- Pinned over the 2.1.11 that Microsoft.Data.Sqlite still brings in, which carries SQLite
+         3.49.1 and CVE-2025-6965 (aggregate terms exceeding available columns, memory
+         corruption, High). Only the native build is overridden; the managed provider and core
+         stay where Microsoft.Data.Sqlite put them. This package's first three version numbers
+         *are* the SQLite version it was built from, so 3.53.3 says what it is.
+         Not reachable from any input this product accepts (no endpoint takes SQL, filter values
+         are parameters, property names are [A-Za-z0-9_.]), but a shipped server should not carry
+         a known-vulnerable native library on that argument alone.
+         SqliteBuildTests pins the floor and the two compile-time options everything depends
+         on, because swapping a native build is exactly how FTS5 or JSON1 quietly goes missing. -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="3.53.3" />
     <!-- cross-platform LDAP; on Linux it binds the system libldap at runtime, which the
          aspnet:8.0 runtime image already carries (libldap-2.5, verified in the container) -->
     <PackageReference Include="System.DirectoryServices.Protocols" Version="8.0.0" />

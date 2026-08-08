@@ -67,7 +67,7 @@ public sealed class FindingScannerTests : IDisposable
         // something else keeps logging, so the window is not simply empty
         await WriteAsync([.. Spread(BaselineStart, To, 40, properties: Service("api"))]);
 
-        var quiet = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.WentQuiet));
+        var quiet = Assert.Single(await ScanAsync(), f => f.Kind == FindingKinds.WentQuiet);
 
         Assert.Equal("billing", quiet.Subject);
         Assert.Equal(0, quiet.Now);
@@ -89,7 +89,7 @@ public sealed class FindingScannerTests : IDisposable
         await WriteAsync([.. Spread(baselineStart, to, 40, properties: Service("api"))]);
 
         var findings = await _scanner.ScanAsync(from, to, "Path", "Method");
-        var quiet = Assert.Single(findings.Where(f => f.Kind == FindingKinds.WentQuiet));
+        var quiet = Assert.Single(findings, f => f.Kind == FindingKinds.WentQuiet);
 
         Assert.Equal("billing", quiet.Subject);
         // one day of baseline is two 12-hour windows, so 40 events is 20 a window — not 10
@@ -124,7 +124,7 @@ public sealed class FindingScannerTests : IDisposable
         await WriteAsync([.. Spread(From, To, 3, "Error",
             exception: "Acme.Checkout.CartEmptyException: no items\n  at Cart.Check()")]);
 
-        var found = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.NewException));
+        var found = Assert.Single(await ScanAsync(), f => f.Kind == FindingKinds.NewException);
 
         Assert.Equal("Acme.Checkout.CartEmptyException", found.Subject);
         Assert.Equal(3, found.Count);
@@ -161,7 +161,7 @@ public sealed class FindingScannerTests : IDisposable
         await WriteAsync(At(BaselineStart.AddMinutes(30), "Error", exception: "System.TimeoutException: old news"));
         await WriteAsync(At(From, "Error", exception: "Acme.Checkout.CartEmptyException: right on the boundary"));
 
-        var found = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.NewException));
+        var found = Assert.Single(await ScanAsync(), f => f.Kind == FindingKinds.NewException);
 
         Assert.Equal("Acme.Checkout.CartEmptyException", found.Subject);
     }
@@ -207,7 +207,7 @@ public sealed class FindingScannerTests : IDisposable
         await WriteAsync([.. Route(BaselineStart, From, "/api/checkout", 100, 0)]);
         await WriteAsync([.. Route(From, To, "/api/checkout", 40, 12)]);
 
-        var found = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.FailingRoute));
+        var found = Assert.Single(await ScanAsync(), f => f.Kind == FindingKinds.FailingRoute);
 
         Assert.Equal(30, found.Now);        // 12 of 40
         Assert.Equal(0, found.Baseline);
@@ -254,7 +254,7 @@ public sealed class FindingScannerTests : IDisposable
         await WriteAsync([.. Spread(BaselineStart, From, 40, properties: Elapsed(2000), template: template)]);
         await WriteAsync([.. Spread(From, To, 40, properties: Elapsed(6000), template: template)]);
 
-        var found = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.SlowerThanUsual));
+        var found = Assert.Single(await ScanAsync(), f => f.Kind == FindingKinds.SlowerThanUsual);
 
         Assert.Equal(template, found.Subject);
         Assert.Equal(2000, found.Baseline);
@@ -288,7 +288,7 @@ public sealed class FindingScannerTests : IDisposable
         await WriteAsync([.. Spread(From, midpoint, 40, properties: Elapsed(2000), template: template)]);
         await WriteAsync([.. Spread(midpoint, To, 40, properties: Elapsed(9000), template: template)]);
 
-        var found = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.SlowerThanUsual));
+        var found = Assert.Single(await ScanAsync(), f => f.Kind == FindingKinds.SlowerThanUsual);
 
         Assert.Equal(2000, found.Baseline);
         Assert.Equal(9000, found.Now);
