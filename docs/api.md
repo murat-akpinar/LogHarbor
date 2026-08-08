@@ -15,6 +15,9 @@ When enabled, all endpoints except ingestion, /healthz and /api/auth/* require a
 session cookie; mutating requests additionally require the admin role, and all of
 /api/users requires admin regardless of method. The SignalR hub /hubs/tail requires
 the same session cookie (it streams log data).
+Because every GET is open to a viewer, a response that would hand one a secret has to
+say so at the endpoint. Two do: /api/apikeys never returns a token to anyone (it exists
+once, in the POST that creates it), and /api/alerts masks webhookUrl for non-admins.
 
 Seeding the first admin:
   LOGHARBOR_ADMIN_PASSWORD set  -> that password, ready to use
@@ -166,6 +169,10 @@ GET    /api/alerts        200: [ { id, title, signalId, filter, thresholdCount, 
                                     webhookUrl, isEnabled, createdAt, lastTriggeredAt, lastError,
                                     payloadFormat, condition, acknowledgedUntil, acknowledgedBy } ]
                                 (signalId and filter: exactly one is set, the other is null)
+                          webhookUrl is MASKED for a viewer: scheme, host and port, then "/…".
+                          It is a credential, not a setting — a Slack or Discord incoming hook is
+                          a bearer token in URL form, and other targets carry theirs in the query
+                          string — and every GET is open to the viewer role. Admins get it whole.
 POST   /api/alerts        body { title, signalId | filter, thresholdCount, windowMinutes, webhookUrl,
                                  isEnabled, payloadFormat?, condition? }
                           201: AlertRule | 400 validation | 400 duplicate title | 400 unknown signal

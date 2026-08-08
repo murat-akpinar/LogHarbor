@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using LogHarbor.Api.Auth;
 using LogHarbor.Core.Events;
 using LogHarbor.Core.Query;
 using LogHarbor.Core.Storage;
@@ -29,8 +30,22 @@ public static class AlertEndpoints
     {
         var group = app.MapGroup("/api/alerts");
 
-        group.MapGet("/", async (IAlertStore store, CancellationToken cancellationToken) =>
-            Results.Ok(await store.ListAsync(cancellationToken)));
+        group.MapGet("/", async (
+            HttpContext http, IAlertStore store, AuthService authService, CancellationToken cancellationToken) =>
+        {
+            var rules = await store.ListAsync(cancellationToken);
+            // A webhook URL is a credential, not a setting. A Slack or Discord incoming hook is
+            // a bearer token in URL form — whoever holds it posts into that channel as this
+            // server — and plenty of other targets carry their token in the query string. The
+            // viewer role is "read the logs", and every GET is open to it, so the list would
+            // otherwise hand a read-only account the keys to every integration. Masked on the
+            // server: a screen that hides a field is not a permission.
+            if (await authService.IsEnabledAsync(cancellationToken) && !AuthPolicy.IsAdmin(http))
+            {
+                rules = [.. rules.Select(rule => rule with { WebhookUrl = MaskWebhook(rule.WebhookUrl) })];
+            }
+            return Results.Ok(rules);
+        });
 
         group.MapPost("/", async (AlertRequest request, IAlertStore store, CancellationToken cancellationToken) =>
         {
@@ -123,6 +138,16 @@ public static class AlertEndpoints
                 : Problems.NotFound("Alert rule not found");
         });
     }
+
+    /// <summary>
+    /// Enough of a webhook target to recognise the integration, never enough to use it: the
+    /// scheme, host and port, with the path and query — where the secret lives — replaced by a
+    /// marker. A URL that will not parse cannot be pruned safely, so it goes entirely.
+    /// </summary>
+    private static string MaskWebhook(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var parsed)
+            ? parsed.GetLeftPart(UriPartial.Authority) + "/…"
+            : "…";
 
     private static IResult? Validate(AlertRequest request)
     {
