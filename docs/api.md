@@ -330,6 +330,10 @@ GET /api/stats/findings
                        "everything older than the range" model, an operation younger than the
                        range has an empty baseline and can never be flagged at any threshold.
                        now/baseline = p95 in ms; count = samples.
+                       Two passes: against the four windows before this one, then — only if that
+                       found nothing — the window's own first half against its second. The second
+                       pass is what catches an episode that began inside the range, which is the
+                       usual case when somebody picks "last hour" and it broke forty minutes ago.
   Baseline for the rate detectors is the 4 windows immediately before [from, to).
   200: { "findings": [ { kind, subject, filter, now, baseline, count } ] }, at most 12.
   `filter` opens exactly the events the finding came from, and is what "make this an alert"

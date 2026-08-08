@@ -82,7 +82,7 @@ public sealed class FindingScanner
         findings.AddRange(await FailingRoutesAsync(
             baselineFromUtc, baselineToUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
         findings.AddRange(await SlowerThanUsualAsync(
-            baselineFromUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
+            from, to, baselineFromUtc, fromUtc, toUtc, routeProperty, methodProperty, cancellationToken));
 
         return findings
             .OrderBy(finding => Array.IndexOf(FindingKinds.ByUrgency, finding.Kind))
@@ -225,14 +225,33 @@ public sealed class FindingScanner
     /// rather than linked to: with the Analysis page's model, picking a wider range shrinks the
     /// baseline, so an operation younger than the range has an empty one and can never be flagged
     /// at any threshold — which is exactly the case a findings layer exists to catch.
+    ///
+    /// <para>Two comparisons, in order. First against the four windows before this one, which is
+    /// what "slower than usual" ought to mean. When that finds nothing the whole episode may be
+    /// inside the range — somebody picked "last hour" and the thing broke forty minutes ago, so
+    /// there is no "before" outside the window to compare with — and the answer is to split the
+    /// window and compare its own halves. Without the second pass the layer says nothing at the
+    /// default range, which is the only range most readers ever look at.</para>
     /// </summary>
     private async Task<IEnumerable<Finding>> SlowerThanUsualAsync(
+        DateTimeOffset from, DateTimeOffset to,
         string baselineFromUtc, string fromUtc, string toUtc, string routeProperty, string methodProperty,
         CancellationToken cancellationToken)
     {
         var result = await _events.GetSlowOperationsAsync(
             null, baselineFromUtc, fromUtc, toUtc, "Elapsed",
             SlowMinSamples, SlowFloorMs, SlowFactor, GroupLimit, cancellationToken);
+
+        if (result.Operations.Count == 0)
+        {
+            // half the window each side, so the sample gate applies to half the data — an hour of
+            // traffic that clears 20 samples per half is the least that could honestly be called
+            // a trend rather than two readings
+            var midpoint = ClefParser.FormatTimestamp(from + (to - from) / 2);
+            result = await _events.GetSlowOperationsAsync(
+                null, fromUtc, midpoint, toUtc, "Elapsed",
+                SlowMinSamples, SlowFloorMs, SlowFactor, GroupLimit, cancellationToken);
+        }
 
         return result.Operations.Select(op => new Finding(
             FindingKinds.SlowerThanUsual,

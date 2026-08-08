@@ -238,6 +238,34 @@ public sealed class FindingScannerTests : IDisposable
         Assert.Contains(await ScanAsync(), f => f.Kind == FindingKinds.SlowerThanUsual && f.Subject == template);
     }
 
+    // the case the default range actually hits: the whole episode is inside the window, so there
+    // is no "before" outside it to compare with. Without the half-versus-half fallback the layer
+    // says nothing at "last hour", which is the only range most readers ever look at.
+    [Fact]
+    public async Task AnOperationThatDegradedInsideTheWindow_IsStillFound()
+    {
+        const string template = "DB query {Query} took {Elapsed} ms";
+        var midpoint = From + (To - From) / 2;
+        // nothing at all before the window: the operation started when the window did
+        await WriteAsync([.. Spread(From, midpoint, 40, properties: Elapsed(2000), template: template)]);
+        await WriteAsync([.. Spread(midpoint, To, 40, properties: Elapsed(9000), template: template)]);
+
+        var found = Assert.Single((await ScanAsync()).Where(f => f.Kind == FindingKinds.SlowerThanUsual));
+
+        Assert.Equal(2000, found.Baseline);
+        Assert.Equal(9000, found.Now);
+    }
+
+    // the fallback must not invent a finding where the window is simply flat throughout
+    [Fact]
+    public async Task AFlatOperationWithNoBaselineAtAll_IsNotFound()
+    {
+        const string template = "DB query {Query} took {Elapsed} ms";
+        await WriteAsync([.. Spread(From, To, 80, properties: Elapsed(2000), template: template)]);
+
+        Assert.DoesNotContain(await ScanAsync(), f => f.Kind == FindingKinds.SlowerThanUsual);
+    }
+
     [Fact]
     public async Task AnOperationHoldingItsBaseline_IsNotFound()
     {
