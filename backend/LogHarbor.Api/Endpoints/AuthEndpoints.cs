@@ -202,6 +202,21 @@ public static class AuthEndpoints
         return Results.NoContent();
     }
 
+    /// <summary>
+    /// How long a directory sign-in is good for before the person has to prove themselves again.
+    ///
+    /// <para>This number exists because there is no other lever. A directory principal's role is
+    /// whatever the directory answered at the moment they signed in, and LogHarbor cannot ask a
+    /// second time: it binds as the person signing in and never keeps their password, so
+    /// re-checking group membership would need a stored service credential this product
+    /// deliberately does not have (docs/ldap.md). Their session expiring *is* the re-check.</para>
+    ///
+    /// <para>A working day, so somebody removed from the admin group in the morning has lost it
+    /// by the evening. Local accounts need none of this — deleting one ends its session on the
+    /// very next request, and there is no endpoint that changes a local role at all.</para>
+    /// </summary>
+    public static readonly TimeSpan DirectorySessionLifetime = TimeSpan.FromHours(12);
+
     private static Task SignInAsync(HttpContext context, User user)
     {
         var claims = new List<Claim>
@@ -217,7 +232,26 @@ public static class AuthEndpoints
         }
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+
+        if (user.Id.ToString() != AuthService.DirectoryPrincipalId)
+        {
+            // a local account keeps the scheme's own 7-day sliding session: its revocation path
+            // is the users table, and that lands on the next request
+            return context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+        }
+
+        // AllowRefresh = false is the half of this that matters. The scheme slides, so an open
+        // tab renewed a directory session forever and "the cookie lifetime is the window" bounded
+        // nothing at all. A fixed expiry makes the window real.
         return context.SignInAsync(
-            CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            principal,
+            new AuthenticationProperties
+            {
+                IsPersistent = true,
+                ExpiresUtc = DateTimeOffset.UtcNow + DirectorySessionLifetime,
+                AllowRefresh = false,
+            });
     }
 }

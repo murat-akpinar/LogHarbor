@@ -176,6 +176,30 @@ and removed in the directory, and the row would come back on their next login an
 Local accounts carry the same "last sign-in" column, which is empty until the first successful
 one. A rejected password stamps nothing.
 
+### How long a removed admin stays an admin
+
+**Up to 12 hours**, and this is the one number worth understanding before trusting the group
+mapping to control access.
+
+The role in a directory session is whatever the directory answered when that session started.
+LogHarbor cannot ask a second time: it binds as the person signing in, with their password, and
+keeps neither. Re-reading somebody's group membership later would need a stored service account
+— exactly the thing this feature was designed not to have. So the session running out *is* the
+re-check, and there is no other one.
+
+Which is why a directory session is given a fixed 12-hour deadline that does not slide. It used
+to inherit the ordinary 7-day sliding cookie, and sliding meant it never expired at all: any
+open tab pushed the deadline forward, so someone removed from `logharbor-admin` kept the role
+for as long as they left a page open. "Seven days" was not the window; there was no window.
+
+Twelve hours is a working day: remove someone in the morning and they have lost it by evening.
+If that is too long for your directory's offboarding, the lever is the same either way — LogHarbor
+enforces what the directory said at sign-in, so the tighter control is to disable the account
+there, which stops the *next* sign-in immediately and is the thing your offboarding already does.
+
+None of this applies to local accounts. Deleting one ends its session on the very next request
+(the gate re-checks the users table), and there is no endpoint that changes a local user's role.
+
 ## A directory to try it against
 
 `test/ldap_test/` runs an OpenLDAP with the two groups and a user for each case — one in each

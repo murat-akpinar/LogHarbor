@@ -19,6 +19,16 @@ Because every GET is open to a viewer, a response that would hand one a secret h
 say so at the endpoint. Two do: /api/apikeys never returns a token to anyone (it exists
 once, in the POST that creates it), and /api/alerts masks webhookUrl for non-admins.
 
+Session lifetime differs by where the account came from, and the reason is that only one
+of the two can be re-checked. A local account is a row: deleting it ends the session on
+the very next request, and no endpoint changes a local role at all, so its cookie keeps
+the scheme's 7-day sliding window. A directory principal has no row — their role is what
+the directory answered at sign-in, and LogHarbor cannot ask again, because it binds as
+the person signing in and never keeps their password. Their session therefore expires on
+a fixed 12-hour deadline that does NOT slide: signing in again is the only re-check there
+is, so it has to actually come round. Before this it slid, which meant an open tab renewed
+a revoked admin's role indefinitely.
+
 Seeding the first admin:
   LOGHARBOR_ADMIN_PASSWORD set  -> that password, ready to use
   nothing configured        -> admin/admin, with mustChangePassword
@@ -179,6 +189,15 @@ POST   /api/alerts        body { title, signalId | filter, thresholdCount, windo
 PUT    /api/alerts/{id}   same body  200: AlertRule | 404 | 400 (as above)
                           switching which of the two is sent moves the rule between them
 DELETE /api/alerts/{id}   204 | 404
+
+webhookUrl is validated as an absolute http(s) URL and otherwise unrestricted: an admin may
+point a rule at any address the server can reach, including hosts on its own network. That is
+deliberate — an internal Mattermost or a script on the LAN is the ordinary case, and an
+allow-list would break it for a threat the deployment already contains, since creating a rule
+is admin-only and an admin can read the whole database anyway. Worth naming rather than
+leaving implicit: the response body never comes back, but its status code does (a rule's
+lastError reads "webhook answered HTTP 401"), so an admin can use it to learn what is
+listening inside. Revisit if "admin" ever stops meaning "trusted with this server".
 
 POST   /api/alerts/{id}/acknowledge   body { minutes }   200: AlertRule | 400 | 404
 DELETE /api/alerts/{id}/acknowledge                      200: AlertRule | 404
