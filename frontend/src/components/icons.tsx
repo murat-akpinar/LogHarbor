@@ -64,6 +64,28 @@ const PATHS: Record<PageIconName, ReactNode> = {
   ),
 }
 
+/**
+ * The affordance on a figure that has an explanation behind it. Deliberately not in PageIconName:
+ * that type is nav destinations, and this is a control.
+ */
+export function InfoIcon({ className = 'size-3.5' }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 ${className}`}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8v.01" />
+    </svg>
+  )
+}
+
 /** Small line icon for a nav destination; decorative (aria-hidden), colored by the text around it. */
 export function PageIcon({ name, className = 'size-4' }: { name: PageIconName; className?: string }) {
   return (

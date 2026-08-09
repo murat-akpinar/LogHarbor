@@ -1,9 +1,11 @@
-import type { CSSProperties } from 'react'
-import { PageIcon } from './icons'
+import type { CSSProperties, ReactNode } from 'react'
+import { InfoIcon, PageIcon } from './icons'
 import type { PageIconName } from './icons'
 import { TrendLine } from './Sparkline'
 import { Card } from './ui/Card'
 import { Delta } from './ui/Delta'
+import { Tooltip } from './ui/Tooltip'
+import { useI18n } from '../i18n'
 
 const PLATE_CLASS = {
   accent: 'bg-accent/12 text-accent ring-1 ring-accent/20',
@@ -35,6 +37,12 @@ interface StatTileProps {
   upIsBad?: boolean
   /** Position in the band: the tiles arrive left to right rather than all at once. */
   index?: number
+  /**
+   * What this figure measures and what it hides. A tile is a number and a word; the word cannot
+   * carry "only events with an Elapsed property are timed at all", and that sentence is the
+   * difference between reading the p95 and believing it.
+   */
+  help?: ReactNode
 }
 
 /**
@@ -67,13 +75,15 @@ export function StatTile({
   delta,
   upIsBad,
   index = 0,
+  help,
 }: StatTileProps) {
+  const { t } = useI18n()
   const color = trendColor ?? 'var(--color-accent)'
   const hasTrend = trend !== undefined && trend.length > 0
 
   return (
     <Card
-      className={`animate-rise relative overflow-hidden px-4 pt-3 ${hasTrend ? TREND_CLEARANCE : 'pb-4'}`}
+      className={`animate-rise group relative overflow-hidden px-4 pt-3 ${hasTrend ? TREND_CLEARANCE : 'pb-4'}`}
       style={{ '--delay': `${index * 26}ms` } as CSSProperties}
     >
       {/* drawn even for a figure that has no shape, so a tile without one still belongs to the
@@ -94,6 +104,19 @@ export function StatTile({
           </span>
         )}
         <span className="truncate">{label}</span>
+        {help && (
+          <Tooltip content={help}>
+            {/* the affordance stays quiet until the tile is approached: an explanation nobody
+                needs should not compete with the number it sits beside */}
+            <button
+              type="button"
+              aria-label={t.dashboard.help.explain}
+              className="text-fg-subtle hover:text-fg focus-visible:ring-accent/40 flex cursor-help items-center rounded opacity-50 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <InfoIcon />
+            </button>
+          </Tooltip>
+        )}
       </p>
 
       <div className="relative mt-2 flex flex-wrap items-baseline justify-between gap-x-3">

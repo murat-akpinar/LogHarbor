@@ -1,7 +1,10 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { OperationOverview } from '../types'
 import { useOperations } from '../hooks/useStats'
+import { HelpLines, Tooltip } from '../components/ui/Tooltip'
+import { InfoIcon } from '../components/icons'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
 import { TrendBars } from '../components/Sparkline'
@@ -88,17 +91,30 @@ export function RequestsPage() {
     navigate(`/events?${params.toString()}`)
   }
 
-  function sortableHeader(key: SortKey, label: string) {
+  function sortableHeader(key: SortKey, label: string, help?: ReactNode) {
     return (
       <th className={`${TH_CLASS} text-right`} aria-sort={sortKey === key ? 'descending' : undefined}>
-        <button
-          type="button"
-          onClick={() => setSortKey(key)}
-          className={`transition-colors hover:text-fg ${sortKey === key ? 'text-fg' : ''}`}
-        >
-          {label}
-          {sortKey === key ? ' ↓' : ''}
-        </button>
+        <span className="inline-flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setSortKey(key)}
+            className={`transition-colors hover:text-fg ${sortKey === key ? 'text-fg' : ''}`}
+          >
+            {label}
+            {sortKey === key ? ' ↓' : ''}
+          </button>
+          {help && (
+            <Tooltip content={help}>
+              <button
+                type="button"
+                aria-label={t.dashboard.help.explain}
+                className="text-fg-subtle hover:text-fg focus-visible:ring-accent/40 flex cursor-help items-center rounded opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <InfoIcon className="size-3" />
+              </button>
+            </Tooltip>
+          )}
+        </span>
       </th>
     )
   }
@@ -155,9 +171,13 @@ export function RequestsPage() {
           <thead className="border-b border-border">
             <tr>
               <th className={TH_CLASS}>{t.analysis.operation}</th>
-              {sortableHeader('total', t.analysis.eventsPerMin)}
-              {sortableHeader('errorPct', t.analysis.errorPct)}
-              {sortableHeader('p95', t.analysis.p95)}
+              {sortableHeader('total', t.analysis.eventsPerMin, <HelpLines lines={[t.requests.help.rate]} />)}
+              {sortableHeader(
+                'errorPct',
+                t.analysis.errorPct,
+                <HelpLines lines={[t.requests.help.errorPct, t.requests.help.grouping]} />,
+              )}
+              {sortableHeader('p95', t.analysis.p95, <HelpLines lines={[t.requests.help.p95, t.requests.help.timed]} />)}
               <th className={TH_CLASS}>{t.analysis.trend}</th>
             </tr>
           </thead>

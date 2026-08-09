@@ -244,6 +244,31 @@ export const tr: Messages = {
     avgLatency: 'Ort. gecikme',
     p95Latency: 'P95 gecikme',
     activeServices: 'Aktif servisler',
+    help: {
+      explain: 'Bu nedir?',
+      events: {
+        what: 'Seçilen aralıkta saklanan her olay, seviyesi ne olursa olsun.',
+        reading: (total: string, errors: string) => `${total} olay, bunların ${errors} tanesi hata veya ölümcül.`,
+      },
+      errorRate: {
+        what: 'Error veya Fatal seviyesinde yazılan olayların payı.',
+        reading: (errors: string, total: string) => `Aralıktaki ${total} olayın ${errors} tanesi.`,
+        note: 'HTTP durum kodlarını değil, uygulamaların yazmayı seçtiklerini sayar. Onlar için İstekler sayfasına bak.',
+      },
+      avgLatency: {
+        what: 'Elapsed özelliği taşıyan olaylar üzerinden bu özelliğin ortalaması.',
+        note: 'Ortalama kuyruğu gizler: yüzde bir oranında on saniyelik bir istek onu neredeyse hiç oynatmaz. P95 ile birlikte oku.',
+      },
+      p95Latency: {
+        what: 'Süresi ölçülen her 100 olayın 95’i bundan hızlı bitti.',
+        note: 'Yalnızca Elapsed taşıyan olaylar ölçülür; yani bu, tüm trafiği değil ölçülen işi anlatır.',
+      },
+      activeServices: {
+        what: 'Aralıkta görülen farklı service.name değerleri.',
+        note: (limit: string) => `${limit} taneye kadar sayılır; ötesinde ${limit}+ olarak görünür.`,
+      },
+      delta: 'Ok, bunu hemen öncesindeki aynı uzunluktaki pencereyle karşılaştırır.',
+    },
     ingestionLag: 'Toplama gecikmesi',
     lagUnits: { s: 'sn', m: 'dk', h: 'sa', d: 'g' },
     lagWorst: 'en kötü',
@@ -375,6 +400,16 @@ export const tr: Messages = {
   },
   requests: {
     title: 'İstekler',
+    help: {
+      rate: 'Bu rotadaki dakika başına olay sayısı, seçilen aralık boyunca ortalanmış.',
+      errorPct: 'Bu rotanın olaylarının Error veya Fatal seviyesinde yazılanlarının payı.',
+      grouping:
+        'Bir satır olayları rotaya göre toplar, metot olsun olmasın: bir uygulama hatayı ' +
+        'exception handler’dan yazdığında yolu yazar ama fiili yazmaz, ve o hatalar ' +
+        'gerçekleştikleri rotaya aittir.',
+      p95: 'Bu rotada süresi ölçülen her 100 olayın 95’i bundan hızlı bitti.',
+      timed: 'Elapsed taşımayan olaylar ölçülmez; yani bir rota trafik gösterip hiç p95 göstermeyebilir.',
+    },
     statusCodes: 'Durum kodları',
     routeProperty: 'Rota property\'si',
     methodProperty: 'Metot property\'si',

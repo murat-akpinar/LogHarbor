@@ -245,6 +245,34 @@ export const en = {
     avgLatency: 'Avg latency',
     p95Latency: 'P95 latency',
     activeServices: 'Active services',
+    // What each figure measures, and then the thing the figure alone does not say. The second
+    // line is the one worth writing: a number nobody can misread needs no explanation, and every
+    // number here can be misread in one specific way.
+    help: {
+      explain: 'What is this?',
+      events: {
+        what: 'Every event stored in the selected range, at any level.',
+        reading: (total: string, errors: string) => `${total} events, ${errors} of them errors or fatals.`,
+      },
+      errorRate: {
+        what: 'The share of events logged at Error or Fatal level.',
+        reading: (errors: string, total: string) => `${errors} of ${total} events in the range.`,
+        note: 'It counts what applications chose to log, not HTTP status codes. For those, read the Requests page.',
+      },
+      avgLatency: {
+        what: 'The mean of the Elapsed property, across events that carry one.',
+        note: 'An average hides a tail: one request in a hundred at ten seconds barely moves it. Read it beside p95.',
+      },
+      p95Latency: {
+        what: '95 of every 100 timed events finished faster than this.',
+        note: 'Only events carrying an Elapsed property are timed at all, so this describes measured work, not all traffic.',
+      },
+      activeServices: {
+        what: 'Distinct service.name values seen in the range.',
+        note: (limit: string) => `Counted up to ${limit}; beyond that it reads ${limit}+.`,
+      },
+      delta: 'The arrow compares this with the window immediately before it, of the same length.',
+    },
     ingestionLag: 'Ingestion lag',
     lagUnits: { s: 's', m: 'm', h: 'h', d: 'd' },
     lagWorst: 'worst',
@@ -378,6 +406,18 @@ export const en = {
   },
   requests: {
     title: 'Requests',
+    // The route table's three numbers, and the two facts about how a row is assembled that
+    // decide whether they mean what they look like.
+    help: {
+      rate: 'Events on this route per minute, averaged over the selected range.',
+      errorPct: 'The share of this route’s events logged at Error or Fatal level.',
+      grouping:
+        'A row gathers events by route, with or without a method: an application that logs a ' +
+        'failure from an exception handler writes the path and no verb, and those failures ' +
+        'belong to the route they happened on.',
+      p95: '95 of every 100 timed events on this route finished faster than this.',
+      timed: 'Events without an Elapsed property are not timed, so a route can show traffic and no p95 at all.',
+    },
     statusCodes: 'Status codes',
     routeProperty: 'Route property',
     methodProperty: 'Method property',

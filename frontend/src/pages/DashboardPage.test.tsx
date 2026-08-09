@@ -414,6 +414,48 @@ describe('DashboardPage', () => {
       expect(width).toBeLessThanOrEqual(FIFTEEN_MIN_MS + 60_000)
     })
   })
+
+  // A tile is a number and a word, and the word cannot carry "only events with an Elapsed
+  // property are timed at all". Every figure up there can be misread in one specific way, and
+  // the explanation exists to name that way rather than to restate the label.
+  describe('explaining a figure', () => {
+    it('says what the error rate is made of, in the numbers of this very reading', async () => {
+      renderPage()
+      const tiles = await screen.findAllByRole('button', { name: 'What is this?' })
+      // events, error rate, avg, p95, services — in the order the band is laid out
+      tiles[1].focus()
+
+      const tip = await screen.findByRole('tooltip')
+      expect(tip.textContent).toContain('share of events logged at Error or Fatal')
+      // 10 Error + 10 Fatal of 200, taken from the summary this page is drawing
+      expect(tip.textContent).toContain('20 of 200 events')
+      // the caveat, which is the half that makes it worth opening
+      expect(tip.textContent).toContain('not HTTP status codes')
+    })
+
+    it('warns that a p95 only describes what was timed', async () => {
+      renderPage()
+      const tiles = await screen.findAllByRole('button', { name: 'What is this?' })
+      tiles[3].focus()
+
+      const tip = await screen.findByRole('tooltip')
+      expect(tip.textContent).toContain('95 of every 100 timed events')
+      expect(tip.textContent).toContain('measured work, not all traffic')
+    })
+
+    it('explains the arrow where there is one, and not where there is not', async () => {
+      renderPage()
+      const tiles = await screen.findAllByRole('button', { name: 'What is this?' })
+
+      tiles[0].focus()
+      expect((await screen.findByRole('tooltip')).textContent).toContain('window immediately before it')
+
+      // active services carries no delta, so explaining one would describe something absent
+      fireEvent.keyDown(window, { key: 'Escape' })
+      tiles[4].focus()
+      expect((await screen.findByRole('tooltip')).textContent).not.toContain('window immediately before it')
+    })
+  })
 })
 
 describe('alarm state', () => {

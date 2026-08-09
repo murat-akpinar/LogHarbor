@@ -24,6 +24,7 @@ import { SectionBlock } from '../components/ui/SectionBlock'
 import { Panel } from '../components/ui/Panel'
 import { Skeleton } from '../components/ui/States'
 import { StatTile } from '../components/StatTile'
+import { HelpLines } from '../components/ui/Tooltip'
 import { formatDuration } from '../lib/duration'
 import { LiveRangeControls } from '../components/LiveRangeControls'
 import { useLiveRange } from '../hooks/useLiveRange'
@@ -64,6 +65,7 @@ function percentChange(current: number, previous: number): number | null {
 
 export function DashboardPage() {
   const { t, lang } = useI18n()
+  const help = t.dashboard.help
   const navigate = useNavigate()
   const { live, range, presetKey, toggleLive, setRange, setPreset } = useLiveRange()
 
@@ -206,6 +208,15 @@ export function DashboardPage() {
           trendColor={SERIES.volume}
           delta={percentChange(total, previousSummary.data?.total ?? 0)}
           index={0}
+          help={
+            <HelpLines
+              lines={[
+                help.events.what,
+                help.events.reading(total.toLocaleString(lang), errors.toLocaleString(lang)),
+                help.delta,
+              ]}
+            />
+          }
         />
         <StatTile
           label={t.dashboard.errorRate}
@@ -217,6 +228,16 @@ export function DashboardPage() {
           delta={percentChange(errors, previousErrors)}
           upIsBad
           index={1}
+          help={
+            <HelpLines
+              lines={[
+                help.errorRate.what,
+                help.errorRate.reading(errors.toLocaleString(lang), total.toLocaleString(lang)),
+                help.errorRate.note,
+                help.delta,
+              ]}
+            />
+          }
         />
         <StatTile
           label={t.dashboard.avgLatency}
@@ -227,6 +248,7 @@ export function DashboardPage() {
           trendColor={SERIES.avg}
           upIsBad
           index={2}
+          help={<HelpLines lines={[help.avgLatency.what, help.avgLatency.note]} />}
         />
         <StatTile
           label={t.dashboard.p95Latency}
@@ -237,6 +259,7 @@ export function DashboardPage() {
           trendColor={SERIES.p95}
           upIsBad
           index={3}
+          help={<HelpLines lines={[help.p95Latency.what, help.p95Latency.note]} />}
         />
         <StatTile
           label={t.dashboard.activeServices}
@@ -244,6 +267,14 @@ export function DashboardPage() {
           icon="services"
           plate="accent"
           index={4}
+          help={
+            <HelpLines
+              lines={[
+                help.activeServices.what,
+                serviceCount >= SERVICE_SCAN_LIMIT && help.activeServices.note(SERVICE_SCAN_LIMIT.toLocaleString(lang)),
+              ]}
+            />
+          }
         />
       </div>
 
