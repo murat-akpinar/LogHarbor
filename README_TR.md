@@ -326,6 +326,19 @@ Bu alanların altında iki türetilmiş satır var. Biri zaman politikasını c�
 büyüdüğünü ve en eski gün silinmeye başlamadan önce kaç günlük yer kaldığını söylüyor. Yeni
 bir kurulum, tek ölçümden tahmin yürütmek yerine hâlâ ölçtüğünü söyler.
 
+**Bir tavan koymaya değer.** Varsayılanı 0'dır (kapalı), çünkü geçmiş silen bir ayar habersiz
+gelmemeli — ama diğer üç ayarın hepsi *zaman* cinsinden, ve zaman bir disk için yanlış birim.
+Konuşkan bir servis ya da bir log döngüsü, "365 gün sonra sil" vakti gelmeden çok önce diski
+doldurur; ve yazamayan bir LogHarbor, en eski gününü kaybetmiş olandan daha kötüdür.
+
+Sunucunun normal işleyişte asla ulaşmaması gereken bir sayı seçin. Önce oturacağı boyutu
+kestirin — günlük büyüme × sıcak tutulan gün sayısı, artı sıkıştırılmış kuyruk; ikisini de
+Settings sayfası artık raporluyor — sonra bunun birkaç katını pay bırakın ve boş diskin rahatça
+altında kaldığını doğrulayın. Bunun yazıldığı örnekte: günde 25 MB, 90 gün sıcak, yani oturacağı
+boyut ~2.7 GB; tavan 10 GB yapıldı ve sayfa "tavana yaklaşık 396 gün sonra ulaşır" dedi. O
+sayının 365 günlük saklamadan *sonra* olması, tavanın doğru boyutlandığının işareti — zaman
+politikası yönetmeye devam eder, tavan yalnızca anormal bir şey olursa devreye girer.
+
 Son kart dizin ile giriş (LDAP / Active Directory): sunucu, base DN, kullanıcı adının nasıl
 bind'e dönüştüğü, ve yöneticiye/izleyiciye eşlenen iki grup. Hiçbir sır saklanmaz — LogHarbor
 giriş yapan kişinin kendisi olarak bind eder — ve bir **Test** düğmesi, tek bir kullanıcı adı

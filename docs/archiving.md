@@ -41,6 +41,25 @@ A flat or falling fit is reported as "steady" rather than as negative growth —
 when the disk runs out, and "never, at this rate" is the whole answer. Below four readings or
 three hours it says it is still measuring instead of extrapolating from one point.
 
+--- PICKING A CEILING ---
+
+The default of 0 is about not surprising anyone, not about 0 being right. Set one.
+
+Project the settled size first: growth per day (the forecast reports it) x days kept hot, plus
+the compressed tail, which is that daily figure over the remaining retention divided by the
+compression ratio the Settings page shows for this instance's own data. Then take several times
+that as the ceiling and check it is comfortably under the free disk.
+
+Worked example, the test instance on 2026-08-09: 25 MB/day, hot for 90 days -> ~2.3 GB, plus
+275 days compressed at the ~30x measured here -> ~0.25 GB, so about 2.7 GB settled against 64 GB
+of free disk. Ceiling set to 10 GB; the forecast then answered 396 days.
+
+That last number is the check worth doing. 396 is *past* RetentionDays (365), which is what a
+correctly sized ceiling looks like: retention still decides what goes in normal running, and the
+ceiling only ever engages when something abnormal makes the file grow faster than the projection.
+A ceiling the forecast says is reached in fewer days than RetentionDays is not a brake, it is the
+retention policy — silently, and by size rather than by the number the operator set.
+
 Segments are files, not rows. archive_segments stores a day's file name, event count and
 status; the events themselves only exist inside the .br file on disk. That split is why
 GET /api/admin/backup ships a zip of the database AND the archive directory — a database

@@ -319,6 +319,20 @@ a date: the hourly maintenance pass records the database size, and the page repo
 the file is growing and how many days of room are left before the oldest day starts being
 dropped. A new install says it is still measuring rather than guessing from one reading.
 
+**Worth setting a ceiling.** It ships at 0 (off), because a setting that deletes history
+should not arrive unannounced — but the other three settings are all measured in *time*, and
+time is the wrong unit for a disk. A chatty new service or a logging loop fills the volume long
+before "delete after 365 days" comes due, and a LogHarbor that cannot write is worse than one
+missing its oldest day.
+
+Pick a number the server should never reach in normal running. Project the settled size first —
+growth per day × days kept hot, plus the compressed tail, both of which the Settings page now
+reports — then leave several times that as headroom, and check it is still comfortably under
+the free disk. On the instance this was written against: 25 MB/day, hot for 90 days, so about
+2.7 GB settled; the ceiling went to 10 GB, and the page answered "reaches the ceiling in about
+396 days". That number being *past* the 365-day retention is the sign it is sized right — the
+time policy still governs, and the ceiling only ever engages if something abnormal happens.
+
 The last card is directory sign-in (LDAP / Active Directory): server, base DN, how the
 username becomes a bind, and the two groups that map to admin and viewer. Nothing secret is
 stored — LogHarbor binds as the person signing in — and a **Test** button asks the directory
