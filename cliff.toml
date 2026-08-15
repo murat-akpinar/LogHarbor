@@ -1,0 +1,69 @@
+# git-cliff configuration for LogHarbor
+#
+# This repository has two commit eras, and the changelog has to read well across both.
+# Up to v0.1.0 the messages were conventional commits (feat:, docs:, fix:). Since then
+# rules.md has asked for a plain imperative sentence instead ("Stop the deploy script
+# quietly filling the disk it deploys to"), and 120 of the 126 commits after v0.1.0 are
+# written that way. A stock conventional-commit config files all of those under "Other",
+# which is why this one exists: the prefixes are still recognised where they appear, and
+# everything else lands in "Changes" as the finished sentence it already is.
+#
+# Usage:
+#   git-cliff --unreleased            what would go into the next release
+#   git-cliff --tag v0.2.0 -o CHANGELOG.md    write the file for a release being cut
+#   git-cliff --latest                just the most recent released version
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to LogHarbor.\n
+"""
+body = """
+{% if version -%}
+    ## {{ version | trim_start_matches(pat="v") }} — {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+    ## Unreleased
+{% endif %}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+* {{ commit.message | split(pat="\n") | first | trim | upper_first }}
+{%- endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+# the point of this file: an unconventional message is kept whole, not discarded
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = true
+
+commit_preprocessors = [
+  # trailing whitespace in a subject shows up as a ragged bullet
+  { pattern = ' +$', replace = "" },
+]
+
+# First match wins, so the catch-all has to come last.
+commit_parsers = [
+  { message = "^Merge ", skip = true },
+  # the three commits the repository was started with; they describe nothing
+  { message = "^(init|Initial commit)$", skip = true },
+  { message = "^feat", group = "Features" },
+  { message = "^fix", group = "Fixes" },
+  { message = "^perf", group = "Performance" },
+  { message = "^docs", group = "Documentation" },
+  { message = "^test", group = "Tests" },
+  { message = "^refactor", group = "Refactoring" },
+  { message = "^(chore|build|ci|style)", group = "Maintenance" },
+  # the current convention: a whole sentence, already readable as a changelog line
+  { message = ".*", group = "Changes" },
+]
+
+filter_commits = false
+tag_pattern = "v[0-9]*"
+topo_order = false
+sort_commits = "newest"
