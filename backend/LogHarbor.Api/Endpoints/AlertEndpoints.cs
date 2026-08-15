@@ -144,9 +144,15 @@ public static class AlertEndpoints
     /// scheme, host and port, with the path and query — where the secret lives — replaced by a
     /// marker. A URL that will not parse cannot be pruned safely, so it goes entirely.
     /// </summary>
+    /// <remarks>
+    /// Scheme + Authority rather than GetLeftPart(UriPartial.Authority): that overload keeps the
+    /// userinfo, so https://user:password@host/hook masked to https://user:password@host/… and
+    /// handed a viewer the credential this method exists to withhold. Uri.Authority is host and
+    /// port only.
+    /// </remarks>
     private static string MaskWebhook(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var parsed)
-            ? parsed.GetLeftPart(UriPartial.Authority) + "/…"
+            ? $"{parsed.Scheme}://{parsed.Authority}/…"
             : "…";
 
     private static IResult? Validate(AlertRequest request)

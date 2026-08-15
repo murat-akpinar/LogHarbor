@@ -84,4 +84,27 @@ public sealed class AlertWebhookMaskingTests : IDisposable
             "http://mattermost.internal:8065/…",
             rules.EnumerateArray().Single().GetProperty("webhookUrl").GetString());
     }
+
+    /// <summary>
+    /// A target behind HTTP basic auth carries its credential before the host rather than in the
+    /// path — the shape every internal Mattermost, Gitea or nginx-protected hook takes. The mask
+    /// used to keep that half of the URL, which is the one part of it that is a password.
+    /// </summary>
+    [Fact]
+    public async Task MaskedWebhook_DropsCredentialsHeldInTheUserInfo()
+    {
+        await CreateRuleAndViewerAsync(_factory, $"https://hookuser:{Secret}@gitea.internal/hooks/abc123");
+        var viewer = NewClient();
+        await LoginAsync(viewer, "bob", "password123");
+
+        var response = await viewer.GetAsync("/api/alerts");
+        var body = await response.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain(Secret, body);
+        Assert.DoesNotContain("hookuser", body);
+        Assert.Equal(
+            "https://gitea.internal/…",
+            JsonDocument.Parse(body).RootElement.EnumerateArray().Single()
+                .GetProperty("webhookUrl").GetString());
+    }
 }
